@@ -1,15 +1,13 @@
 ---
-title: "Instructor"
+title: "Instructor — Structured LLM outputs validated with Pydantic"
 sidebar_label: "Instructor"
-description: "Extract structured data from LLM responses with Pydantic validation, retry failed extractions automatically, parse complex JSON with type safety, and stream ..."
+description: "Structured LLM outputs validated with Pydantic"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-instructor.md
 ---
-
-
-
 
 # Instructor
 
-Extract structured data from LLM responses with Pydantic validation, retry failed extractions automatically, parse complex JSON with type safety, and stream partial results with Instructor - battle-tested structured output library
+Structured LLM outputs validated with Pydantic.
 
 ## Skill metadata
 
@@ -21,13 +19,12 @@ Extract structured data from LLM responses with Pydantic validation, retry faile
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `instructor`, `pydantic`, `openai`, `anthropic` |
+| Platforms | linux, macos, windows |
 | Tags | `Prompt Engineering`, `Instructor`, `Structured Output`, `Pydantic`, `Data Extraction`, `JSON Parsing`, `Type Safety`, `Validation`, `Streaming`, `OpenAI`, `Anthropic` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Instructor: Structured LLM Outputs
 

@@ -2,10 +2,8 @@
 title: "Architecture Diagram — Dark-themed SVG architecture/cloud/infra diagrams as HTML"
 sidebar_label: "Architecture Diagram"
 description: "Dark-themed SVG architecture/cloud/infra diagrams as HTML"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/creative/creative-architecture-diagram.md
 ---
-
-
-
 
 # Architecture Diagram
 
@@ -20,14 +18,13 @@ Dark-themed SVG architecture/cloud/infra diagrams as HTML.
 | Version | `1.0.0` |
 | Author | Cocoon AI (hello@cocoon-ai.com), ported by Hermes Agent |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `architecture`, `diagrams`, `SVG`, `HTML`, `visualization`, `infrastructure`, `cloud` |
-| Related skills | [`concept-diagrams`](../../../optional/creative/creative-concept-diagrams/), [`excalidraw`](../creative-excalidraw/) |
+| Related skills | [`concept-diagrams`](../../optional/creative/creative-concept-diagrams.md), [`excalidraw`](../../optional/creative/creative-excalidraw.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Architecture Diagram Skill
 

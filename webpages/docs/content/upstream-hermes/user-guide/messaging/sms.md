@@ -1,18 +1,20 @@
 ---
-weight: 8
+sidebar_position: 8
 sidebar_label: "SMS (Twilio)"
 title: "SMS (Twilio)"
 description: "Set up Hermes Agent as an SMS chatbot via Twilio"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/messaging/sms.md
 ---
-
 
 # SMS Setup (Twilio)
 
+Python dependency commands on this page use a
+[PM-prepared source checkout](../../reference/package-management.md#developer-workflow).
+After a dependency change, reactivate the checkout and restart Hermes.
+
 Hermes connects to SMS through the [Twilio](https://www.twilio.com/) API. People text your Twilio phone number and get AI responses back — same conversational experience as Telegram or Discord, but over standard text messages.
-
-> **Info: Shared Credentials**
-> The SMS gateway shares credentials with the optional [telephony skill](../../../reference/skills-catalog/). If you've already set up Twilio for voice calls or one-off SMS, the gateway works with the same `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`.
-
+> **info Shared Credentials**
+The SMS gateway shares credentials with the optional [telephony skill](../../reference/skills-catalog.md). If you've already set up Twilio for voice calls or one-off SMS, the gateway works with the same `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`.
 
 ---
 
@@ -21,7 +23,7 @@ Hermes connects to SMS through the [Twilio](https://www.twilio.com/) API. People
 - **Twilio account** — [Sign up at twilio.com](https://www.twilio.com/try-twilio) (free trial available)
 - **A Twilio phone number** with SMS capability
 - **A publicly accessible server** — Twilio sends webhooks to your server when SMS arrives
-- **aiohttp** — `pip install 'hermes-agent[sms]'`
+- **aiohttp** — `cd ~/.hermes/hermes-agent && python -c "import pm; pm.sync_venv(['sms'], explicit=True)"`
 
 ---
 
@@ -70,20 +72,18 @@ Twilio needs to know where to send incoming messages. In the [Twilio Console](ht
 3. Under **Messaging → A MESSAGE COMES IN**, set:
    - **Webhook**: `https://your-server:8080/webhooks/twilio`
    - **HTTP Method**: `POST`
+> **tip Exposing Your Webhook**
+If you're running Hermes locally, use a tunnel to expose the webhook:
 
-> **Tip: Exposing Your Webhook**
-> If you're running Hermes locally, use a tunnel to expose the webhook:
->
-> ```bash
-> # Using cloudflared
-> cloudflared tunnel --url http://localhost:8080
->
-> # Using ngrok
-> ngrok http 8080
-> ```
->
-> Set the resulting public URL as your Twilio webhook.
+```bash
+# Using cloudflared
+cloudflared tunnel --url http://localhost:8080
 
+# Using ngrok
+ngrok http 8080
+```
+
+Set the resulting public URL as your Twilio webhook.
 
 **Set `SMS_WEBHOOK_URL` to the same URL you configured in Twilio.** This is required for Twilio signature validation — the adapter will refuse to start without it:
 
@@ -109,7 +109,7 @@ hermes gateway
 You should see:
 
 ```
-[sms] Twilio webhook server listening on 0.0.0.0:8080, from: +1555***4567
+[sms] Twilio webhook server listening on 127.0.0.1:8080, from: +1555***4567
 ```
 
 If you see `Refusing to start: SMS_WEBHOOK_URL is required`, set `SMS_WEBHOOK_URL` to the public URL configured in your Twilio Console (see Step 3).
@@ -127,7 +127,7 @@ Text your Twilio number — Hermes will respond via SMS.
 | `TWILIO_PHONE_NUMBER` | Yes | Your Twilio phone number (E.164 format) |
 | `SMS_WEBHOOK_URL` | Yes | Public URL for Twilio signature validation — must match the webhook URL in your Twilio Console |
 | `SMS_WEBHOOK_PORT` | No | Webhook listener port (default: `8080`) |
-| `SMS_WEBHOOK_HOST` | No | Webhook bind address (default: `0.0.0.0`) |
+| `SMS_WEBHOOK_HOST` | No | Webhook bind address (default: `127.0.0.1`) |
 | `SMS_INSECURE_NO_SIGNATURE` | No | Set to `true` to disable signature validation (local dev only — **not for production**) |
 | `SMS_ALLOWED_USERS` | No | Comma-separated E.164 phone numbers allowed to chat |
 | `SMS_ALLOW_ALL_USERS` | No | Set to `true` to allow anyone (not recommended) |
@@ -171,10 +171,8 @@ SMS_ALLOWED_USERS=+15559876543,+15551112222
 # Or allow all (NOT recommended for bots with terminal access)
 SMS_ALLOW_ALL_USERS=true
 ```
-
-> **Warning**
-> SMS has no built-in encryption. Don't use SMS for sensitive operations unless you understand the security implications. For sensitive use cases, prefer Signal or Telegram.
-
+> **warning**
+SMS has no built-in encryption. Don't use SMS for sensitive operations unless you understand the security implications. For sensitive use cases, prefer Signal or Telegram.
 
 ---
 

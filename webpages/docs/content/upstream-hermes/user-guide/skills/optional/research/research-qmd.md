@@ -1,15 +1,13 @@
 ---
-title: "Qmd"
+title: "Qmd — Hybrid local search over notes, docs, and transcripts"
 sidebar_label: "Qmd"
-description: "Search personal knowledge bases, notes, docs, and meeting transcripts locally using qmd — a hybrid retrieval engine with BM25, vector search, and LLM reranking"
+description: "Hybrid local search over notes, docs, and transcripts"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/research/research-qmd.md
 ---
-
-
-
 
 # Qmd
 
-Search personal knowledge bases, notes, docs, and meeting transcripts locally using qmd — a hybrid retrieval engine with BM25, vector search, and LLM reranking. Supports CLI and MCP integration.
+Hybrid local search over notes, docs, and transcripts.
 
 ## Skill metadata
 
@@ -22,13 +20,11 @@ Search personal knowledge bases, notes, docs, and meeting transcripts locally us
 | License | MIT |
 | Platforms | macos, linux |
 | Tags | `Search`, `Knowledge-Base`, `RAG`, `Notes`, `MCP`, `Local-AI` |
-| Related skills | [`obsidian`](../../../bundled/note-taking/note-taking-obsidian/), [`native-mcp`](../../../bundled/mcp/mcp-native-mcp/), [`arxiv`](../../../bundled/research/research-arxiv/) |
+| Related skills | [`obsidian`](../../bundled/note-taking/note-taking-obsidian.md), [`hermes-agent`](../../bundled/autonomous-ai-agents/autonomous-ai-agents-hermes-agent.md), [`arxiv`](../../bundled/research/research-arxiv.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # QMD — Query Markup Documents
 
@@ -310,9 +306,9 @@ cat > ~/Library/LaunchAgents/com.qmd.daemon.plist << 'EOF'
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>/tmp/qmd-daemon.log</string>
+  <string>/Users/YOU/.hermes/cache/scratch/qmd-daemon.log</string>
   <key>StandardErrorPath</key>
-  <string>/tmp/qmd-daemon.log</string>
+  <string>/Users/YOU/.hermes/cache/scratch/qmd-daemon.log</string>
 </dict>
 </plist>
 EOF

@@ -1,15 +1,13 @@
 ---
-title: "Chroma — Open-source embedding database for AI applications"
+title: "Chroma — Embedding database for RAG and semantic search"
 sidebar_label: "Chroma"
-description: "Open-source embedding database for AI applications"
+description: "Embedding database for RAG and semantic search"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-chroma.md
 ---
-
-
-
 
 # Chroma
 
-Open-source embedding database for AI applications. Store embeddings and metadata, perform vector and full-text search, filter by metadata. Simple 4-function API. Scales from notebooks to production clusters. Use for semantic search, RAG applications, or document retrieval. Best for local development and open-source projects.
+Embedding database for RAG and semantic search.
 
 ## Skill metadata
 
@@ -21,13 +19,12 @@ Open-source embedding database for AI applications. Store embeddings and metadat
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `chromadb`, `sentence-transformers` |
+| Platforms | linux, macos, windows |
 | Tags | `RAG`, `Chroma`, `Vector Database`, `Embeddings`, `Semantic Search`, `Open Source`, `Self-Hosted`, `Document Retrieval`, `Metadata Filtering` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Chroma - Open-Source Embedding Database
 

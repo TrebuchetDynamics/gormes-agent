@@ -35,6 +35,22 @@ The status vocabulary is the same as the feature map: `covered`, `planned`,
 upstream repo hygiene, release notes, generated assets, or examples that do not
 change public runtime behavior.
 
+## Mapping Is Not Behavioral Completion
+
+This ledger proves that feature-bearing upstream source classes are represented
+in the plan; it does **not** prove their behavior is implemented. A class marked
+`covered`, a complete progress row, or a passing source-class inventory test
+cannot by itself support a full Hermes-in-Go claim. Use the feature-level
+`webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md` inventory and the
+[runtime plan's full parity exit contract](../hermes-honcho-go-runtime-plan/#full-hermes-parity-exit-contract).
+
+A strict completion result is scoped to an immutable Hermes SHA and requires no
+unmapped behavior, no `partial`/`missing`/`unknown` atoms, passing observable
+contract tests, and no behavior-changing `owned`/`excluded` divergences. A newer
+upstream `main` invalidates the current completion result until its delta is
+reconciled. The existing source-class and nested-path tests are necessary
+inventory checks, not the strict completion gate.
+
 ## Audit Commands
 
 Use these commands during a full parity pass. They intentionally inventory
@@ -80,7 +96,7 @@ executable when sibling upstream checkouts are present.
 | `run_agent.py`, `environments/agent_loop.py`, `hermes_state.py`, `trajectory_compressor.py` | Agent Runtime | `internal/kernel`, `internal/llm`, `internal/persistence/transcript`, `internal/e2e` | Phase 4.I, 4.B, 4.E | planned |
 | `agent/*.py`, `agent/transports/*` | Providers, Models, Credentials; Prompt, Context, Compression | `internal/llm`, `internal/kernel`, `internal/config`, `internal/telemetry` | Phase 4.A-4.H | planned |
 | `providers/**`, `plugins/model-providers/**` | Declarative provider profiles, registry/discovery, auth and model-catalog metadata, transport request hooks | `internal/llm/providerregistry`, `internal/llm/modelcatalog`, `internal/config/credentials`, `internal/doctor` | Phase 4.A, 4.D, 4.H provider rows | planned |
-| `agent/account_usage.py:render_account_usage_lines`, `agent/account_usage.py:fetch_account_usage`, `cli.py` `/usage`, `gateway/run.py:_handle_usage_command`, `tests/test_account_usage.py`, `tests/gateway/test_usage_command.py` | Provider account-usage reporting and gateway usage command | `internal/llm`, `internal/telemetry`, `internal/gateway`, `cmd/gormes` | Phase 4.H rows `Provider account usage read model + renderer` and `Gateway /usage command binding over provider account usage` | planned |
+| `agent/account_usage.py:render_account_usage_lines`, `agent/account_usage.py:fetch_account_usage`, `cli.py` `/usage`, `gateway/run.py:_handle_usage_command`, `tests/agent/test_account_usage.py`, `tests/gateway/test_usage_command.py` | Provider account-usage reporting and gateway usage command | `internal/llm`, `internal/telemetry`, `internal/gateway`, `cmd/gormes` | Phase 4.H rows `Provider account usage read model + renderer` and `Gateway /usage command binding over provider account usage` | planned |
 | root helpers: `hermes_constants.py`, `hermes_logging.py`, `hermes_time.py`, `utils.py` | Redaction, evidence filtering, config/time helpers | `internal/config`, `internal/audit`, `internal/telemetry`, `internal/cli` | Phase 4.E, 5.O | planned |
 | `tools/*.py`, `tools/environments/*`, `tools/browser_providers/*`, `tools/neutts_*` | Tools, Sandboxes, Security | `internal/tools`, `internal/cmdrunner`, `internal/plugins`, `internal/doctor` | Phase 2.A, 5.A-5.N | planned |
 | root tool/model helpers: `model_tools.py`, `toolsets.py`, `toolset_distributions.py`; model registry files `agent/model_metadata.py`, `agent/models_dev.py` | Tool registry, toolsets, model metadata | `internal/tools`, `internal/llm`, `internal/doctor` | Phase 2.A, 4.D, 5.A | planned |
@@ -94,16 +110,38 @@ executable when sibling upstream checkouts are present.
 | `mcp_serve.py`, MCP config helpers | MCP tools and managed gateway | `internal/plugins`, `internal/tools`, `internal/apiserver` | Phase 5.G | planned |
 | `optional-mcps/**`, `hermes_cli/mcp_catalog.py`, `hermes_cli/mcp_picker.py`, `tests/hermes_cli/test_mcp_catalog.py` | Nous-approved optional MCP catalog manifests, diagnostics, picker/list, install/configure, and explicit update behavior | `internal/tools/mcp/catalog`, `internal/platform/cli/gormescli` | Phase 5.G rows `Hermes approved MCP catalog manifest + list command` and `Hermes MCP catalog install/configure lifecycle` | planned |
 | `plugins/**` | Plugins, memory plugins, specialized modes | `internal/plugins`, `internal/tools`, `internal/goncho`, `internal/gonchotools` | Phase 3.G, 5.I; source-backed integration-claim classifications live in [Hermes Integrations Claim Audit](../hermes-integrations-claim-audit/) | planned |
-| `skills/**`, `optional-skills/**` | Skill manager, slash skills, learning loop | `internal/skills`, `development-skills`, `cmd/gormes`; source-backed integration-claim classifications live in [Hermes Integrations Claim Audit](../hermes-integrations-claim-audit/) | Phase 5.F, 6 | planned |
+| `skills/**`, `optional-skills/**`, `optional-skills/yuanbao/SKILL.md` | Skill manager, slash skills, learning loop | `internal/skills`, `development-skills`, `cmd/gormes`; source-backed integration-claim classifications live in [Hermes Integrations Claim Audit](../hermes-integrations-claim-audit/) | Phase 5.F, 6 | planned |
 | `tui_gateway/**`, `ui-tui/**`, `web/**`, `website/**` | TUI, API, public web surfaces | `internal/tui`, `internal/tuigateway`, `internal/apiserver`, `www.gormes.ai` | Phase 5.Q, 5.P | planned |
 | `apps/{desktop,bootstrap-installer,shared}/**` | Electron desktop shell, shared gateway RPC client, and Tauri bootstrap installer | Gormes-owned native TUI plus Go/HTMX operator dashboard and existing Go-native installers; no Electron/Tauri runtime dependency | Phase 1 dashboard/TUI rows and Phase 5.P installer rows | owned replacement |
 | `locales/**`, `tests/agent/test_i18n.py` | Static operator-message localization catalogs and fallback rules | `internal/tui/i18n`, gateway message renderers | Phase 5.W row `Hermes i18n static-message port` | covered |
 | `batch_runner.py`, `mini_swe_runner.py`, `rl_cli.py`, `datagen-config-examples/**` | Batch, mini-SWE, RL, datagen | future research packages, `internal/subagent`, `internal/tools` | Phase 5.M/5.O | planned |
 | `tinker-atropos/**` | RL tinker submodule placeholder (currently empty; reserves slot for atropos environment integration) | future research packages, `internal/subagent` | Phase 5.M | owned (excluded until populated) |
-| `Dockerfile`, `docker/entrypoint.sh`, `docker-compose.yml`, `docker-compose.windows.yml`, `packaging/homebrew/hermes-agent.rb`, `packaging/**`, `nix/**`, `flake.*`, `hermes_bootstrap.py`, `setup-hermes.sh`, `setup.py`, `package.json`, `package-lock.json`, `pyproject.toml`, `uv.lock`, `scripts/release.py`, `scripts/**` | Packaging, Windows UTF-8/import-path bootstrap, and release | installers, service units, Go-native UTF-8 process defaults, OCI image, Homebrew formula, `Makefile`, `cmd/gormes` | Phase 5.P rows `OCI image` and `Homebrew`; Windows installer/runtime fixtures | planned/owned divergence |
+| `Dockerfile`, `docker/entrypoint.sh`, `docker-compose.yml`, `docker-compose.windows.yml`, `nix/**`, `nix/hermes-agent.nix`, `flake.*`, `hermes_bootstrap.py`, `setup-hermes.sh`, `setup.py`, `package.json`, `package-lock.json`, `pyproject.toml`, `uv.lock`, `scripts/release.py`, `scripts/**` | Packaging, Windows UTF-8/import-path bootstrap, and release | installers, service units, Go-native UTF-8 process defaults, OCI image, Homebrew formula, `Makefile`, `cmd/gormes` | Phase 5.P rows `OCI image` and `Homebrew`; Windows installer/runtime fixtures | planned/owned divergence |
 | `tests/**`, `docs/**`, `.plans/**`, `plans/**`, release notes, `AGENTS.md`, `CLAUDE.md`, translated and canonical README/SECURITY/CONTRIBUTING files, `hermes-already-has-routines.md` | Fixture and documentation donors | docs, fixtures, progress source refs | Rows that cite the fixture | covered as evidence |
 
 At pinned Hermes `bb5fc723`, the former root `environments/**` eval classes and raw tool-call parser family are no longer active upstream source classes. Current process environments live under `tools/environments/**`; Gormes' completed raw-parser fixtures remain historical compatibility evidence rather than an active missing parity contract.
+
+### Hermes root-class refresh (2026-09 decomposition)
+
+The 2026-09 `d0288be5b3330d2442e3907185b8e9d0958297bb` decomposition split or
+added these feature-bearing root classes. Each maps to an existing Gormes
+subsystem owned by the rows named below; none is a new runtime contract beyond
+those rows.
+
+| Upstream source class | Feature-map anchor | Go target | Progress anchor | Coverage |
+|---|---|---|---|---|
+| `hermes_state.py` split modules: `hermes_state_common.py`, `hermes_state_compression.py`, `hermes_state_dbfile.py`, `hermes_state_errors.py`, `hermes_state_fts.py`, `hermes_state_gateway.py`, `hermes_state_guard.py`, `hermes_state_health.py`, `hermes_state_holders.py`, `hermes_state_ids.py`, `hermes_state_lockguard.py`, `hermes_state_lockowners.py`, `hermes_state_maintenance.py`, `hermes_state_messages.py`, `hermes_state_portability.py`, `hermes_state_profile_repair.py`, `hermes_state_readpool.py`, `hermes_state_registry.py`, `hermes_state_repair.py`, `hermes_state_rewind.py`, `hermes_state_schema.py`, `hermes_state_search.py`, `hermes_state_sessions.py`, `hermes_state_telegram.py`, `hermes_state_timeline.py`, `hermes_state_titles.py`, `hermes_state_usage.py`, `hermes_state_user_copy.py`, `hermes_state_wal.py`, `hermes_yaml.py` | Sessions/transcript store, WAL and lock ownership, FTS, usage counters, YAML policy | `internal/persistence/session`, `internal/persistence/transcript`, `internal/config` | Phase 3.E, 4.E | planned |
+| `hermes_platform/**` | Platform declaration and resolver helpers | `internal/platform`, `internal/config` | Phase 5.O | planned |
+| `hermes_startup_watchdog.py` | Gateway startup-liveness watchdog | `internal/gateway`, `internal/doctor` | Phase 2.F | planned |
+| `hermes_constants_scratch.py` | Scratch-directory retention and reaping | `internal/tools`, `internal/doctor` | Phase 4.E | planned |
+| `registration_lifecycle.py` | Replaceable-registration ownership leases | `internal/plugins`, `internal/config` | Phase 5.I | planned |
+| `native/**`, `native/fts5_cjk` | Native FTS5 CJK tokenizer extension | `internal/persistence/session` | Phase 3.C | planned |
+| `plugin-catalog/**` | Plugin and MCP catalog manifests | `internal/tools/mcp/catalog`, `internal/plugins` | Phase 5.G | planned |
+| `pm/**` | Build/package-manager adjunct | installers, `scripts/`, `cmd/gormes` | Phase 5.P | planned/owned divergence |
+| `evals/**` | Deterministic eval probes | `internal/e2e`, `internal/kernel` | Phase 4.I | planned |
+| `COMPAT_MANIFEST.md`, `compat_manifest.json` | Temporary plugin-compat pointers from the decomposition | `internal/plugins`, `internal/compat/hermes` | Phase 5.I | excluded as temporary compatibility pointers |
+| `SOUL.md` | Default agent identity/personality seed | `internal/llm/default_soul.go`, `internal/core/agenttemplate` | Phase 4.I | planned |
+| `tests-js/**` | Browser/desktop JS fixture donors | docs, fixtures, progress source refs | Rows that cite the fixture | covered as evidence |
 
 ## Honcho Source Coverage
 

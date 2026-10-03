@@ -2,8 +2,8 @@
 title: "Unsloth — Unsloth: 2-5x faster LoRA/QLoRA fine-tuning, less VRAM"
 sidebar_label: "Unsloth"
 description: "Unsloth: 2-5x faster LoRA/QLoRA fine-tuning, less VRAM"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-training-unsloth.md
 ---
-
 
 # Unsloth
 
@@ -23,14 +23,12 @@ Unsloth: 2-5x faster LoRA/QLoRA fine-tuning, less VRAM.
 | Tags | `Fine-Tuning`, `Unsloth`, `Fast Training`, `LoRA`, `QLoRA`, `Memory-Efficient`, `Optimization`, `Llama`, `Mistral`, `Gemma`, `Qwen` |
 
 ## Reference: full SKILL.md
-
-> **Info**
->
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Unsloth Skill
 
-Comprehensive assistance with unsloth development, generated from official documentation.
+Assistance with unsloth development, generated from official documentation.
 
 ## When to Use This Skill
 
@@ -49,7 +47,7 @@ This skill should be triggered when:
 
 ## Reference Files
 
-This skill includes comprehensive documentation in `references/`:
+This skill includes full documentation in `references/`:
 
 - **llms-txt.md** - Llms-Txt documentation
 

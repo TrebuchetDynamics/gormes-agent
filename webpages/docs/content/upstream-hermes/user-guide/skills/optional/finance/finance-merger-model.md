@@ -1,13 +1,13 @@
 ---
-title: "Merger Model — Build accretion/dilution (merger) models in Excel — pro-forma P&L, synergies, financing mix, EPS impact"
+title: "Merger Model — Build M&A accretion/dilution workbooks in Excel"
 sidebar_label: "Merger Model"
-description: "Build accretion/dilution (merger) models in Excel — pro-forma P&L, synergies, financing mix, EPS impact"
+description: "Build M&A accretion/dilution workbooks in Excel"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/finance/finance-merger-model.md
 ---
-
 
 # Merger Model
 
-Build accretion/dilution (merger) models in Excel — pro-forma P&L, synergies, financing mix, EPS impact. Pairs with excel-author. Use for M&A pitches, board materials, or deal evaluation.
+Build M&A accretion/dilution workbooks in Excel.
 
 ## Skill metadata
 
@@ -20,11 +20,10 @@ Build accretion/dilution (merger) models in Excel — pro-forma P&L, synergies, 
 | License | Apache-2.0 |
 | Platforms | linux, macos, windows |
 | Tags | `finance`, `m-and-a`, `merger`, `accretion-dilution`, `excel`, `openpyxl`, `modeling`, `investment-banking` |
-| Related skills | [`excel-author`](../finance-excel-author/), [`pptx-author`](../finance-pptx-author/), [`dcf-model`](../finance-dcf-model/), [`3-statement-model`](../finance-3-statement-model/) |
+| Related skills | [`excel-author`](../../optional/finance/finance-excel-author.md), [`pptx-author`](../../optional/finance/finance-pptx-author.md), [`dcf-model`](../../optional/finance/finance-dcf-model.md), [`3-statement-model`](../../optional/finance/finance-3-statement-model.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
+> **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 ## Environment
@@ -141,7 +140,6 @@ Calculate the minimum synergies needed for the deal to be EPS-neutral in Year 1.
 - Synergy phase-in is critical — Year 1 is often only 25-50% of run-rate synergies
 - Don't forget foregone interest income on cash used and new interest expense on debt raised
 - Tax rate on synergies and interest adjustments should match the acquirer's marginal rate
-
 
 ## Data sources — MCP first, web fallback
 

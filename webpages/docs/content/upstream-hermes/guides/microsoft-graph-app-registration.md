@@ -1,6 +1,7 @@
 ---
 title: "Register a Microsoft Graph Application"
 description: "Azure portal walkthrough for creating the app registration that powers the Teams meeting pipeline"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/guides/microsoft-graph-app-registration.md
 ---
 
 # Register a Microsoft Graph Application

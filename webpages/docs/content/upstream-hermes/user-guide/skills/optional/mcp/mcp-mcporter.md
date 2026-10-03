@@ -1,15 +1,13 @@
 ---
-title: "Mcporter"
+title: "Mcporter — List, auth, and call MCP servers/tools from the terminal"
 sidebar_label: "Mcporter"
-description: "Use the mcporter CLI to list, configure, auth, and call MCP servers/tools directly (HTTP or stdio), including ad-hoc servers, config edits, and CLI/type gene..."
+description: "List, auth, and call MCP servers/tools from the terminal"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mcp/mcp-mcporter.md
 ---
-
-
-
 
 # Mcporter
 
-Use the mcporter CLI to list, configure, auth, and call MCP servers/tools directly (HTTP or stdio), including ad-hoc servers, config edits, and CLI/type generation.
+List, auth, and call MCP servers/tools from the terminal.
 
 ## Skill metadata
 
@@ -20,13 +18,12 @@ Use the mcporter CLI to list, configure, auth, and call MCP servers/tools direct
 | Version | `1.0.0` |
 | Author | community |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `MCP`, `Tools`, `API`, `Integrations`, `Interop` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # mcporter
 

@@ -1,15 +1,13 @@
 ---
-title: "Scrapling"
+title: "Scrapling — Scrape sites with stealth browsing and Cloudflare bypass"
 sidebar_label: "Scrapling"
-description: "Web scraping with Scrapling - HTTP fetching, stealth browser automation, Cloudflare bypass, and spider crawling via CLI and Python"
+description: "Scrape sites with stealth browsing and Cloudflare bypass"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/research/research-scrapling.md
 ---
-
-
-
 
 # Scrapling
 
-Web scraping with Scrapling - HTTP fetching, stealth browser automation, Cloudflare bypass, and spider crawling via CLI and Python.
+Scrape sites with stealth browsing and Cloudflare bypass.
 
 ## Skill metadata
 
@@ -20,14 +18,13 @@ Web scraping with Scrapling - HTTP fetching, stealth browser automation, Cloudfl
 | Version | `1.0.0` |
 | Author | FEUAZUR |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `Web Scraping`, `Browser`, `Cloudflare`, `Stealth`, `Crawling`, `Spider` |
-| Related skills | [`duckduckgo-search`](../research-duckduckgo-search/), [`domain-intel`](../research-domain-intel/) |
+| Related skills | [`duckduckgo-search`](../../optional/research/research-duckduckgo-search.md), [`domain-intel`](../../optional/research/research-domain-intel.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Scrapling
 

@@ -2,10 +2,8 @@
 title: "Llm Wiki — Karpathy's LLM Wiki: build/query interlinked markdown KB"
 sidebar_label: "Llm Wiki"
 description: "Karpathy's LLM Wiki: build/query interlinked markdown KB"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/research/research-llm-wiki.md
 ---
-
-
-
 
 # Llm Wiki
 
@@ -20,14 +18,13 @@ Karpathy's LLM Wiki: build/query interlinked markdown KB.
 | Version | `2.1.0` |
 | Author | Hermes Agent |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `wiki`, `knowledge-base`, `research`, `notes`, `markdown`, `rag-alternative` |
-| Related skills | [`obsidian`](../../note-taking/note-taking-obsidian/), [`arxiv`](../research-arxiv/) |
+| Related skills | [`obsidian`](../../bundled/note-taking/note-taking-obsidian.md), [`arxiv`](../../bundled/research/research-arxiv.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Karpathy's LLM Wiki
 
@@ -52,7 +49,7 @@ Use this skill when the user:
 
 ## Wiki Location
 
-**Location:** Set via `WIKI_PATH` environment variable (e.g. in `~/.hermes/.env`).
+**Location:** Set via `WIKI_PATH` environment variable (e.g. in `${HERMES_HOME:-~/.hermes}/.env`).
 
 If unset, defaults to `~/wiki`.
 
@@ -475,7 +472,7 @@ Wants=network-online.target
 
 [Service]
 ExecStart=/path/to/ob sync --continuous
-WorkingDirectory=/home/user/wiki
+WorkingDirectory=%h/wiki
 Restart=on-failure
 RestartSec=10
 

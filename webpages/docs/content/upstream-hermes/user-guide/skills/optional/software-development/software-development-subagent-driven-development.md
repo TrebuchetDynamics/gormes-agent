@@ -2,8 +2,8 @@
 title: "Subagent Driven Development — Execute plans via delegate_task subagents (2-stage review)"
 sidebar_label: "Subagent Driven Development"
 description: "Execute plans via delegate_task subagents (2-stage review)"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/software-development/software-development-subagent-driven-development.md
 ---
-
 
 # Subagent Driven Development
 
@@ -20,11 +20,10 @@ Execute plans via delegate_task subagents (2-stage review).
 | License | MIT |
 | Platforms | linux, macos, windows |
 | Tags | `delegation`, `subagent`, `implementation`, `workflow`, `parallel` |
-| Related skills | `plan`, `requesting-code-review`, `test-driven-development` |
+| Related skills | [`requesting-code-review`](../../bundled/software-development/software-development-requesting-code-review.md), [`test-driven-development`](../../bundled/software-development/software-development-test-driven-development.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
+> **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Subagent-Driven Development

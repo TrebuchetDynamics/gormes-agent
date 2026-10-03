@@ -1,9 +1,9 @@
 ---
-weight: 4
+sidebar_position: 4
 title: "Tutorial: Team Telegram Assistant"
 description: "Step-by-step guide to setting up a Telegram bot that your whole team can use for code help, research, system admin, and more"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/guides/team-telegram-assistant.md
 ---
-
 
 # Set Up a Team Telegram Assistant
 
@@ -25,13 +25,11 @@ A Telegram bot that:
 
 Before starting, make sure you have:
 
-- **Hermes Agent installed** on a server or VPS (not your laptop — the bot needs to stay running). Follow the [installation guide](../../getting-started/installation/) if you haven't yet.
+- **Hermes Agent installed** on a server or VPS (not your laptop — the bot needs to stay running). Follow the [installation guide](../getting-started/installation.md) if you haven't yet.
 - **A Telegram account** for yourself (the bot owner)
 - **An LLM provider configured** — at minimum, an API key for OpenAI, Anthropic, or another supported provider in `~/.hermes/.env`
-
-> **Tip**
-> A $5/month VPS is plenty for running the gateway. Hermes itself is lightweight — the LLM API calls are what cost money, and those happen remotely.
-
+> **tip**
+A $5/month VPS is plenty for running the gateway. Hermes itself is lightweight — the LLM API calls are what cost money, and those happen remotely.
 
 ---
 
@@ -73,10 +71,8 @@ Every Telegram bot starts with **@BotFather** — Telegram's official bot for cr
    help - Show available commands
    stop - Stop the current task
    ```
-
-> **Warning**
-> Keep your bot token secret. Anyone with the token can control the bot. If it leaks, use `/revoke` in BotFather to generate a new one.
-
+> **warning**
+Keep your bot token secret. Anyone with the token can control the bot. If it leaks, use `/revoke` in BotFather to generate a new one.
 
 ---
 
@@ -111,10 +107,8 @@ Your Telegram user ID is a numeric value (not your username). To find it:
 1. Message [@userinfobot](https://t.me/userinfobot) on Telegram
 2. It instantly replies with your numeric user ID
 3. Copy that number into `TELEGRAM_ALLOWED_USERS`
-
-> **Info**
-> Telegram user IDs are permanent numbers like `123456789`. They're different from your `@username`, which can change. Always use the numeric ID for allowlists.
-
+> **info**
+Telegram user IDs are permanent numbers like `123456789`. They're different from your `@username`, which can change. Always use the numeric ID for allowlists.
 
 ---
 
@@ -173,10 +167,8 @@ hermes gateway start
 hermes gateway stop
 tail -f ~/.hermes/logs/gateway.log
 ```
-
-> **Tip: macOS PATH**
-> The launchd plist captures your shell PATH at install time so gateway subprocesses can find tools like Node.js and ffmpeg. If you install new tools later, re-run `hermes gateway install` to update the plist.
-
+> **tip macOS PATH**
+The launchd plist captures your shell PATH at install time so gateway subprocesses can find tools like Node.js and ffmpeg. If you install new tools later, re-run `hermes gateway install` to update the plist.
 
 ### Verify It's Running
 
@@ -238,10 +230,8 @@ hermes pairing revoke telegram 987654321
 # Clear expired pending codes
 hermes pairing clear-pending
 ```
-
-> **Tip**
-> DM pairing is ideal for teams because you don't need to restart the gateway when adding new users. Approvals take effect immediately.
-
+> **tip**
+DM pairing is ideal for teams because you don't need to restart the gateway when adding new users. Approvals take effect immediately.
 
 ### Security Considerations
 
@@ -292,7 +282,7 @@ Users can also change this per-session with the `/verbose` command in chat.
 
 Customize how the bot communicates by editing `~/.hermes/SOUL.md`:
 
-For a full guide, see [Use SOUL.md with Hermes](../use-soul-with-hermes/).
+For a full guide, see [Use SOUL.md with Hermes](./use-soul-with-hermes.md).
 
 ```markdown
 # Soul
@@ -315,10 +305,8 @@ If your team works on specific projects, create context files so the bot knows y
 - Production deploys to AWS ECS
 - Always suggest writing tests for new code
 ```
-
-> **Info**
-> Context files are injected into every session's system prompt. Keep them concise — every character counts against your token budget.
-
+> **info**
+Context files are injected into every session's system prompt. Keep them concise — every character counts against your token budget.
 
 ---
 
@@ -360,10 +348,8 @@ hermes cron status        # Check if scheduler is running
 /cron list                # View jobs
 /cron remove <job_id>     # Remove a job
 ```
-
-> **Warning**
-> Cron job prompts run in completely fresh sessions with no memory of prior conversations. Make sure each prompt contains **all** the context the agent needs — file paths, URLs, server addresses, and clear instructions.
-
+> **warning**
+Cron job prompts run in completely fresh sessions with no memory of prior conversations. Make sure each prompt contains **all** the context the agent needs — file paths, URLs, server addresses, and clear instructions.
 
 ---
 
@@ -375,7 +361,7 @@ On a shared team bot, use Docker as the terminal backend so agent commands run i
 
 ```bash
 # In ~/.hermes/.env
-TERMINAL_BACKEND=docker
+TERMINAL_ENV=docker
 TERMINAL_DOCKER_IMAGE=nikolaik/python-nodejs:python3.11-nodejs20
 ```
 
@@ -429,13 +415,13 @@ hermes gateway stop && hermes gateway start
 
 You've got a working team Telegram assistant. Here are some next steps:
 
-- **[Security Guide](../../user-guide/security/)** — deep dive into authorization, container isolation, and command approval
-- **[Messaging Gateway](../../user-guide/messaging/)** — full reference for gateway architecture, session management, and chat commands
-- **[Telegram Setup](../../user-guide/messaging/telegram/)** — platform-specific details including voice messages and TTS
-- **[Scheduled Tasks](../../user-guide/features/cron/)** — advanced cron scheduling with delivery options and cron expressions
-- **[Context Files](../../user-guide/features/context-files/)** — AGENTS.md, SOUL.md, and .cursorrules for project knowledge
-- **[Personality](../../user-guide/features/personality/)** — built-in personality presets and custom persona definitions
-- **Add more platforms** — the same gateway can simultaneously run [Discord](../../user-guide/messaging/discord/), [Slack](../../user-guide/messaging/slack/), and [WhatsApp](../../user-guide/messaging/whatsapp/)
+- **[Security Guide](../user-guide/security.md)** — deep dive into authorization, container isolation, and command approval
+- **[Messaging Gateway](../user-guide/messaging/index.md)** — full reference for gateway architecture, session management, and chat commands
+- **[Telegram Setup](../user-guide/messaging/telegram.md)** — platform-specific details including voice messages and TTS
+- **[Scheduled Tasks](../user-guide/features/cron.md)** — advanced cron scheduling with delivery options and cron expressions
+- **[Context Files](../user-guide/features/context-files.md)** — AGENTS.md, SOUL.md, and .cursorrules for project knowledge
+- **[Personality](../user-guide/features/personality.md)** — built-in personality presets and custom persona definitions
+- **Add more platforms** — the same gateway can simultaneously run [Discord](../user-guide/messaging/discord.md), [Slack](../user-guide/messaging/slack.md), and [WhatsApp](../user-guide/messaging/whatsapp.md)
 
 ---
 

@@ -1,14 +1,14 @@
 ---
-weight: 2
+sidebar_position: 2
 sidebar_label: "Google Workspace"
 title: "Google Workspace — Gmail, Calendar, Drive, Sheets & Docs"
 description: "Send email, manage calendar events, search Drive, read/write Sheets, and access Docs — all through OAuth2-authenticated Google APIs"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/google-workspace.md
 ---
-
 
 # Google Workspace Skill
 
-Gmail, Calendar, Drive, Contacts, Sheets, and Docs integration for Hermes. Uses OAuth2 with automatic token refresh. Prefers the [Google Workspace CLI (`gws`)](https://github.com/nicholasgasior/gws) when available for broader coverage, and falls back to Google's Python client libraries otherwise.
+Gmail, Calendar, Drive, Contacts, Sheets, and Docs integration for Hermes. Uses OAuth2 with automatic token refresh. Prefers the [Google Workspace CLI (`gws`)](https://github.com/googleworkspace/cli) when available for broader coverage, and falls back to Google's Python client libraries otherwise.
 
 **Skill path:** `skills/productivity/google-workspace/`
 
@@ -20,10 +20,8 @@ The setup is fully agent-driven — ask Hermes to set up Google Workspace and it
 2. **Create OAuth 2.0 credentials** (Desktop app type) and download the client secret JSON
 3. **Authorize** — Hermes generates an auth URL, you approve in the browser, paste back the redirect URL
 4. **Done** — token auto-refreshes from that point on
-
-> **Tip: Email-only users**
-> If you only need email (no Calendar/Drive/Sheets), use the **himalaya** skill instead — it works with a Gmail App Password and takes 2 minutes. No Google Cloud project needed.
-
+> **tip Email-only users**
+If you only need email (no Calendar/Drive/Sheets), use the **himalaya** skill instead — it works with a Gmail App Password and takes 2 minutes. No Google Cloud project needed.
 
 ## Gmail
 
@@ -73,7 +71,7 @@ The `--from` flag lets you customize the sender display name on outgoing emails.
 $GAPI gmail send --to client@co.com --subject "Research Summary" \
   --from '"Research Agent" <shared@company.com>' --body "..."
 
-# Agent 2  
+# Agent 2
 $GAPI gmail send --to client@co.com --subject "Code Review" \
   --from '"Code Assistant" <shared@company.com>' --body "..."
 ```
@@ -127,10 +125,8 @@ $GAPI calendar create --summary "Lunch" \
 # Delete event
 $GAPI calendar delete EVENT_ID
 ```
-
-> **Warning**
-> Calendar times **must** include a timezone offset (e.g. `-07:00`) or use UTC (`Z`). Bare datetimes like `2026-03-01T10:00:00` are ambiguous and will be treated as UTC.
-
+> **warning**
+Calendar times **must** include a timezone offset (e.g. `-07:00`) or use UTC (`Z`). Bare datetimes like `2026-03-01T10:00:00` are ambiguous and will be treated as UTC.
 
 ## Drive
 

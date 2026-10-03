@@ -1,15 +1,13 @@
 ---
-title: "One Three One Rule — Structured decision-making framework for technical proposals and trade-off analysis"
+title: "One Three One Rule — 1-3-1 decision briefs: problem, three options, one pick"
 sidebar_label: "One Three One Rule"
-description: "Structured decision-making framework for technical proposals and trade-off analysis"
+description: "1-3-1 decision briefs: problem, three options, one pick"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/communication/communication-one-three-one-rule.md
 ---
-
-
-
 
 # One Three One Rule
 
-Structured decision-making framework for technical proposals and trade-off analysis. When the user faces a choice between multiple approaches (architecture decisions, tool selection, refactoring strategies, migration paths), this skill produces a 1-3-1 format: one clear problem statement, three distinct options with pros/cons, and one concrete recommendation with definition of done and implementation plan. Use when the user asks for a "1-3-1", says "give me options", or needs help choosing between competing approaches.
+1-3-1 decision briefs: problem, three options, one pick.
 
 ## Skill metadata
 
@@ -20,13 +18,12 @@ Structured decision-making framework for technical proposals and trade-off analy
 | Version | `1.0.0` |
 | Author | Willard Moore |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `communication`, `decision-making`, `proposals`, `trade-offs` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # 1-3-1 Communication Rule
 

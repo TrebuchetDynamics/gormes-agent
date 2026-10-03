@@ -156,6 +156,12 @@ test('markdown transform creates frontmatter for plain markdown', () => {
   );
 });
 
+test('markdown transform adds a title to existing frontmatter without one', () => {
+  const transformed = transformMarkdown(`---\ndescription: Example page\n---\n\n# Example page\n`, 'guides/example.md');
+
+  assert.equal(transformed.startsWith('---\ntitle: "Example page"\ndescription: Example page\n'), true);
+});
+
 test('markdown transform rewrites relative links when CLI docs move into subfolders', () => {
   const raw = `---\ntitle: Channels\n---\n\n[CLI](../) [gateway](../gateway/) [telegram guide](../../configure/telegram/)\n`;
   const transformed = transformMarkdown(raw, 'cli/channels.md');

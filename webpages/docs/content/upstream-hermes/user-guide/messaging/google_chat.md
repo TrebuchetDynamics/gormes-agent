@@ -1,7 +1,8 @@
 ---
-weight: 12
+sidebar_position: 12
 title: "Google Chat"
 description: "Set up Hermes Agent as a Google Chat bot using Cloud Pub/Sub"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/messaging/google_chat.md
 ---
 
 # Google Chat Setup
@@ -13,12 +14,12 @@ process does not need a public URL, a tunnel, or a TLS certificate. It connects,
 authenticates, and listens on a subscription — the same way a Telegram bot listens
 on a token.
 
-> **Note: Workspace edition**
->
-> Google Chat is part of Google Workspace. You can use this integration with a
-> personal Workspace (`@yourdomain.com` registered through Google) or a work
-> Workspace where you have the Admin rights to publish an app. Gmail-only accounts
-> cannot host Chat apps.
+> Run `hermes gateway setup` and pick **Google Chat** for a guided walk-through.
+> **note Workspace edition**
+Google Chat is part of Google Workspace. You can use this integration with a
+personal Workspace (`@yourdomain.com` registered through Google) or a work
+Workspace where you have the Admin rights to publish an app. Gmail-only accounts
+cannot host Chat apps.
 
 ## Overview
 
@@ -65,13 +66,11 @@ Both are free for the volumes a personal bot generates.
 After creation, open the SA, go to **Keys → Add Key → Create new key → JSON** and
 download the file. Save it somewhere only Hermes can read (e.g.,
 `~/.hermes/google-chat-sa.json`, `chmod 600`).
-
-> **Caution: There is NO "Chat Bot Caller" role**
->
-> A common mistake is to search for a Chat-specific IAM role and grant it at the
-> project level. That role doesn't exist. Chat bot authority comes from being
-> installed in a space, not from IAM. All your SA needs is Pub/Sub subscriber on
-> the subscription you create in the next step.
+> **caution There is NO "Chat Bot Caller" role**
+A common mistake is to search for a Chat-specific IAM role and grant it at the
+project level. That role doesn't exist. Chat bot authority comes from being
+installed in a space, not from IAM. All your SA needs is Pub/Sub subscriber on
+the subscription you create in the next step.
 
 ---
 
@@ -164,11 +163,28 @@ GOOGLE_CHAT_MAX_BYTES=16777216                  # 16 MiB — cap on in-flight me
 The project ID also falls back to `GOOGLE_CLOUD_PROJECT`, and the SA path falls
 back to `GOOGLE_APPLICATION_CREDENTIALS` — use whichever convention you prefer.
 
-Install Hermes with the optional dependencies:
+Under a [multi-profile gateway](../multi-profile-gateways.md), every
+`GOOGLE_CHAT_*` setting is read from the routed profile's own `.env`; a
+secondary profile never inherits the default profile's project, subscription,
+or service account. If a profile has no SA configured while the process
+environment carries one for another profile, the adapter refuses to fall back
+to Application Default Credentials (which would authenticate as that other
+profile) and logs an explicit error instead — put
+`GOOGLE_CHAT_SERVICE_ACCOUNT_JSON` in that profile's `.env`.
+
+Install the Google Chat adapter dependencies through its maintained installer.
+It applies the same pinned security floors used by the runtime checks:
 
 ```bash
-pip install 'hermes-agent[google_chat]'
+python -m plugins.platforms.google_chat.oauth --install-deps
 ```
+
+`--install-deps` asks PM to add the `google-chat` extra to the managed Python
+environment (`pm.sync_venv`); restart the gateway after it finishes so the new
+environment is active. On Docker / hosted images the venv is read-only and
+on-demand installs are disabled (`HERMES_DISABLE_LAZY_INSTALLS=1`), so this
+step cannot add anything there. The published image bakes the `[google-chat]`
+extra instead, so a fresh container does not need a first-boot install.
 
 Start the gateway:
 
@@ -186,6 +202,23 @@ You should see a log line like:
 Send "hola" in the test DM. The bot posts a "Hermes is thinking…" marker, then
 edits that same message in place with the real response — no "message deleted"
 tombstones.
+
+### Customizing the working-state marker
+
+The marker text is configurable via `typing_status_text` in
+`~/.hermes/config.yaml` — e.g. a kitten assistant named Ada:
+
+```yaml
+platforms:
+  google_chat:
+    # Custom working-state marker text (default: "Hermes is thinking…").
+    typing_status_text: "is pouncing… 🐾"
+```
+
+Unlike Slack's ephemeral status line, this is a **real posted message** that
+gets edited in place with the response — so whatever you set here briefly
+appears in the chat as a normal message. Set `typing_indicator: false` to
+disable the marker entirely.
 
 ---
 
@@ -209,6 +242,16 @@ Thread support: when a user replies inside a thread, Hermes detects the
 `thread.name` and posts its reply in the same thread, so each thread gets a
 separate Hermes session.
 
+### Clarify questions as interactive cards
+
+When the agent asks a multiple-choice clarify question, the adapter renders it
+as a native **Card v2** with one button per choice plus an
+**"Other / type answer"** button, instead of a plain numbered text list.
+Clicking a button answers the question directly (`CARD_CLICKED` events route
+the choice back into the waiting session). If the card fails to send, or the
+question has no fixed choices, the adapter falls back to the standard text
+clarify. No configuration needed.
+
 ---
 
 ## Step 10: Native attachment delivery (optional)
@@ -229,21 +272,29 @@ There's no IAM role or scope that fixes this. The endpoint only accepts user
 credentials. So the bot has to act *as a user* whenever it uploads a file —
 specifically, as the user who asked for the file.
 
-### One-time host setup
+### One-time setup (per profile)
 
 1. Go to **APIs & Services → Credentials** in the same GCP project.
 2. **Create credentials → OAuth client ID → Desktop app**.
 3. Download the JSON. Move it onto the host that runs Hermes.
-4. On the host, register the client with Hermes:
+4. Register the client with Hermes (run under the profile you want it scoped to):
 
 ```bash
-python -m gateway.platforms.google_chat_user_oauth \
+# Default profile:
+python -m plugins.platforms.google_chat.oauth \
+    --client-secret /path/to/client_secret.json
+
+# A named profile gets its own separate registration:
+hermes -p <profile> python -m plugins.platforms.google_chat.oauth \
     --client-secret /path/to/client_secret.json
 ```
 
-That writes `~/.hermes/google_chat_user_client_secret.json`. This is shared
-infrastructure — it identifies the OAuth *app*, not any individual user. One
-file per host is enough no matter how many users authorize later.
+That writes the client secret into the active profile's Hermes home (e.g.
+`~/.hermes/google_chat_user_client_secret.json` for the default profile). The
+client secret is **profile-scoped, not shared across profiles** — each profile
+registers its own. This is deliberate: profiles are isolated auth boundaries, so
+two profiles can point at different Google OAuth apps / accounts. Register it
+once per profile that needs Google Chat attachment delivery.
 
 ### Per-user authorization (in chat)
 
@@ -324,13 +375,19 @@ The asker has no per-user OAuth token and there's no legacy fallback. Run
 `/setup-files` in their DM and follow Step 10. After the exchange completes
 the next file request uploads natively without a gateway restart.
 
-**`/setup-files start` says "No client credentials stored on the host."**
+**`/setup-files start` says "No client credentials stored."**
 
-The one-time host setup wasn't done. From a terminal on the host that runs
-Hermes:
+The one-time setup wasn't done *for this profile* (the client secret is
+profile-scoped, so a registration under one profile won't be seen by another).
+From a terminal, run it under the profile the gateway uses:
 
 ```bash
-python -m gateway.platforms.google_chat_user_oauth \
+# Default profile:
+python -m plugins.platforms.google_chat.oauth \
+    --client-secret /path/to/client_secret.json
+
+# Named profile:
+hermes -p <profile> python -m plugins.platforms.google_chat.oauth \
     --client-secret /path/to/client_secret.json
 ```
 

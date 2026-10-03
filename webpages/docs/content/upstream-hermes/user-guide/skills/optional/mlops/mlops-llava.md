@@ -1,15 +1,13 @@
 ---
-title: "Llava — Large Language and Vision Assistant"
+title: "Llava — Vision-language chat: VQA, captioning, image dialogue"
 sidebar_label: "Llava"
-description: "Large Language and Vision Assistant"
+description: "Vision-language chat: VQA, captioning, image dialogue"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-llava.md
 ---
-
-
-
 
 # Llava
 
-Large Language and Vision Assistant. Enables visual instruction tuning and image-based conversations. Combines CLIP vision encoder with Vicuna/LLaMA language models. Supports multi-turn image chat, visual question answering, and instruction following. Use for vision-language chatbots or image understanding tasks. Best for conversational image analysis.
+Vision-language chat: VQA, captioning, image dialogue.
 
 ## Skill metadata
 
@@ -21,13 +19,12 @@ Large Language and Vision Assistant. Enables visual instruction tuning and image
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `transformers`, `torch`, `pillow` |
+| Platforms | linux, macos, windows |
 | Tags | `LLaVA`, `Vision-Language`, `Multimodal`, `Visual Question Answering`, `Image Chat`, `CLIP`, `Vicuna`, `Conversational AI`, `Instruction Tuning`, `VQA` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # LLaVA - Large Language and Vision Assistant
 

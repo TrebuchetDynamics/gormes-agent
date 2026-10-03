@@ -1,9 +1,9 @@
 ---
-weight: 9
+sidebar_position: 9
 title: "Personality & SOUL.md"
 description: "Customize Hermes Agent's personality with a global SOUL.md, built-in personalities, and custom persona definitions"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/features/personality.md
 ---
-
 
 # Personality & SOUL.md
 
@@ -125,7 +125,7 @@ The content goes through:
 - prompt-injection scanning
 - truncation if it is too large
 
-If the file is empty, whitespace-only, or cannot be read, Hermes falls back to a built-in default identity ("You are Hermes Agent, an intelligent AI assistant created by Nous Research..."). This fallback also applies when `skip_context_files` is set (e.g., in subagent/delegation contexts).
+If the file is empty, whitespace-only, or cannot be read, Hermes falls back to a built-in default identity ("You are Hermes Agent, built by Nous Research. Be direct: match the length of your reply to the weight of the ask..."). This fallback also applies when `skip_context_files` is set (e.g., in subagent/delegation contexts).
 
 ## Security scanning
 
@@ -212,7 +212,7 @@ These are convenient overlays, but your global `SOUL.md` still gives Hermes its 
 
 ## Custom personalities in config
 
-You can also define named custom personalities in `~/.hermes/config.yaml` under `agent.personalities`.
+Built-in personalities are always available on every surface (CLI, messaging platforms, TUI, and the desktop app). You can add your own — or override a built-in by reusing its name — in `~/.hermes/config.yaml` under `agent.personalities` (a top-level `personalities:` block works too; `agent.personalities` wins if the same name appears in both).
 
 ```yaml
 agent:
@@ -227,6 +227,22 @@ Then switch to it with:
 ```text
 /personality codereviewer
 ```
+
+Your selection is stored as a name in `display.personality`. Personalities never touch `agent.system_prompt` — that field is reserved for a manual system prompt you write yourself, and it applies only when no personality is selected.
+
+## Resetting to the default
+
+To cancel the active personality overlay and return to base behavior (your `SOUL.md` persona, plus `agent.system_prompt` if you set one), use any of:
+
+```text
+/personality none
+/personality default
+/personality neutral
+```
+
+All three clear the selection (`display.personality`) and the change takes effect on your next message. Running `/personality` with no arguments also lists `none` alongside the available presets and marks the active one.
+> **note One-time reset on upgrade**
+Older Hermes versions saved personality state inconsistently across surfaces, which could re-enable a personality you had previously turned off. On your first run after upgrading, any saved personality selection is reset to `none` once (the migration prints which personality was cleared). Re-enable it with `/personality <name>` if you still want it. Manual `agent.system_prompt` text is never touched.
 
 ## Recommended workflow
 
@@ -257,10 +273,10 @@ At a high level, the prompt stack includes:
 
 ## Related docs
 
-- [Context Files](../context-files/)
-- [Configuration](../../configuration/)
-- [Tips & Best Practices](../../../guides/tips/)
-- [SOUL.md Guide](../../../guides/use-soul-with-hermes/)
+- [Context Files](../../personality/context-files.md/)
+- [Configuration](../../configuration.md/)
+- [Tips & Best Practices](../../../guides/tips.md/)
+- [SOUL.md Guide](../../../guides/use-soul-with-hermes.md/)
 
 ## CLI appearance vs conversational personality
 
@@ -269,4 +285,4 @@ Conversational personality and CLI appearance are separate:
 - `SOUL.md`, `agent.system_prompt`, and `/personality` affect how Hermes speaks
 - `display.skin` and `/skin` affect how Hermes looks in the terminal
 
-For terminal appearance, see [Skins & Themes](../skins/).
+For terminal appearance, see [Skins & Themes](../../personality/skins.md/).

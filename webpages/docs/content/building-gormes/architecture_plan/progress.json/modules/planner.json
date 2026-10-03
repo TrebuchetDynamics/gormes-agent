@@ -406,6 +406,207 @@
     }
   },
   {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 12,
+    "item": {
+      "name": "Hermes observable-behavior parity closure and upstream drift gate",
+      "priority": "P0",
+      "status": "planned",
+      "contract": "A strict, fail-closed gate determines whether Gormes matches observable Hermes behavior at one immutable upstream SHA, with current upstream deltas reconciled. It ties nested source behaviors to Go implementation and deterministic scenario tests; mapping, row completion, weak-only checks, and Gormes-only tests alone are not parity proof.",
+      "contract_status": "validated",
+      "slice_size": "umbrella",
+      "execution_owner": "docs",
+      "module": "planner",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If the upstream checkout is unavailable, its SHA differs from the audited baseline, an inventory is stale, or required tests cannot run, report unverified and fail the full-parity claim; never silently accept a partial report.",
+      "fixture": "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md; internal/planning/progress/repoctl/inventory/hermes_contract_inventory_test.go; Hermes fixtures translated to shared deterministic contract fixtures",
+      "source_refs": [
+        "../hermes-agent/run_agent.py",
+        "../hermes-agent/agent/",
+        "../hermes-agent/tools/",
+        "../hermes-agent/gateway/",
+        "../hermes-agent/hermes_cli/",
+        "../hermes-agent/tests/",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md#full-hermes-parity-exit-contract",
+        "internal/planning/progress/repoctl/inventory/hermes_contract_inventory_test.go",
+        "webpages/docs/upstream_coverage_test.go",
+        "https://github.com/MichaelKinsy/PiG/blob/main/PORT_MAP.md (verification-gate technique only; Hermes remains the compatibility contract)",
+        "https://github.com/MichaelKinsy/PiG/blob/main/parity/coverage.md (evidence-grading technique only; do not copy static coverage percentages)",
+        "https://github.com/MichaelKinsy/PiG/blob/main/DIVERGENCES.md (divergence-record technique only)"
+      ],
+      "ready_when": [
+        "The in-repo Hermes checkout is at the immutable source revision being audited and its upstream origin/main revision is recorded.",
+        "The behavior-atom inventory and nested source/test inventory have been reconciled against that revision; unresolved implementation atoms remain linked to canonical progress.json rows.",
+        "The gate distinguishes strict parity from mapping completeness and Gormes-owned divergences.",
+        "A source diff from the audited Hermes SHA to current origin/main has a deterministic report that classifies each added, modified, or deleted path as mapped behavior, mapped tests, or a justified non-runtime exclusion.",
+        "The scenario evidence format records source behavior, Go target, test/scenario ID, exact Hermes SHA, command, exit result, and whether the assertion proves an observable contract.",
+        "The gate has an explicit record shape for intentional divergences and for source-backed async/concurrency contracts where those affect observable behavior."
+      ],
+      "not_ready_when": [
+        "The report passes while any public behavior is partial, missing, unknown, stale, or unmapped.",
+        "A source-class match, completed progress row, or Gormes-only unit test is treated as proof without a behavior-asserting scenario.",
+        "A behavior-changing divergence or excluded public feature is counted as strict 1:1 parity, or a divergence lacks its observable delta and removal condition.",
+        "The gate requires live credentials/services, silently skips unavailable evidence, leaves upstream deltas unresolved, or counts not-run evidence as complete.",
+        "An observable async/concurrency behavior has no review of ordering, cancellation, error propagation, ownership, or persistence effects where relevant."
+      ],
+      "acceptance": [
+        "The report records the exact audited Hermes SHA and emits an upstream delta from that SHA to current origin/main; every added, modified, or deleted path has a source-backed disposition, and any unresolved path or revision mismatch fails closed.",
+        "The report emits per-status behavior counts and exact unmapped/stale entries, while keeping source-map completeness separate from behavioral verification.",
+        "Each behavior claimed as verified links exact Hermes source/test refs to a Go target and deterministic scenario/test ID whose assertions cover observable output, state, ordering, or errors; report evidence grades distinguish mapped-only, weak-only, scenario-verified, and untested, and weak-only or not-run evidence never satisfies strict coverage.",
+        "For upstream async/concurrent behavior with observable effects, the contract and tests cover relevant ordering, cancellation, error propagation, concurrency/ownership, and session or persistence effects; any not-applicable dimension has a source-backed rationale.",
+        "Each intentional divergence records its rationale, exact observable delta, affected scope, test/evidence, reviewer, and removal condition; any behavior-changing divergence or excluded public Hermes behavior prevents a full 1:1 parity result.",
+        "Critical boundary fixtures compare normalized CLI/config output, tool schemas/results, provider request/stream events, persistence/session state, and gateway channel events without live credentials.",
+        "A negative fixture using the current unresolved inventory fails; a fully reconciled fixture for one fixed SHA passes only when every strict exit condition is met and no public behavior remains partial, missing, unknown, stale, unmapped, weak-only, or untested.",
+        "The final report distinguishes mapping-complete, implementation-incomplete, strict-parity-complete, and unverified; it records the SHA, delta dispositions, evidence counts, divergences, commands and exit results. Missing sources or not-run required evidence produce unverified, never complete."
+      ],
+      "note": "Separate strict-closure work from the completed report-only Hermes contract inventory gate. Baseline checked 2026-09-26: local hermes-agent and origin/main both resolve to d0288be5b3330d2442e3907185b8e9d0958297bb; the checked-in atom inventory currently lists 560 statuses (414 covered, 70 partial, 68 missing, 7 owned, 1 unknown), so it cannot pass strict parity. PiG verification-gate techniques (source-delta dispositions, separate mapping/behavior evidence, async-contract checks, and divergence removal conditions) inform the gate only; Hermes remains the sole compatibility contract. Its published coverage report showed scenario rows as not run when checked 2026-09-26, so its percentages are not fresh verification evidence.",
+      "write_scope": [
+        "internal/planning/progress/repoctl/inventory/",
+        "cmd/gormes-repo/",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/",
+        "webpages/docs/upstream_coverage_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/planning/progress/repoctl/inventory/... -count=1",
+        "go test ./cmd/gormes-repo -count=1",
+        "go test ./webpages/docs -count=1",
+        "go run ./cmd/progress validate",
+        "go test ./... -count=1"
+      ],
+      "done_signal": [
+        "The strict gate rejects the current unresolved inventory, any unresolved upstream delta, and weak-only/not-run evidence; it accepts fully reconciled fixed-SHA fixtures only with zero behavior-changing divergences and reports the exact SHA, behavior-to-test mapping, scenario, command, and result."
+      ]
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 13,
+    "item": {
+      "name": "Hermes source inventory fails closed on traversal errors",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Hermes contract inventory generation must surface upstream source-tree traversal failures instead of silently converting inaccessible or missing source paths into an empty inventory that could be mistaken for complete evidence.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "planner",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "If any Hermes inventory walk fails, report generation returns a path-context error and produces no success report; it never treats the failed traversal as zero unmapped files.",
+      "fixture": "internal/planning/progress/fidelity/report_test.go:TestHermesReportFailsClosedWhenInventoryRootCannotBeWalked",
+      "source_refs": [
+        "internal/planning/progress/fidelity/report.go:GenerateHermesReport",
+        "internal/planning/progress/fidelity/report.go:buildUnmappedUpstreamInventory",
+        "internal/planning/progress/fidelity/report_test.go:TestHermesReportStrictModeFailsOnUncoveredCriticalSurface",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json:4.I Hermes observable-behavior parity closure and upstream drift gate"
+      ],
+      "ready_when": [
+        "The report can be exercised with a temporary repository, a temporary progress fixture, a valid source-pairs manifest, and an explicitly supplied Hermes root; no network, credentials, or live services are needed.",
+        "The test can induce a deterministic Hermes inventory traversal error using a nonexistent explicit source root."
+      ],
+      "not_ready_when": [
+        "The implementation changes parity classification semantics for valid readable Hermes trees or adds a success-shaped partial report after a traversal error.",
+        "The slice expands into unrelated inventory classifications, source-pair schema changes, or runtime behavior."
+      ],
+      "acceptance": [
+        "TestHermesReportFailsClosedWhenInventoryRootCannotBeWalked proves GenerateHermesReport returns an error with Hermes-root context when the explicit source root cannot be traversed.",
+        "Per-entry and terminal filepath.WalkDir failures are propagated; they are not swallowed or counted as an empty unmapped inventory.",
+        "Existing report-only and strict-mode fixtures for valid readable roots continue to pass unchanged."
+      ],
+      "note": "Completed 2026-09-26. RED: go test ./internal/planning/progress/fidelity -run '^TestHermesReportFailsClosedWhenInventoryRootCannotBeWalked$' -count=1 failed because GenerateHermesReport silently succeeded for a missing explicit Hermes root. GREEN: the same test passes after inventory traversal errors and relative-path errors became path-context errors propagated from the report generator. Focused fidelity, inventory, and gormes-repo package tests pass.",
+      "write_scope": [
+        "internal/planning/progress/fidelity/report.go",
+        "internal/planning/progress/fidelity/report_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/",
+        "webpages/docs/content/building-gormes/builder-loop/"
+      ],
+      "test_commands": [
+        "go test ./internal/planning/progress/fidelity -run '^TestHermesReportFailsClosedWhenInventoryRootCannotBeWalked$' -count=1",
+        "go test ./internal/planning/progress/fidelity ./internal/planning/progress/repoctl/inventory/... -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "The focused missing-root test and existing valid-root fidelity/inventory suites pass, and traversal failures return nonzero errors instead of generating a success-shaped inventory."
+      ],
+      "provenance": {
+        "origin_type": "gormes",
+        "note": "Gormes-owned parity-evidence gate hardening; Hermes remains the compatibility target, while source-tree traversal integrity has no separate upstream runtime behavior analog."
+      }
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 14,
+    "item": {
+      "name": "Strict Hermes inventory rejects invalid pinned source-pair references",
+      "priority": "P0",
+      "status": "complete",
+      "contract": "Strict Hermes contract inventory generation validates the source-pairs manifest against the selected Hermes SHA and checks every declared Hermes source/test path before using pair statuses as evidence. Invalid or stale refs return an error before report artifacts are written. This is evidence integrity, not proof of behavioral parity.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "planner",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "Strict mode rejects stale or absent upstream refs; report-only remains informational and cannot serve as parity acceptance.",
+      "fixture": "internal/planning/progress/repoctl/inventory/hermes_contract_inventory_test.go",
+      "source_refs": [
+        "internal/planning/progress/repoctl/sourcepairs/source_pairs.go:ValidateSourcePairs",
+        "internal/planning/progress/repoctl/inventory/hermes_contract_inventory.go:BuildHermesContractInventory",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "hermes-agent/tools/website_policy.py",
+        "hermes-agent/tests/tools/test_vision_tools.py"
+      ],
+      "ready_when": [
+        "Hermes checkout remains pinned at d0288be5b3330d2442e3907185b8e9d0958297bb; sourcepairs.ValidateSourcePairs accepts an injected root and exact SHA.",
+        "Inventory can be exercised with a hermetic temp repo containing a deliberately missing source-pair test ref."
+      ],
+      "not_ready_when": [
+        "Do not refresh the Hermes submodule or rewrite the source-pairs manifest as part of this code slice.",
+        "Do not treat path validation or inventory mappings as behavioral parity proof."
+      ],
+      "acceptance": [
+        "Strict inventory generation returns a source-pairs validation error when any declared Hermes source/test path is absent at the selected checkout and writes no report artifacts.",
+        "Report-only inventory behavior remains unchanged; validation of references is not reported as runtime feature parity.",
+        "When source-pair refs are valid but the report has strict coverage failures, the CLI preserves its existing behavior: write report artifacts, then return the strict-failure error."
+      ],
+      "note": "Hermes remains pinned at d0288be5b3330d2442e3907185b8e9d0958297bb. The source-pairs manifest now matches that SHA and all 27 pairs validate; three deleted test refs were corrected or removed. SyncSourcePairsSHA found 15,576 changed upstream files and demoted 0 covered pairs; all mappings remain partial where behavior is unproven. Strict inventory now writes its report, then exits 1 with strict_failures=12892 from remaining coverage gaps. This is evidence-integrity tooling, not Gormes runtime parity.",
+      "write_scope": [
+        "internal/planning/progress/repoctl/inventory/hermes_contract_inventory.go",
+        "internal/planning/progress/repoctl/inventory/hermes_contract_inventory_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/building-gormes/architecture_plan/completion-plan.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md",
+        "cmd/gormes-repo/main_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/planning/progress/repoctl/inventory -run '^TestBuildHermesContractInventoryStrictRejectsMissingUpstreamSourcePairRef$' -count=1",
+        "go test ./internal/planning/progress/repoctl/inventory -count=1",
+        "go test ./cmd/gormes-repo -count=1"
+      ],
+      "done_signal": [
+        "The focused strict-mode regression and inventory package tests pass; invalid source-pair refs produce an error before report artifacts are written, while report-only output remains available.",
+        "The current source-pairs manifest validates at the pinned SHA; strict inventory still exits 1 with 12,892 coverage failures, so the gate is not green and no runtime parity claim is made."
+      ]
+    }
+  },
+  {
     "phase": "5",
     "subphase": "5.N",
     "pos": 8,

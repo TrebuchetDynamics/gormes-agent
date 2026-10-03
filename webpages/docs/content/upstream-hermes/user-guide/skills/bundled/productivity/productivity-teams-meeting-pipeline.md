@@ -1,13 +1,13 @@
 ---
-title: "Teams Meeting Pipeline"
+title: "Teams Meeting Pipeline — Teams meeting summaries, job replay, Graph subscriptions"
 sidebar_label: "Teams Meeting Pipeline"
-description: "Operate the Teams meeting summary pipeline via Hermes CLI — summarize meetings, inspect pipeline status, replay jobs, manage Microsoft Graph subscriptions"
+description: "Teams meeting summaries, job replay, Graph subscriptions"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/productivity/productivity-teams-meeting-pipeline.md
 ---
-
 
 # Teams Meeting Pipeline
 
-Operate the Teams meeting summary pipeline via Hermes CLI — summarize meetings, inspect pipeline status, replay jobs, manage Microsoft Graph subscriptions.
+Teams meeting summaries, job replay, Graph subscriptions.
 
 ## Skill metadata
 
@@ -18,11 +18,11 @@ Operate the Teams meeting summary pipeline via Hermes CLI — summarize meetings
 | Version | `1.1.0` |
 | Author | Hermes Agent + Teknium |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `Teams`, `Microsoft Graph`, `Meetings`, `Productivity`, `Operations` |
 
 ## Reference: full SKILL.md
-
-> **Info**
+> **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Teams Meeting Pipeline
@@ -48,7 +48,7 @@ Multilingual trigger examples (not exhaustive):
 
 ## Prerequisites
 
-Before using the pipeline, verify these are set in `~/.hermes/.env`:
+Before using the pipeline, verify these are set in `${HERMES_HOME:-~/.hermes}/.env`:
 
 ```bash
 MSGRAPH_TENANT_ID=...
@@ -78,6 +78,7 @@ hermes teams-pipeline subscriptions         # current Graph webhook subscription
 hermes teams-pipeline run <job-id>          # replay a stored job (re-summarize, re-deliver)
 hermes teams-pipeline fetch --meeting-id <id>   # dry-run: resolve meeting + transcript without persisting
 hermes teams-pipeline fetch --join-web-url "<url>"   # dry-run by join URL
+hermes teams-pipeline fetch --join-web-url "<url>" --organizer-user-id <id>   # organizer-scoped lookup (required for /meet/ short URLs)
 ```
 
 ### Subscription management

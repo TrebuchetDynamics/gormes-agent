@@ -1,7 +1,8 @@
 ---
-weight: 3
+sidebar_position: 3
 title: "Managed Scope"
 description: "Administrator-pinned, user-immutable config and secrets via a system-level managed directory"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/managed-scope.md
 ---
 
 # Managed Scope
@@ -15,13 +16,11 @@ machine.
 When a managed scope is present, the values it specifies win over the user's
 `~/.hermes/config.yaml`, `~/.hermes/.env`, and even the shell environment — for
 exactly the keys it pins. Everything else stays fully user-controlled.
-
-> **Note: Different from a package-manager–locked install**
->
-> A package-manager–managed install (declarative-distro / formula) blocks *all*
-> config mutation and tells you to use your package manager. Managed scope is a
-> separate mechanism: it injects *specific immutable values* on a per-key basis
-> rather than locking the whole config. The two are independent and can coexist.
+> **note Different from a package-manager–locked install**
+A package-manager–managed install (declarative-distro / formula) blocks *all*
+config mutation and tells you to use your package manager. Managed scope is a
+separate mechanism: it injects *specific immutable values* on a per-key basis
+rather than locking the whole config. The two are independent and can coexist.
 
 ## Where it lives
 
@@ -53,14 +52,12 @@ files. It is **never persisted** to any `.env` by Hermes.
 # Point managed scope at a custom directory (set by IT / the deployment, not the user)
 export HERMES_MANAGED_DIR=/opt/org/hermes-policy
 ```
-
-> **Warning**
->
-> A user who can set `HERMES_MANAGED_DIR` can repoint managed scope at a directory
-> they control, defeating it. In a real deployment this variable should be fixed
-> by the administrator (e.g. baked into the service unit / container image), not
-> left user-settable. `hermes doctor` reports the *resolved* managed directory so
-> a redirect is visible.
+> **warning**
+A user who can set `HERMES_MANAGED_DIR` can repoint managed scope at a directory
+they control, defeating it. In a real deployment this variable should be fixed
+by the administrator (e.g. baked into the service unit / container image), not
+left user-settable. `hermes doctor` reports the *resolved* managed directory so
+a redirect is visible.
 
 ## Precedence
 
@@ -82,13 +79,11 @@ model:
 
 forces `model.default` for every user while leaving `model.fallback` (and every
 other key) under user control.
-
-> **Note: Precedence note**
->
-> For the keys it pins, managed scope deliberately wins over the shell environment
-> too — otherwise it would not be "managed." This is the one place that inverts the
-> usual "an environment variable overrides config.yaml" rule, and it applies only
-> to the specific keys the managed layer specifies.
+> **note Precedence note**
+For the keys it pins, managed scope deliberately wins over the shell environment
+too — otherwise it would not be "managed." This is the one place that inverts the
+usual "an environment variable overrides config.yaml" rule, and it applies only
+to the specific keys the managed layer specifies.
 
 ## Seeing what's managed
 

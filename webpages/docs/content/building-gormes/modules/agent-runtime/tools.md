@@ -11,7 +11,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 **Module group:** Agent Runtime
 **Module:** `tools`
 **Rows:** 162
-**Status counts:** `complete`: 160 · `in_progress`: 0 · `planned`: 2
+**Status counts:** `complete`: 161 · `in_progress`: 0 · `planned`: 1
 **Priority counts:** `P0`: 23 · `P1`: 67 · `P2`: 36 · `P3`: 8 · `P4`: 2 · `unset`: 26
 
 ## Phase 3 — The Black Box (Memory)
@@ -119,7 +119,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `tools` | Go-native configured MCP HTTP registry + invocation |
 | `complete` | `P1` | `tools` | Gormes MCP explicit tool-selection configure |
 | `planned` | `P2` | `tools` | Hermes MCP catalog install/configure lifecycle |
-| `planned` | `P1` | `tools` | Gormes MCP server enable/disable persistence |
+| `complete` | `P1` | `tools` | Gormes MCP server enable/disable persistence |
 
 ### 5.H — ACP Integration
 

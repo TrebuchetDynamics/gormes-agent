@@ -1,13 +1,13 @@
 ---
-title: "Excel Author"
+title: "Excel Author — Build auditable financial workbooks headless via openpyxl"
 sidebar_label: "Excel Author"
-description: "Build auditable Excel workbooks headless with openpyxl — blue/black/green cell conventions, formulas over hardcodes, named ranges, balance checks, sensitivit..."
+description: "Build auditable financial workbooks headless via openpyxl"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/finance/finance-excel-author.md
 ---
-
 
 # Excel Author
 
-Build auditable Excel workbooks headless with openpyxl — blue/black/green cell conventions, formulas over hardcodes, named ranges, balance checks, sensitivity tables. Use for financial models, audit outputs, reconciliations.
+Build auditable financial workbooks headless via openpyxl.
 
 ## Skill metadata
 
@@ -20,11 +20,10 @@ Build auditable Excel workbooks headless with openpyxl — blue/black/green cell
 | License | Apache-2.0 |
 | Platforms | linux, macos, windows |
 | Tags | `excel`, `openpyxl`, `finance`, `spreadsheet`, `modeling` |
-| Related skills | [`pptx-author`](../finance-pptx-author/), [`dcf-model`](../finance-dcf-model/), [`comps-analysis`](../finance-comps-analysis/), [`lbo-model`](../finance-lbo-model/), [`3-statement-model`](../finance-3-statement-model/) |
+| Related skills | [`xlsx`](../../bundled/productivity/productivity-xlsx.md), [`pptx-author`](../../optional/finance/finance-pptx-author.md), [`dcf-model`](../../optional/finance/finance-dcf-model.md), [`comps-analysis`](../../optional/finance/finance-comps-analysis.md), [`lbo-model`](../../optional/finance/finance-lbo-model.md), [`3-statement-model`](../../optional/finance/finance-3-statement-model.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
+> **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # excel-author

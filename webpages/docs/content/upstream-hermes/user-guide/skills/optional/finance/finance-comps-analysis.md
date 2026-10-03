@@ -1,13 +1,13 @@
 ---
-title: "Comps Analysis"
+title: "Comps Analysis — Build comparable-company valuation workbooks in Excel"
 sidebar_label: "Comps Analysis"
-description: "Build comparable company analysis in Excel — operating metrics, valuation multiples, statistical benchmarking vs peer sets"
+description: "Build comparable-company valuation workbooks in Excel"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/finance/finance-comps-analysis.md
 ---
-
 
 # Comps Analysis
 
-Build comparable company analysis in Excel — operating metrics, valuation multiples, statistical benchmarking vs peer sets. Pairs with excel-author. Use for public-company valuation, IPO pricing, sector benchmarking, or outlier detection.
+Build comparable-company valuation workbooks in Excel.
 
 ## Skill metadata
 
@@ -20,11 +20,10 @@ Build comparable company analysis in Excel — operating metrics, valuation mult
 | License | Apache-2.0 |
 | Platforms | linux, macos, windows |
 | Tags | `finance`, `valuation`, `comps`, `excel`, `openpyxl`, `modeling`, `investment-banking` |
-| Related skills | [`excel-author`](../finance-excel-author/), [`pptx-author`](../finance-pptx-author/), [`dcf-model`](../finance-dcf-model/), [`lbo-model`](../finance-lbo-model/) |
+| Related skills | [`excel-author`](../../optional/finance/finance-excel-author.md), [`pptx-author`](../../optional/finance/finance-pptx-author.md), [`dcf-model`](../../optional/finance/finance-dcf-model.md), [`lbo-model`](../../optional/finance/finance-lbo-model.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
+> **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 ## Environment
@@ -661,7 +660,6 @@ After completing a comp analysis, ask:
 5. What would make this more useful next time?
 
 The best comp analyses evolve with each iteration. Save templates, learn from feedback, and refine the structure based on what decision-makers actually use.
-
 
 ## Data sources — MCP first, web fallback
 

@@ -24,8 +24,10 @@ semantics, not the installed image's actual tool behavior.
 Python interpreter and effective runtime configuration:
 
 - repository mounted at `/workspace`, on `development`;
-- persistent state at `/opt/data`, Hermes application at `/opt/hermes`;
-- `HOME` and `HERMES_HOME` set to `/opt/data`;
+- Hermes application at `/opt/hermes`;
+- the Hermes home is a host bind of the repo's `.hermes/home` onto the
+  image-required `/opt/data` path, so all persistent state lives under `.hermes`;
+- `HOME` and `HERMES_HOME` set to `/opt/data` (the bind target);
 - `HERMES_WRITE_SAFE_ROOT` containing exactly `/opt/data` and `/workspace`;
 - Go on PATH, satisfying the repository's `go.mod` version;
 - the four required repo skills discoverable through Hermes's skill loader.
@@ -86,9 +88,13 @@ and unrelated work. Under an approved maintenance window:
 2. With the owned job paused, verify actual temporary file-tool write/read/edit/
    delete and outside-root denial, terminal-tool Go and both progress selectors,
    and skill loading. Clean up only the probe files you created.
-3. Install the reviewed gate atomically under the runtime user's persistent
-   `/opt/data/scripts/` directory. Point only the approved job at that deployed
-   copy, with workdir `/workspace`; do not use `--check` for the scheduled script.
+3. Deploy the reviewed copies into the scheduler-allowed home scripts directory
+   (`$HERMES_HOME/scripts`, backed here by the host `.hermes/home/scripts` bind)
+   as `gormes-development-preflight.py` (`script`) and
+   `gormes-repository-monitor.py` (`monitor_script`), workdir `/workspace`; do
+   not use `--check` for the scheduled script. The scheduler refuses job script
+   paths outside `$HERMES_HOME/scripts`, so the job keeps the
+   `/opt/data/scripts/...` aliases while the bytes live in `.hermes/home/scripts`.
 4. Verify blocked behavior during maintenance and successful JSON output after
    maintenance, through the actual scheduler script runner without invoking a
    model. Restore only the job's previously approved schedule/state.

@@ -2,6 +2,7 @@
 title: "Stocks — Stock quotes, history, search, compare, crypto via Yahoo"
 sidebar_label: "Stocks"
 description: "Stock quotes, history, search, compare, crypto via Yahoo"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/finance/finance-stocks.md
 ---
 
 # Stocks
@@ -19,11 +20,11 @@ Stock quotes, history, search, compare, crypto via Yahoo.
 | License | MIT |
 | Platforms | linux, macos, windows |
 | Tags | `Stocks`, `Finance`, `Market`, `Crypto`, `Investing` |
-| Related skills | [`dcf-model`](../finance-dcf-model/), [`comps-analysis`](../finance-comps-analysis/), [`lbo-model`](../finance-lbo-model/) |
+| Related skills | [`dcf-model`](../../optional/finance/finance-dcf-model.md), [`comps-analysis`](../../optional/finance/finance-comps-analysis.md), [`lbo-model`](../../optional/finance/finance-lbo-model.md) |
 
 ## Reference: full SKILL.md
-
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Stocks Skill
 
@@ -51,7 +52,7 @@ Invoke through the `terminal` tool. Once installed:
 
 ```
 SCRIPT=~/.hermes/skills/finance/stocks/scripts/stocks_client.py
-python3 $SCRIPT quote AAPL
+python $SCRIPT quote AAPL
 ```
 
 All output is JSON on stdout — pipe through `jq` if you want to slice it.
@@ -59,12 +60,12 @@ All output is JSON on stdout — pipe through `jq` if you want to slice it.
 ## Quick Reference
 
 ```
-python3 $SCRIPT quote AAPL
-python3 $SCRIPT quote AAPL MSFT GOOGL TSLA
-python3 $SCRIPT search "Tesla"
-python3 $SCRIPT history NVDA --range 6mo
-python3 $SCRIPT compare AAPL MSFT GOOGL
-python3 $SCRIPT crypto BTC ETH SOL
+python $SCRIPT quote AAPL
+python $SCRIPT quote AAPL MSFT GOOGL TSLA
+python $SCRIPT search "Tesla"
+python $SCRIPT history NVDA --range 6mo
+python $SCRIPT compare AAPL MSFT GOOGL
+python $SCRIPT crypto BTC ETH SOL
 ```
 
 ## Commands
@@ -102,7 +103,7 @@ Crypto prices. Pass `BTC` (the script appends `-USD` automatically).
 ## Verification
 
 ```
-python3 ~/.hermes/skills/finance/stocks/scripts/stocks_client.py quote AAPL
+python ~/.hermes/skills/finance/stocks/scripts/stocks_client.py quote AAPL
 ```
 
 Returns a JSON object with `symbol: "AAPL"` and a numeric `price` field.

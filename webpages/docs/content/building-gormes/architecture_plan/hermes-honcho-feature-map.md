@@ -27,7 +27,10 @@ missing implementation work still becomes or refines rows in
 Use [Upstream Coverage Ledger](../upstream-coverage-ledger/) to verify map
 completeness. The map is complete only when every feature-bearing Hermes and
 Honcho source class is represented there with a feature-map anchor, Go target,
-and progress or owned/excluded decision.
+and progress or owned/excluded decision. This is **mapping completeness only**;
+full behavioral completion uses the immutable-SHA exit contract in the
+[Go runtime plan](../hermes-honcho-go-runtime-plan/#full-hermes-parity-exit-contract),
+not the source-class map alone.
 
 Use [Hermes/Honcho To Gormes Go Runtime Plan](../hermes-honcho-go-runtime-plan/)
 when a mapped feature needs concrete Go package ownership, subsystem

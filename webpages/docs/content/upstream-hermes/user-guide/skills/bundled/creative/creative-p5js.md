@@ -1,11 +1,9 @@
 ---
-title: "P5Js — p5"
+title: "P5Js — p5.js sketches: gen art, shaders, interactive, 3D"
 sidebar_label: "P5Js"
-description: "p5"
+description: "p5.js sketches: gen art, shaders, interactive, 3D"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/creative/creative-p5js.md
 ---
-
-
-
 
 # P5Js
 
@@ -18,14 +16,15 @@ p5.js sketches: gen art, shaders, interactive, 3D.
 | Source | Bundled (installed by default) |
 | Path | `skills/creative/p5js` |
 | Version | `1.0.0` |
+| Author | SHL0MS, Hermes Agent |
+| License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `creative-coding`, `generative-art`, `p5js`, `canvas`, `interactive`, `visualization`, `webgl`, `shaders`, `animation` |
-| Related skills | [`ascii-video`](../creative-ascii-video/), [`manim-video`](../creative-manim-video/), [`excalidraw`](../creative-excalidraw/) |
+| Related skills | [`ascii-video`](../../bundled/creative/creative-ascii-video.md), [`manim-video`](../../bundled/creative/creative-manim-video.md), [`excalidraw`](../../optional/creative/creative-excalidraw.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # p5.js Production Pipeline
 
@@ -272,7 +271,7 @@ Key implementation patterns:
 ### Step 4: Preview & Iterate
 
 - Open HTML file directly in browser — no server needed for basic sketches
-- For `loadImage()`/`loadFont()` from local files: use `scripts/serve.sh` or `python3 -m http.server`
+- For `loadImage()`/`loadFont()` from local files: use `scripts/serve.sh` or `python -m http.server`
 - Chrome DevTools Performance tab to verify 60fps
 - Test at target export resolution, not just the window size
 - Adjust parameters until the visual matches the concept from Step 1
@@ -504,7 +503,7 @@ When building p5.js sketches:
 
 1. **Write the HTML file** — single self-contained file, all code inline
 2. **Open in browser** — `open sketch.html` (macOS) or `xdg-open sketch.html` (Linux)
-3. **Local assets** (fonts, images) require a server: `python3 -m http.server 8080` in the project directory, then open `http://localhost:8080/sketch.html`
+3. **Local assets** (fonts, images) require a server: `python -m http.server 8080` in the project directory, then open `http://localhost:8080/sketch.html`
 4. **Export PNG/GIF** — add `keyPressed()` shortcuts as shown above, tell the user which key to press
 5. **Headless export** — `node scripts/export-frames.js sketch.html --frames 300` for automated frame capture (sketch must use `noLoop()` + `_p5Ready`)
 6. **MP4 rendering** — `bash scripts/render.sh sketch.html output.mp4 --duration 30`

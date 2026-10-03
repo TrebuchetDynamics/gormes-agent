@@ -1,15 +1,13 @@
 ---
-title: "Faiss — Facebook's library for efficient similarity search and clustering of dense vectors"
+title: "Faiss — Fast vector similarity search at billion scale"
 sidebar_label: "Faiss"
-description: "Facebook's library for efficient similarity search and clustering of dense vectors"
+description: "Fast vector similarity search at billion scale"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-faiss.md
 ---
-
-
-
 
 # Faiss
 
-Facebook's library for efficient similarity search and clustering of dense vectors. Supports billions of vectors, GPU acceleration, and various index types (Flat, IVF, HNSW). Use for fast k-NN search, large-scale vector retrieval, or when you need pure similarity search without metadata. Best for high-performance applications.
+Fast vector similarity search at billion scale.
 
 ## Skill metadata
 
@@ -21,13 +19,12 @@ Facebook's library for efficient similarity search and clustering of dense vecto
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `faiss-cpu`, `faiss-gpu`, `numpy` |
+| Platforms | linux, macos |
 | Tags | `RAG`, `FAISS`, `Similarity Search`, `Vector Search`, `Facebook AI`, `GPU Acceleration`, `Billion-Scale`, `K-NN`, `HNSW`, `High Performance`, `Large Scale` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # FAISS - Efficient Similarity Search
 

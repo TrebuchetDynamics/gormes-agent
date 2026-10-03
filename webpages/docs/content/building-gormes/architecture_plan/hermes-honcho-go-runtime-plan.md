@@ -56,7 +56,61 @@ Current status: no broad upstream Hermes/Honcho surface should remain
 `unknown/gap`. Large surfaces are either `mapped-by-contract`,
 `still row-backed`, `owned`, or `excluded`. Feature-level residuals are
 represented by progress rows or row-split candidates; the remaining work is
-implementation and row splitting, not rediscovery.
+implementation and row splitting, not rediscovery. **This is a mapping status,
+not a runtime-parity claim.**
+
+## Full Hermes Parity Exit Contract
+
+A source-class map, a complete inventory report, or a green Gormes-only test
+suite does not prove a full port. Full behavioral parity is a claim about an
+immutable Hermes source revision and the externally observable contracts of
+Gormes at that revision.
+
+**Baseline observed 2026-09-26:** the in-repo `hermes-agent` checkout and
+`origin/refs/heads/main` both resolve to
+`d0288be5b3330d2442e3907185b8e9d0958297bb`. The checked-in `webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`
+contains 560 classified rows: 414 `covered`, 70 `partial`, 68 `missing`, 7
+`owned`, and 1 `unknown`. These are counts of the checked-in classifications,
+not a fresh source-by-source validation; that inventory's metadata is dated
+2026-05-26. On this evidence, Gormes is **not yet a full 1:1 port**. The
+current upstream-coverage tests also fail against this baseline: the source-class
+check reports unclassified top-level Hermes classes, and the nested-path check
+reports three stale upstream refs. Mapping therefore still needs repair as well
+as runtime implementation.
+
+The completion claim is valid only for a recorded upstream SHA. Any upstream
+`main` change after that SHA creates an unaudited delta and suspends the claim
+until the delta is inventoried and reconciled. The strict exit gate must require:
+
+1. Every feature-bearing upstream class and nested observable behavior has an
+   inventory entry tied to exact Hermes source/tests and a Go target or an
+   explicit non-runtime exclusion. Top-level directory coverage alone is not
+   enough.
+2. Every public runtime behavior is `covered` by a deterministic Gormes test at
+   the user-visible boundary, or is listed as an explicitly approved divergence.
+   `partial`, `missing`, `unknown`, stale evidence, and unmapped tests/fixtures
+   fail the gate. A row being planned or complete is not behavior proof.
+3. `covered` claims name upstream symbols/tests, Gormes implementation paths,
+   and passing tests. Compare normalized outputs/events with shared golden or
+   differential fixtures at critical seams: CLI/config, tool schemas and
+   results, provider requests/streams, persistence/session state, and gateway
+   channel events. Use fakes/fixtures so parity checks do not require live
+   credentials or services.
+4. A behavior-changing `owned` replacement is reported as a divergence, not
+   counted as strict 1:1 parity. For a strict claim it must become observably
+   equivalent or be explicitly removed from the claimed scope by the product
+   owner. Exclusions are limited to non-runtime artifacts; excluding a public
+   Hermes behavior fails full parity.
+5. The final report records the exact Hermes SHA, inventory totals by status,
+   approved divergences, commands run, and failures. Missing upstream checkouts,
+   unresolved deltas, or unavailable required test environments produce
+   `unverified`, never `complete`.
+
+Keep implementation gaps in the canonical `progress.json` backlog. The existing
+report-only Hermes contract inventory and source-class tests remain useful
+mapping checks; they are not substitutes for this strict closure gate. The
+planned `Hermes observable-behavior parity closure and upstream drift gate` row
+in Phase 4.I owns that missing enforcement.
 
 ## Hermes Feature Map
 

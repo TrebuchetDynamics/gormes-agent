@@ -2,6 +2,7 @@
 title: "Rest Graphql Debug — Debug REST/GraphQL APIs: status codes, auth, schemas, repro"
 sidebar_label: "Rest Graphql Debug"
 description: "Debug REST/GraphQL APIs: status codes, auth, schemas, repro"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/software-development/software-development-rest-graphql-debug.md
 ---
 
 # Rest Graphql Debug
@@ -17,12 +18,13 @@ Debug REST/GraphQL APIs: status codes, auth, schemas, repro.
 | Version | `1.2.0` |
 | Author | eren-karakus0 |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `api`, `rest`, `graphql`, `http`, `debugging`, `testing`, `curl`, `integration` |
-| Related skills | [`systematic-debugging`](../../bundled/software-development/software-development-systematic-debugging/), [`test-driven-development`](../../bundled/software-development/software-development-test-driven-development/) |
+| Related skills | [`systematic-debugging`](../../bundled/software-development/software-development-systematic-debugging.md), [`test-driven-development`](../../bundled/software-development/software-development-test-driven-development.md) |
 
 ## Reference: full SKILL.md
-
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # API Testing & Debugging
 
@@ -71,7 +73,7 @@ terminal("""curl -X POST https://api.example.com/users \\
 terminal('curl -sI https://api.example.com/health')
 
 # Pretty-print JSON
-terminal('curl -s https://api.example.com/users | python3 -m json.tool')
+terminal('curl -s https://api.example.com/users | python -m json.tool')
 ```
 
 ### GraphQL via terminal
@@ -410,7 +412,7 @@ class TestAPISmoke:
 
 ### Token handling
 - Never log full tokens. Redact: `Bearer <REDACTED>`.
-- Never hardcode tokens in scripts. Read from env (`os.environ["API_TOKEN"]`) or `~/.hermes/.env`.
+- Never hardcode tokens in scripts. Read from env (`os.environ["API_TOKEN"]`) or `${HERMES_HOME:-~/.hermes}/.env`.
 - Rotate immediately if a token surfaces in logs, error messages, or git history.
 
 ### Safe logging

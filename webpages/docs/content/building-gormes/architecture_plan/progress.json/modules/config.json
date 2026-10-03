@@ -2430,6 +2430,11 @@
         "Focused tests pass and the projection boundary is documented by package names/types rather than duplicated config-field reads.",
         "`go test ./internal/gateway/channelmemory ./internal/config/... -count=1`, `go run ./cmd/progress validate`, and `git diff --check` pass."
       ],
+      "provenance": {
+        "origin_type": "gormes",
+        "owned_since": "2026-06-08T00:00:00Z",
+        "note": "Derived from tld architecture review finding: config fan-out is wider than the diagram and leaks legacy Telegram memory fields into channel-neutral gateway memory wiring."
+      },
       "evidence": {
         "implementation": [
           "internal/config/channel_memory_config.go: Config.ChannelMemorySettings projects legacy [telegram] memory/extractor keys into a narrow channel-neutral config shape.",
@@ -2438,11 +2443,6 @@
         "verification": [
           "GREEN: go test ./internal/gateway/channelmemory ./internal/config/... -count=1 passed."
         ]
-      },
-      "provenance": {
-        "origin_type": "gormes",
-        "owned_since": "2026-06-08T00:00:00Z",
-        "note": "Derived from tld architecture review finding: config fan-out is wider than the diagram and leaks legacy Telegram memory fields into channel-neutral gateway memory wiring."
       }
     }
   }

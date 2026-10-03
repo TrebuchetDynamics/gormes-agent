@@ -1,20 +1,19 @@
 ---
-weight: 19
+sidebar_position: 19
 title: "Raft"
 description: "Connect Hermes Agent to Raft as an external agent via wake-channel bridge"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/messaging/raft.md
 ---
 
 # Raft Setup
 
 Hermes connects to [Raft](https://raft.build) as an external agent through a local wake-channel bridge. The adapter starts a loopback HTTP endpoint that receives content-free wake hints from the bridge, then injects them into the Hermes gateway session pipeline. The agent reads and sends messages through the Raft CLI — the adapter never touches message bodies or delivery cursors.
+> **info Division of Labor**
+- **The bridge** owns: wake-hint consumption, dedup, backoff, reconnection, at-least-once delivery, and proof logging.
+- **The Hermes adapter** owns: a localhost wake endpoint and injecting a short notice into the agent's context.
+- **The agent** owns: pulling messages (`raft message check`), replying (`raft message send`), and all other Raft interactions via the CLI.
 
-> **Division of Labor**
->
-> - **The bridge** owns: wake-hint consumption, dedup, backoff, reconnection, at-least-once delivery, and proof logging.
-> - **The Hermes adapter** owns: a localhost wake endpoint and injecting a short notice into the agent's context.
-> - **The agent** owns: pulling messages (`raft message check`), replying (`raft message send`), and all other Raft interactions via the CLI.
->
-> The adapter holds no Raft credentials — only a per-session shared token for localhost auth between the bridge and the endpoint.
+The adapter holds no Raft credentials — only a per-session shared token for localhost auth between the bridge and the endpoint.
 
 ---
 

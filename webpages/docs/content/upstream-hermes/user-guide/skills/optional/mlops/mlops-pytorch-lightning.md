@@ -1,15 +1,13 @@
 ---
-title: "Pytorch Lightning"
+title: "Pytorch Lightning — Clean training loops with built-in distributed support"
 sidebar_label: "Pytorch Lightning"
-description: "High-level PyTorch framework with Trainer class, automatic distributed training (DDP/FSDP/DeepSpeed), callbacks system, and minimal boilerplate"
+description: "Clean training loops with built-in distributed support"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-pytorch-lightning.md
 ---
-
-
-
 
 # Pytorch Lightning
 
-High-level PyTorch framework with Trainer class, automatic distributed training (DDP/FSDP/DeepSpeed), callbacks system, and minimal boilerplate. Scales from laptop to supercomputer with same code. Use when you want clean training loops with built-in best practices.
+Clean training loops with built-in distributed support.
 
 ## Skill metadata
 
@@ -21,13 +19,12 @@ High-level PyTorch framework with Trainer class, automatic distributed training 
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `lightning`, `torch`, `transformers` |
+| Platforms | linux, macos, windows |
 | Tags | `PyTorch Lightning`, `Training Framework`, `Distributed Training`, `DDP`, `FSDP`, `DeepSpeed`, `High-Level API`, `Callbacks`, `Best Practices`, `Scalable` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # PyTorch Lightning - High-Level Training Framework
 

@@ -1,15 +1,13 @@
 ---
-title: "Siyuan"
+title: "Siyuan — Query and edit a SiYuan knowledge base via its API"
 sidebar_label: "Siyuan"
-description: "SiYuan Note API for searching, reading, creating, and managing blocks and documents in a self-hosted knowledge base via curl"
+description: "Query and edit a SiYuan knowledge base via its API"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/productivity/productivity-siyuan.md
 ---
-
-
-
 
 # Siyuan
 
-SiYuan Note API for searching, reading, creating, and managing blocks and documents in a self-hosted knowledge base via curl.
+Query and edit a SiYuan knowledge base via its API.
 
 ## Skill metadata
 
@@ -20,14 +18,13 @@ SiYuan Note API for searching, reading, creating, and managing blocks and docume
 | Version | `1.0.0` |
 | Author | FEUAZUR |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `SiYuan`, `Notes`, `Knowledge Base`, `PKM`, `API` |
-| Related skills | [`obsidian`](../../../bundled/note-taking/note-taking-obsidian/), [`notion`](../../../bundled/productivity/productivity-notion/) |
+| Related skills | [`obsidian`](../../bundled/note-taking/note-taking-obsidian.md), [`notion`](../../bundled/productivity/productivity-notion.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # SiYuan Note API
 
@@ -37,7 +34,7 @@ Use the [SiYuan](https://github.com/siyuan-note/siyuan) kernel API via curl to s
 
 1. Install and run SiYuan (desktop or Docker)
 2. Get your API token: **Settings > About > API token**
-3. Store it in `~/.hermes/.env`:
+3. Store it in `${HERMES_HOME:-~/.hermes}/.env`:
    ```
    SIYUAN_TOKEN=your_token_here
    SIYUAN_URL=http://127.0.0.1:6806

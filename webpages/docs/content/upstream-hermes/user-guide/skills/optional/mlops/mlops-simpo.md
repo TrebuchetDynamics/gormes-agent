@@ -1,15 +1,13 @@
 ---
-title: "Simpo Training — Simple Preference Optimization for LLM alignment"
-sidebar_label: "Simpo Training"
-description: "Simple Preference Optimization for LLM alignment"
+title: "Simpo — Reference-free preference alignment, simpler than DPO"
+sidebar_label: "Simpo"
+description: "Reference-free preference alignment, simpler than DPO"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-simpo.md
 ---
 
+# Simpo
 
-
-
-# Simpo Training
-
-Simple Preference Optimization for LLM alignment. Reference-free alternative to DPO with better performance (+6.4 points on AlpacaEval 2.0). No reference model needed, more efficient than DPO. Use for preference alignment when want simpler, faster training than DPO/PPO.
+Reference-free preference alignment, simpler than DPO.
 
 ## Skill metadata
 
@@ -21,13 +19,12 @@ Simple Preference Optimization for LLM alignment. Reference-free alternative to 
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `torch`, `transformers`, `datasets`, `trl`, `accelerate` |
+| Platforms | linux, macos, windows |
 | Tags | `Post-Training`, `SimPO`, `Preference Optimization`, `Alignment`, `DPO Alternative`, `Reference-Free`, `LLM Alignment`, `Efficient Training` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # SimPO - Simple Preference Optimization
 

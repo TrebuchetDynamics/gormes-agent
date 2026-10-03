@@ -1,15 +1,13 @@
 ---
-title: "Sherlock — OSINT username search across 400+ social networks"
+title: "Sherlock — Find accounts for a username across 400+ platforms"
 sidebar_label: "Sherlock"
-description: "OSINT username search across 400+ social networks"
+description: "Find accounts for a username across 400+ platforms"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/security/security-sherlock.md
 ---
-
-
-
 
 # Sherlock
 
-OSINT username search across 400+ social networks. Hunt down social media accounts by username.
+Find accounts for a username across 400+ platforms.
 
 ## Skill metadata
 
@@ -20,13 +18,12 @@ OSINT username search across 400+ social networks. Hunt down social media accoun
 | Version | `1.0.0` |
 | Author | unmodeled-tyler |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `osint`, `security`, `username`, `social-media`, `reconnaissance` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Sherlock OSINT Username Search
 

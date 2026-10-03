@@ -2,8 +2,8 @@
 title: "Obliteratus — OBLITERATUS: abliterate LLM refusals (diff-in-means)"
 sidebar_label: "Obliteratus"
 description: "OBLITERATUS: abliterate LLM refusals (diff-in-means)"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-obliteratus.md
 ---
-
 
 # Obliteratus
 
@@ -21,13 +21,11 @@ OBLITERATUS: abliterate LLM refusals (diff-in-means).
 | Dependencies | `obliteratus`, `torch`, `transformers`, `bitsandbytes`, `accelerate`, `safetensors` |
 | Platforms | linux, macos |
 | Tags | `Abliteration`, `Uncensoring`, `Refusal-Removal`, `LLM`, `Weight-Projection`, `SVD`, `Mechanistic-Interpretability`, `HuggingFace`, `Model-Surgery` |
-| Related skills | `vllm`, `gguf`, [`huggingface-tokenizers`](https://hermes-agent.nousresearch.com/docs/user-guide/skills/optional/mlops/mlops-huggingface-tokenizers) |
+| Related skills | [`serving-llms-vllm`](../../optional/mlops/mlops-inference-serving-llms-vllm.md), [`llama-cpp`](../../optional/mlops/mlops-inference-llama-cpp.md), [`huggingface-tokenizers`](../../optional/mlops/mlops-huggingface-tokenizers.md) |
 
 ## Reference: full SKILL.md
-
 > **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
 
 # OBLITERATUS Skill
 

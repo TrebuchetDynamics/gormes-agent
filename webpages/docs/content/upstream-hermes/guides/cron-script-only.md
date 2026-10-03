@@ -1,9 +1,9 @@
 ---
-weight: 13
+sidebar_position: 13
 title: "Script-Only Cron Jobs (No LLM)"
 description: "Classic watchdog cron jobs that skip the LLM entirely — a script runs on schedule and its stdout gets delivered to your messaging platform. Memory alerts, disk alerts, CI pings, periodic health checks."
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/guides/cron-script-only.md
 ---
-
 
 # Script-Only Cron Jobs
 
@@ -11,6 +11,7 @@ Sometimes you already know exactly what message you want to send. You don't need
 
 Hermes calls this **no-agent mode**. It's the cron system minus the LLM.
 
+<!-- ascii-guard-ignore -->
 ```
    ┌──────────────────┐          ┌──────────────────┐
    │ scheduler tick   │  every   │ run script       │
@@ -24,10 +25,11 @@ Hermes calls this **no-agent mode**. It's the cron system minus the LLM.
                                  │ (telegram/disc…) │
                                  └──────────────────┘
 ```
+<!-- ascii-guard-ignore-end -->
 
 - **No LLM call.** Zero tokens, zero agent loop, zero model spend.
 - **Script is the job.** The script decides whether to alert. Emit output → message gets sent. Emit nothing → silent tick.
-- **Bash or Python.** `.sh` / `.bash` files run under `/bin/bash`; any other extension runs under the current Python interpreter. Anything in `~/.hermes/scripts/` is accepted.
+- **Bash or Python.** `.sh` / `.bash` files run under `bash` from `PATH` when available, otherwise `/bin/bash`; any other extension runs under the current Python interpreter. Paths must resolve inside `~/.hermes/scripts/` (relative, absolute, or `~` forms are OK if they stay in that directory). Cron scripts do **not** inherit provider credentials from the Hermes process environment.
 - **Same scheduler.** Lives in `cronjob` alongside LLM jobs — pausing, resuming, listing, logs, and delivery targeting all work the same way.
 
 ## When to Use It
@@ -84,7 +86,7 @@ From that point on every tick is free: the scheduler runs the script, pipes its 
 
 ### What the agent decides for you
 
-When you phrase a request like "alert me when X" or "every N minutes check Y and tell me if Z", Hermes' `cronjob` tool description tells it to reach for `no_agent=True` whenever the message content is fully determined by the script. It falls back to the normal LLM-driven path when the request needs reasoning (*"summarize the new issues"*, *"pick the most interesting headlines"*, *"draft a friendly reminder"*).
+When you phrase a request like "alert me when X" or "every N minutes check Y and tell me if Z", Hermes' `cronjob_manage` tool description tells it to reach for `no_agent=True` whenever the message content is fully determined by the script. It falls back to the normal LLM-driven path when the request needs reasoning (*"summarize the new issues"*, *"pick the most interesting headlines"*, *"draft a friendly reminder"*).
 
 You don't have to specify `--no-agent` yourself. Just describe the behavior.
 
@@ -135,7 +137,6 @@ hermes cron run <job_id>    # fire it once to test
 
 That's the whole thing. No prompt, no skill, no model.
 
-
 ## How Script Output Maps to Delivery
 
 | Script behavior | Result |
@@ -156,7 +157,7 @@ Interpreter choice is by file extension:
 
 | Extension | Interpreter |
 |-----------|-------------|
-| `.sh`, `.bash` | `/bin/bash` |
+| `.sh`, `.bash` | `bash` from `PATH` (fallback `/bin/bash`) |
 | anything else | `sys.executable` (current Python) |
 
 We intentionally do NOT honour `#!/...` shebangs — keeping the interpreter set explicit and small reduces the surface the scheduler trusts.
@@ -172,7 +173,7 @@ hermes cron create "0 9 * * *"       # standard cron: 9am daily
 hermes cron create "30m"             # one-shot: run once in 30 minutes
 ```
 
-See the [cron feature reference](../../user-guide/features/cron/) for the full syntax.
+See the [cron feature reference](../user-guide/features/cron.md) for the full syntax.
 
 ## Delivery Targets
 
@@ -232,16 +233,15 @@ Silent when both filesystems are under 90%; fires exactly one line per over-thre
 
 | Approach | What runs | When to use |
 |----------|-----------|-------------|
-| `hermes send` (one-shot) | Any shell command piping into it | Ad-hoc delivery or as the action of an external scheduler (systemd, launchd) |
 | `cronjob --no-agent` (this page) | Your script on Hermes' schedule | Recurring watchdogs / alerts / metrics that don't need reasoning |
-| `cronjob` (default, LLM) | Agent with optional pre-check script | When the message content requires reasoning over data |
-| OS cron + `hermes send` | Your script on the OS schedule | When Hermes might be unhealthy (the thing you're monitoring) |
+| `cronjob_manage` (default, LLM) | Agent with optional pre-check script | When the message content requires reasoning over data |
+| OS cron + `curl` to a [webhook subscription](../user-guide/messaging/webhooks.md) | Your script on the OS schedule | When Hermes might be unhealthy (the thing you're monitoring) |
 
-For critical system-health watchdogs that must fire *even when the gateway is down*, keep using OS-level cron + a plain `curl` or `hermes send` call — those run as independent OS processes and don't depend on Hermes being up. The in-gateway scheduler is the right choice when the thing being monitored is external.
+For critical system-health watchdogs that must fire *even when the gateway is down*, use OS-level cron with a plain `curl` to a Hermes webhook subscription (or any external alerting endpoint) — those run as independent OS processes and don't depend on Hermes being up. The in-gateway scheduler is the right choice when the thing being monitored is external.
 
 ## Related
 
-- [Automate Anything with Cron](../automate-with-cron/) — LLM-driven cron patterns.
-- [Scheduled Tasks (Cron) reference](../../user-guide/features/cron/) — full schedule syntax, lifecycle, delivery routing.
-- [Pipe Script Output with `hermes send`](https://hermesagent.ai/docs/guides/pipe-script-output) — the one-shot counterpart for ad-hoc scripts.
-- [Gateway Internals](../../developer-guide/gateway-internals/) — delivery-router internals.
+- [Automate Anything with Cron](./automate-with-cron.md) — LLM-driven cron patterns.
+- [Scheduled Tasks (Cron) reference](../user-guide/features/cron.md) — full schedule syntax, lifecycle, delivery routing.
+- [Webhook Subscriptions](../user-guide/messaging/webhooks.md) — fire-and-forget HTTP entry points for external schedulers.
+- [Gateway Internals](../developer-guide/gateway-internals.md) — delivery-router internals.

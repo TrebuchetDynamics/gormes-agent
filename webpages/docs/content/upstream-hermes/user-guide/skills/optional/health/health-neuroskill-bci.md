@@ -1,15 +1,13 @@
 ---
-title: "Neuroskill Bci"
+title: "Neuroskill Bci — Use live BCI cognitive and mood state from NeuroSkill"
 sidebar_label: "Neuroskill Bci"
-description: "Connect to a running NeuroSkill instance and incorporate the user's real-time cognitive and emotional state (focus, relaxation, mood, cognitive load, drowsin..."
+description: "Use live BCI cognitive and mood state from NeuroSkill"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/health/health-neuroskill-bci.md
 ---
-
-
-
 
 # Neuroskill Bci
 
-Connect to a running NeuroSkill instance and incorporate the user's real-time cognitive and emotional state (focus, relaxation, mood, cognitive load, drowsiness, heart rate, HRV, sleep staging, and 40+ derived EXG scores) into responses. Requires a BCI wearable (Muse 2/S or OpenBCI) and the NeuroSkill desktop app running locally.
+Use live BCI cognitive and mood state from NeuroSkill.
 
 ## Skill metadata
 
@@ -20,13 +18,12 @@ Connect to a running NeuroSkill instance and incorporate the user's real-time co
 | Version | `1.0.0` |
 | Author | Hermes Agent + Nous Research |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `BCI`, `neurofeedback`, `health`, `focus`, `EEG`, `cognitive-state`, `biometrics`, `neuroskill` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # NeuroSkill BCI Integration
 

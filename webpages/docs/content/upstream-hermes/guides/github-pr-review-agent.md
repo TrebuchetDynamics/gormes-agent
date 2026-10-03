@@ -1,9 +1,9 @@
 ---
-weight: 10
+sidebar_position: 10
 title: "Tutorial: GitHub PR Review Agent"
 description: "Build an automated AI code reviewer that monitors your repos, reviews pull requests, and delivers feedback — hands-free"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/guides/github-pr-review-agent.md
 ---
-
 
 # Tutorial: Build a GitHub PR Review Agent
 
@@ -26,16 +26,14 @@ description: "Build an automated AI code reviewer that monitors your repos, revi
 ```
 
 This guide uses **cron jobs** to poll for PRs on a schedule — no server or public endpoint needed. Works behind NAT and firewalls.
-
-> **Tip: Want real-time reviews instead?**
-> If you have a public endpoint available, check out [Automated GitHub PR Comments with Webhooks](../webhook-github-pr-review/) — GitHub pushes events to Hermes instantly when PRs are opened or updated.
-
+> **tip Want real-time reviews instead?**
+If you have a public endpoint available, check out [Automated GitHub PR Comments with Webhooks](./webhook-github-pr-review.md) — GitHub pushes events to Hermes instantly when PRs are opened or updated.
 
 ---
 
 ## Prerequisites
 
-- **Hermes Agent installed** — see the [Installation guide](../../getting-started/installation/)
+- **Hermes Agent installed** — see the [Installation guide](../getting-started/installation.md)
 - **Gateway running** for cron jobs:
   ```bash
   hermes gateway install   # Install as a service
@@ -51,11 +49,9 @@ This guide uses **cron jobs** to poll for PRs on a schedule — no server or pub
   # Authenticate
   gh auth login
   ```
-- **Messaging configured** (optional) — [Telegram](../../user-guide/messaging/telegram/) or [Discord](../../user-guide/messaging/discord/)
-
-> **Tip: No messaging? No problem**
-> Use `deliver: "local"` to save reviews to `~/.hermes/cron/output/`. Great for testing before wiring up notifications.
-
+- **Messaging configured** (optional) — [Telegram](../user-guide/messaging/telegram.md) or [Discord](../user-guide/messaging/discord.md)
+> **tip No messaging? No problem**
+Use `deliver: "local"` to save reviews to `~/.hermes/cron/output/`. Great for testing before wiring up notifications.
 
 ---
 
@@ -241,10 +237,8 @@ After reviewing, post your review:
 - For critical issues: gh pr review NUMBER --repo REPO --request-changes --body "YOUR_REVIEW"
 - For clean PRs: gh pr review NUMBER --repo REPO --approve --body "Looks good"
 ```
-
-> **Caution**
-> Make sure `gh` has a token with `repo` scope. Reviews are posted as whoever `gh` is authenticated as.
-
+> **caution**
+Make sure `gh` has a token with `repo` scope. Reviews are posted as whoever `gh` is authenticated as.
 
 ### Weekly PR Dashboard
 
@@ -297,8 +291,8 @@ GitHub allows 5,000 API requests/hour for authenticated users. Each PR review us
 
 ## What's Next?
 
-- **[Webhook-Based PR Reviews](../webhook-github-pr-review/)** — get instant reviews when PRs are opened (requires a public endpoint)
-- **[Daily Briefing Bot](../daily-briefing-bot/)** — combine PR reviews with your morning news digest
-- **[Build a Plugin](../build-a-hermes-plugin/)** — wrap the review logic into a shareable plugin
-- **[Profiles](../../user-guide/profiles/)** — run a dedicated reviewer profile with its own memory and config
-- **[Fallback Providers](../../user-guide/features/fallback-providers/)** — ensure reviews run even when one provider is down
+- **[Webhook-Based PR Reviews](./webhook-github-pr-review.md)** — get instant reviews when PRs are opened (requires a public endpoint)
+- **[Daily Briefing Bot](./daily-briefing-bot.md)** — combine PR reviews with your morning news digest
+- **[Build a Plugin](../developer-guide/plugins/index.md)** — wrap the review logic into a shareable plugin
+- **[Profiles](../user-guide/profiles.md)** — run a dedicated reviewer profile with its own memory and config
+- **[Fallback Providers](../user-guide/features/fallback-providers.md)** — ensure reviews run even when one provider is down

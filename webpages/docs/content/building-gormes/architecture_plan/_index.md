@@ -91,15 +91,15 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 108/112 subphases shipped · 4 in progress · 0 planned
+**Overall:** 106/112 subphases shipped · 6 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
 | Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
-| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
@@ -564,7 +564,7 @@ classification and row-backed implementation queue.
 - [x] `goncho` Goncho skill-outcome tracking as conclusions
 - [x] `goncho` Goncho workspace isolation with explicit global scope
 
-## Phase 4 — The Brain Transplant ✅
+## Phase 4 — The Brain Transplant 🔨
 
 *Native Go agent orchestrator + prompt builder*
 
@@ -709,7 +709,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Provider rate guard — degraded-state + last-known-good evidence
 - [x] `providers` Hermes fast-mode request override serializer
 
-### 4.I — Native Agent Turn Closure ✅
+### 4.I — Native Agent Turn Closure 🔨
 
 - [x] `runtime` Python-free normal agent turn e2e harness
 - [x] `providers` Provider-tool-memory golden transcript suite
@@ -723,6 +723,9 @@ classification and row-backed implementation queue.
 - [x] `gateway` Native runtime provider gateway binding
 - [x] `runtime` Hermes compatibility namespace retirement boundary
 - [x] `runtime` Hermes agent runtime strict-fidelity source-pair expansion
+- [ ] `planner` Hermes observable-behavior parity closure and upstream drift gate
+- [x] `planner` Hermes source inventory fails closed on traversal errors
+- [x] `planner` Strict Hermes inventory rejects invalid pinned source-pair references
 
 ### 4.J — Permission-Hardened Tool Execution ✅
 
@@ -890,7 +893,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Go-native configured MCP HTTP registry + invocation
 - [x] `tools` Gormes MCP explicit tool-selection configure
 - [ ] `tools` Hermes MCP catalog install/configure lifecycle
-- [ ] `tools` Gormes MCP server enable/disable persistence
+- [x] `tools` Gormes MCP server enable/disable persistence
 
 ### 5.H — ACP Integration ✅
 
@@ -1086,7 +1089,7 @@ classification and row-backed implementation queue.
 - [x] `tools` OSV malware advisory check for MCP package launch
 - [x] `tools` Hermes toolset distribution manifest and deterministic sampler
 
-### 5.O — Hermes CLI Parity ✅
+### 5.O — Hermes CLI Parity 🔨
 
 - [x] `cli` 49-file CLI tree port
 - [x] `cli` Hermes CLI command-tree parity manifest
@@ -1234,6 +1237,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Bitwarden secrets setup wizard
 - [x] `providers` Bitwarden disk cache parity
 - [x] `providers` Credential-pool borrowed-source disk boundary
+- [ ] `providers` Hermes auth priority credential reordering
 
 ### 5.P — Docker / Packaging ✅
 

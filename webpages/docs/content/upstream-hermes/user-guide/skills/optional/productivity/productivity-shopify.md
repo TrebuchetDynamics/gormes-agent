@@ -1,15 +1,13 @@
 ---
-title: "Shopify — Shopify Admin & Storefront GraphQL APIs via curl"
+title: "Shopify — Query Shopify Admin/Storefront GraphQL APIs via curl"
 sidebar_label: "Shopify"
-description: "Shopify Admin & Storefront GraphQL APIs via curl"
+description: "Query Shopify Admin/Storefront GraphQL APIs via curl"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/productivity/productivity-shopify.md
 ---
-
-
-
 
 # Shopify
 
-Shopify Admin & Storefront GraphQL APIs via curl. Products, orders, customers, inventory, metafields.
+Query Shopify Admin/Storefront GraphQL APIs via curl.
 
 ## Skill metadata
 
@@ -20,14 +18,13 @@ Shopify Admin & Storefront GraphQL APIs via curl. Products, orders, customers, i
 | Version | `1.0.0` |
 | Author | community |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `Shopify`, `E-commerce`, `Commerce`, `API`, `GraphQL` |
-| Related skills | [`airtable`](../../../bundled/productivity/productivity-airtable/), [`xurl`](../../../bundled/social-media/social-media-xurl/) |
+| Related skills | [`airtable`](../../bundled/productivity/productivity-airtable.md), [`xurl`](../../bundled/social-media/social-media-xurl.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Shopify — Admin & Storefront GraphQL APIs
 
@@ -40,7 +37,7 @@ The REST Admin API is legacy since 2024-04 and only receives security fixes. **U
 1. In Shopify admin: **Settings → Apps and sales channels → Develop apps → Create an app**.
 2. Click **Configure Admin API scopes**, select what you need (examples below), save.
 3. **Install app** → the Admin API access token appears ONCE. Copy it immediately — Shopify will never show it again. Tokens start with `shpat_`.
-4. Save to `~/.hermes/.env`:
+4. Save to `${HERMES_HOME:-~/.hermes}/.env`:
    ```
    SHOPIFY_ACCESS_TOKEN=shpat_xxxxxxxxxxxxxxxxxxxx
    SHOPIFY_STORE_DOMAIN=my-store.myshopify.com

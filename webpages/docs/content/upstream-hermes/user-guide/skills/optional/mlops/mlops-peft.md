@@ -1,15 +1,13 @@
 ---
-title: "Peft Fine Tuning — Parameter-efficient fine-tuning for LLMs using LoRA, QLoRA, and 25+ methods"
-sidebar_label: "Peft Fine Tuning"
-description: "Parameter-efficient fine-tuning for LLMs using LoRA, QLoRA, and 25+ methods"
+title: "Peft — Fine-tune large LLMs with LoRA on limited GPU memory"
+sidebar_label: "Peft"
+description: "Fine-tune large LLMs with LoRA on limited GPU memory"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-peft.md
 ---
 
+# Peft
 
-
-
-# Peft Fine Tuning
-
-Parameter-efficient fine-tuning for LLMs using LoRA, QLoRA, and 25+ methods. Use when fine-tuning large models (7B-70B) with limited GPU memory, when you need to train &lt;1% of parameters with minimal accuracy loss, or for multi-adapter serving. HuggingFace's official library integrated with transformers ecosystem.
+Fine-tune large LLMs with LoRA on limited GPU memory.
 
 ## Skill metadata
 
@@ -21,13 +19,12 @@ Parameter-efficient fine-tuning for LLMs using LoRA, QLoRA, and 25+ methods. Use
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `peft>=0.13.0`, `transformers>=4.45.0`, `torch>=2.0.0`, `bitsandbytes>=0.43.0` |
+| Platforms | linux, macos, windows |
 | Tags | `Fine-Tuning`, `PEFT`, `LoRA`, `QLoRA`, `Parameter-Efficient`, `Adapters`, `Low-Rank`, `Memory Optimization`, `Multi-Adapter` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # PEFT (Parameter-Efficient Fine-Tuning)
 

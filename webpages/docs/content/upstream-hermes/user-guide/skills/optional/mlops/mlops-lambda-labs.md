@@ -1,15 +1,13 @@
 ---
-title: "Lambda Labs Gpu Cloud — Reserved and on-demand GPU cloud instances for ML training and inference"
-sidebar_label: "Lambda Labs Gpu Cloud"
-description: "Reserved and on-demand GPU cloud instances for ML training and inference"
+title: "Lambda Labs — On-demand GPU cloud instances for ML training"
+sidebar_label: "Lambda Labs"
+description: "On-demand GPU cloud instances for ML training"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-lambda-labs.md
 ---
 
+# Lambda Labs
 
-
-
-# Lambda Labs Gpu Cloud
-
-Reserved and on-demand GPU cloud instances for ML training and inference. Use when you need dedicated GPU instances with simple SSH access, persistent filesystems, or high-performance multi-node clusters for large-scale training.
+On-demand GPU cloud instances for ML training.
 
 ## Skill metadata
 
@@ -21,17 +19,16 @@ Reserved and on-demand GPU cloud instances for ML training and inference. Use wh
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `lambda-cloud-client>=1.0.0` |
+| Platforms | linux, macos, windows |
 | Tags | `Infrastructure`, `GPU Cloud`, `Training`, `Inference`, `Lambda Labs` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Lambda Labs GPU Cloud
 
-Comprehensive guide to running ML workloads on Lambda Labs GPU cloud with on-demand instances and 1-Click Clusters.
+Guide to running ML workloads on Lambda Labs GPU cloud with on-demand instances and 1-Click Clusters.
 
 ## When to use Lambda Labs
 
@@ -304,7 +301,7 @@ Filesystems must be attached at instance launch time:
   └── outputs/
 
 # Local SSD (faster, ephemeral)
-/home/ubuntu/
+~/ (instance home)
   └── working/  # Temporary files
 ```
 <!-- ascii-guard-ignore-end -->

@@ -1,19 +1,17 @@
 ---
-weight: 6
+sidebar_position: 6
 title: "Signal"
 description: "Set up Hermes Agent as a Signal messenger bot via signal-cli daemon"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/messaging/signal.md
 ---
-
 
 # Signal Setup
 
 Hermes connects to Signal through the [signal-cli](https://github.com/AsamK/signal-cli) daemon running in HTTP mode. The adapter streams messages in real-time via SSE (Server-Sent Events) and sends responses via JSON-RPC.
 
 Signal is the most privacy-focused mainstream messenger — end-to-end encrypted by default, open-source protocol, minimal metadata collection. This makes it ideal for security-sensitive agent workflows.
-
-> **Info: No New Python Dependencies**
-> The Signal adapter uses `httpx` (already a core Hermes dependency) for all communication. No additional Python packages are required. You just need signal-cli installed externally.
-
+> **info No New Python Dependencies**
+The Signal adapter uses `httpx` (already a core Hermes dependency) for all communication. No additional Python packages are required. You just need signal-cli installed externally.
 
 ---
 
@@ -36,10 +34,8 @@ curl -L -O "https://github.com/AsamK/signal-cli/releases/download/v${VERSION}/si
 sudo tar xf "signal-cli-${VERSION}.tar.gz" -C /opt
 sudo ln -sf "/opt/signal-cli-${VERSION}/bin/signal-cli" /usr/local/bin/
 ```
-
-> **Caution**
-> signal-cli is **not** in apt or snap repositories. The Linux install above downloads directly from [GitHub releases](https://github.com/AsamK/signal-cli/releases).
-
+> **caution**
+signal-cli is **not** in apt or snap repositories. The Linux install above downloads directly from [GitHub releases](https://github.com/AsamK/signal-cli/releases).
 
 ---
 
@@ -65,10 +61,8 @@ signal-cli link -n "HermesAgent"
 # Replace +1234567890 with your Signal phone number (E.164 format)
 signal-cli --account +1234567890 daemon --http 127.0.0.1:8080
 ```
-
-> **Tip**
-> Keep this running in the background. You can use `systemd`, `tmux`, `screen`, or run it as a service.
-
+> **tip**
+Keep this running in the background. You can use `systemd`, `tmux`, `screen`, or run it as a service.
 
 Verify it's running:
 
@@ -168,9 +162,8 @@ The agent can send media files via `MEDIA:` tags in responses. The following del
 All outgoing media goes through Signal's standard attachment API. Unlike some platforms, Signal does not distinguish between voice messages and file attachments at the protocol level.
 
 Attachment size limit: **100 MB** (both directions).
-> **Warning**
-> **Signal servers will rate-limit attachment uploads**, the adapter uses a scheduler for multiple image sending that batches images in groups of 32 and throttles uploads to match the Signal server policy.
-
+> **warning**
+**Signal servers will rate-limit attachment uploads**, the adapter uses a scheduler for multiple image sending that batches images in groups of 32 and throttles uploads to match the Signal server policy.
 
 ### Native Formatting, Reply Quotes, and Reactions
 
@@ -182,9 +175,19 @@ Signal messages render with **native formatting** instead of literal markdown ch
 
 None of this requires additional config — it ships on by default in recent signal-cli builds. If your `signal-cli` version is too old, Hermes falls back to plaintext delivery and logs a one-time warning.
 
+### Long Messages
+
+Signal caps a single message at **8,000 characters**. Hermes splits longer responses into numbered chunks (`(1/3)`, `(2/3)`, …) automatically instead of truncating them. This applies to every delivery path — live conversation replies, cron job deliveries, `hermes send`, and MCP `send_message` calls — and native formatting (bold, italic, code, spoilers) is preserved across chunk boundaries.
+
 ### Typing Indicators
 
 The bot sends typing indicators while processing messages, refreshing every 8 seconds.
+
+### Tool Progress Display
+
+Signal does not support editing already-sent messages. Hermes therefore suppresses gateway tool-progress bubbles on Signal, even when `/verbose` is enabled and saves a non-`off` mode for the platform.
+
+You can still see tool activity in the CLI, and final Signal replies can include normal assistant output. If you need live per-tool progress in chat, use a messaging platform with message editing support.
 
 ### Phone Number Redaction
 
@@ -228,10 +231,8 @@ The adapter monitors the SSE connection and automatically reconnects if:
 ---
 
 ## Security
-
-> **Warning**
-> **Always configure access controls.** The bot has terminal access by default. Without `SIGNAL_ALLOWED_USERS` or DM pairing, the gateway denies all incoming messages as a safety measure.
-
+> **warning**
+**Always configure access controls.** The bot has terminal access by default. Without `SIGNAL_ALLOWED_USERS` or DM pairing, the gateway denies all incoming messages as a safety measure.
 
 - Phone numbers are redacted in all log output
 - Use DM pairing or explicit allowlists for safe onboarding of new users

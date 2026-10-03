@@ -1,15 +1,13 @@
 ---
-title: "Duckduckgo Search — Free web search via DuckDuckGo — text, news, images, videos"
+title: "Duckduckgo Search — Free keyless web, news, and image search via ddgs"
 sidebar_label: "Duckduckgo Search"
-description: "Free web search via DuckDuckGo — text, news, images, videos"
+description: "Free keyless web, news, and image search via ddgs"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/research/research-duckduckgo-search.md
 ---
-
-
-
 
 # Duckduckgo Search
 
-Free web search via DuckDuckGo — text, news, images, videos. No API key needed. Prefer the `ddgs` CLI when installed; use the Python DDGS library only after verifying that `ddgs` is available in the current runtime.
+Free keyless web, news, and image search via ddgs.
 
 ## Skill metadata
 
@@ -20,14 +18,13 @@ Free web search via DuckDuckGo — text, news, images, videos. No API key needed
 | Version | `1.3.0` |
 | Author | gamedevCloudy |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `search`, `duckduckgo`, `web-search`, `free`, `fallback` |
-| Related skills | [`arxiv`](../../../bundled/research/research-arxiv/) |
+| Related skills | [`arxiv`](../../bundled/research/research-arxiv.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # DuckDuckGo Search
 

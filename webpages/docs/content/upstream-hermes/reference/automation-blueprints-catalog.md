@@ -2,8 +2,10 @@
 sidebar_position: 7
 title: "Automation Blueprints Catalog"
 description: "Ready-to-run automation blueprints — set one up from the dashboard, CLI, TUI, any messenger, or the desktop app."
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/reference/automation-blueprints-catalog.mdx
 ---
 
+import AutomationBlueprintsCatalog from '@site/src/components/AutomationBlueprintsCatalog';
 
 # Automation Blueprints
 
@@ -24,7 +26,6 @@ Every blueprint works from **every surface**:
 
 Blueprints never schedule anything silently — you always confirm before the job
 is created. Manage created jobs anytime with `/cron`.
-
 
 ## Writing your own
 

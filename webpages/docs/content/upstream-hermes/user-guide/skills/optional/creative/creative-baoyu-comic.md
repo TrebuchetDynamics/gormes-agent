@@ -2,8 +2,8 @@
 title: "Baoyu Comic — Knowledge comics (知识漫画): educational, biography, tutorial"
 sidebar_label: "Baoyu Comic"
 description: "Knowledge comics (知识漫画): educational, biography, tutorial"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/creative/creative-baoyu-comic.md
 ---
-
 
 # Baoyu Comic
 
@@ -22,8 +22,7 @@ Knowledge comics (知识漫画): educational, biography, tutorial.
 | Tags | `comic`, `knowledge-comic`, `creative`, `image-generation` |
 
 ## Reference: full SKILL.md
-
-> **Info**
+> **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Knowledge Comic Creator

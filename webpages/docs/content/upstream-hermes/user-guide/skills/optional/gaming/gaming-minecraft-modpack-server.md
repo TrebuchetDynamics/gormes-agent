@@ -2,8 +2,8 @@
 title: "Minecraft Modpack Server — Host modded Minecraft servers (CurseForge, Modrinth)"
 sidebar_label: "Minecraft Modpack Server"
 description: "Host modded Minecraft servers (CurseForge, Modrinth)"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/gaming/gaming-minecraft-modpack-server.md
 ---
-
 
 # Minecraft Modpack Server
 
@@ -15,11 +15,13 @@ Host modded Minecraft servers (CurseForge, Modrinth).
 |---|---|
 | Source | Optional — install with `hermes skills install official/gaming/minecraft-modpack-server` |
 | Path | `optional-skills/gaming/minecraft-modpack-server` |
+| Version | `1.0.0` |
+| Author | Teknium (teknium1), Hermes Agent |
+| License | MIT |
 | Platforms | linux, macos |
 
 ## Reference: full SKILL.md
-
-> **Info**
+> **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Minecraft Modpack Server Setup
@@ -146,7 +148,7 @@ Check with: `sudo ufw status | grep 25565`
 ### 8. Create Launch Script
 ```bash
 cat > ~/start-minecraft.sh << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 cd ~/minecraft-server/server
 java @user_jvm_args.txt @libraries/net/neoforged/neoforge/<VERSION>/unix_args.txt nogui
 EOF
@@ -158,7 +160,7 @@ Note: For Forge (not NeoForge), the args file path differs. Check `startserver.s
 Create backup script:
 ```bash
 cat > ~/minecraft-server/backup.sh << 'SCRIPT'
-#!/bin/bash
+#!/usr/bin/env bash
 SERVER_DIR="$HOME/minecraft-server/server"
 BACKUP_DIR="$HOME/minecraft-server/backups"
 WORLD_DIR="$SERVER_DIR/world"

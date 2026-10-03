@@ -1,5 +1,6 @@
 ---
 title: "Trajectory Format"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/developer-guide/trajectory-format.md
 ---
 
 # Trajectory Format
@@ -7,8 +8,7 @@ title: "Trajectory Format"
 Hermes Agent saves conversation trajectories in ShareGPT-compatible JSONL format
 for use as training data, debugging artifacts, and reinforcement learning datasets.
 
-Source files: `agent/trajectory.py`, `run_agent.py` (search for `_save_trajectory`), `batch_runner.py`
-
+Source files: `agent/trajectory.py`, `agent/session_persistence.py` (search for `_save_trajectory`), `batch_runner.py`
 
 ## File Naming Convention
 
@@ -23,7 +23,6 @@ The batch runner (`batch_runner.py`) writes to a custom output file per batch
 (e.g., `batch_001_output.jsonl`) with additional metadata fields.
 
 You can override the filename via the `filename` parameter in `save_trajectory()`.
-
 
 ## JSONL Entry Format
 
@@ -68,7 +67,6 @@ The `tool_stats` and `tool_error_counts` dictionaries are normalized to include
 ALL possible tools (from `model_tools.TOOL_TO_TOOLSET_MAP`) with zero defaults,
 ensuring consistent schema across entries for HuggingFace dataset loading.
 
-
 ## Conversations Array (ShareGPT Format)
 
 The `conversations` array uses ShareGPT role conventions:
@@ -111,7 +109,6 @@ The `conversations` array uses ShareGPT role conventions:
   "completed": true
 }
 ```
-
 
 ## Normalization Rules
 
@@ -179,7 +176,6 @@ It follows the Hermes function-calling prompt template with:
 Tool definitions include `name`, `description`, `parameters`, and `required`
 (set to `null` to match the canonical format).
 
-
 ## Loading Trajectories
 
 Trajectories are standard JSONL — load with any JSON-lines reader:
@@ -216,20 +212,18 @@ ds = load_dataset("json", data_files="trajectory_samples.jsonl")
 The normalized `tool_stats` schema ensures all entries have the same columns,
 preventing Arrow schema mismatch errors during dataset loading.
 
-
 ## Controlling Trajectory Saving
 
-In the CLI, trajectory saving is controlled by:
+Trajectory saving is a `run_agent.py` / library-level switch — the `hermes` CLI
+does not expose a config key or flag for it:
 
-```yaml
-# config.yaml
-agent:
-  save_trajectories: true  # default: false
+```bash
+python run_agent.py --save_trajectories --query='your question here'
 ```
 
-Or via the `--save-trajectories` flag. When the agent initializes with
-`save_trajectories=True`, the `_save_trajectory()` method is called at the end
-of each conversation turn.
+Or programmatically: `AIAgent(..., save_trajectories=True)` /
+`initialize_agent(..., save_trajectories=True)`. When enabled, the
+`_save_trajectory()` method is called at the end of each conversation turn.
 
 The batch runner always saves trajectories (that's its primary purpose).
 

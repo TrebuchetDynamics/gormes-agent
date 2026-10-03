@@ -13,7 +13,7 @@ import subprocess
 MAX_UNTRACKED_BYTES = 32 * 1024 * 1024
 
 
-def fingerprint(root=Path('/workspace'), home=Path('/opt/data')):
+def fingerprint(root=Path('/workspace'), home=Path('/workspace/.hermes/home')):
     digest = hashlib.sha256()
 
     def add(data):
@@ -58,7 +58,7 @@ def fingerprint(root=Path('/workspace'), home=Path('/opt/data')):
 
     # Metadata only: config contents/credentials never enter the output or prompt.
     runtime_paths = [home / 'config.yaml', home / 'SOUL.md',
-                     home / 'skills/gormes-repo-operations/SKILL.md',
+                     root / '.hermes/skills/gormes-repo-operations/SKILL.md',
                      home / 'toolchains/gormes-development-env.sh',
                      root / 'webpages/docs/node_modules/.bin/astro']
     go = shutil.which('go')

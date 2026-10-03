@@ -1,15 +1,13 @@
 ---
-title: "Huggingface Tokenizers — Fast tokenizers optimized for research and production"
+title: "Huggingface Tokenizers — Fast BPE/WordPiece tokenization and custom vocab training"
 sidebar_label: "Huggingface Tokenizers"
-description: "Fast tokenizers optimized for research and production"
+description: "Fast BPE/WordPiece tokenization and custom vocab training"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-huggingface-tokenizers.md
 ---
-
-
-
 
 # Huggingface Tokenizers
 
-Fast tokenizers optimized for research and production. Rust-based implementation tokenizes 1GB in &lt;20 seconds. Supports BPE, WordPiece, and Unigram algorithms. Train custom vocabularies, track alignments, handle padding/truncation. Integrates seamlessly with transformers. Use when you need high-performance tokenization or custom tokenizer training.
+Fast BPE/WordPiece tokenization and custom vocab training.
 
 ## Skill metadata
 
@@ -21,13 +19,12 @@ Fast tokenizers optimized for research and production. Rust-based implementation
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `tokenizers`, `transformers`, `datasets` |
+| Platforms | linux, macos, windows |
 | Tags | `Tokenization`, `HuggingFace`, `BPE`, `WordPiece`, `Unigram`, `Fast Tokenization`, `Rust`, `Custom Tokenizer`, `Alignment Tracking`, `Production` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # HuggingFace Tokenizers - Fast Tokenization for NLP
 

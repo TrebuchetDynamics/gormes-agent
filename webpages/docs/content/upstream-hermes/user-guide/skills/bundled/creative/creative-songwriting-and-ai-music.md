@@ -2,10 +2,8 @@
 title: "Songwriting And Ai Music — Songwriting craft and Suno AI music prompts"
 sidebar_label: "Songwriting And Ai Music"
 description: "Songwriting craft and Suno AI music prompts"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/creative/creative-songwriting-and-ai-music.md
 ---
-
-
-
 
 # Songwriting And Ai Music
 
@@ -17,12 +15,14 @@ Songwriting craft and Suno AI music prompts.
 |---|---|
 | Source | Bundled (installed by default) |
 | Path | `skills/creative/songwriting-and-ai-music` |
+| Version | `1.0.0` |
+| Author | Teknium (teknium1), Hermes Agent |
+| License | MIT |
+| Platforms | linux, macos, windows |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Songwriting & AI Music Generation
 
@@ -296,3 +296,21 @@ Style can drift in extensions — restate genre/mood when extending.
 - Don't be precious about rules. If a line breaks meter but hits
   harder, keep it. The feeling is what matters. Craft serves art,
   not the other way around.
+
+---
+
+## 10. Local / Open-Source Music Generation
+
+For local, GPU-based generation instead of Suno, two optional skills
+cover this (heavy dependencies, so not installed by default):
+
+- **heartmula** — full songs with vocals from lyrics + tags
+  (open-source Suno alternative, 8-16GB VRAM):
+  `hermes skills install official/creative/heartmula`
+- **audiocraft** — Meta's MusicGen (instrumental text-to-music) and
+  AudioGen (sound effects):
+  `hermes skills install official/creative/audiocraft-audio-generation`
+
+The lyric-writing and prompting craft in this skill applies to
+heartmula too — its input format is lyrics with bracketed structure
+tags plus comma-separated style tags.

@@ -1,16 +1,15 @@
 ---
-weight: 13
+sidebar_position: 13
 title: "Browser Provider Plugins"
 description: "How to build a cloud browser backend plugin for Hermes Agent"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/developer-guide/browser-provider-plugin.md
 ---
 
 # Building a Browser Provider Plugin
 
 Browser provider plugins register a **cloud browser backend** that services cloud-mode `browser_*` tool calls (navigate, click, screenshot, …). Built-in providers — Browserbase, Browser Use, and Firecrawl — all ship as plugins under `plugins/browser/<name>/`. You can add a new one, or override a bundled one, by dropping a directory next to them.
-
-> **Tip**
->
-> Browser backends are one of several **backend plugins** Hermes supports. The others (with their own ABCs) are [Web Search Provider Plugins](../../developer-guide/web-search-provider-plugin) (which this ABC deliberately mirrors), [Image Generation](../../developer-guide/image-gen-provider-plugin), [Video Generation](../../developer-guide/video-gen-provider-plugin), [Memory Providers](../../developer-guide/memory-provider-plugin), [Context Engines](../../developer-guide/context-engine-plugin), [Secret Sources](../../developer-guide/secret-source-plugin), and [Model Providers](../../developer-guide/model-provider-plugin). General tool/hook/CLI plugins live in [Build a Hermes Plugin](../../developer-guide/plugins).
+> **tip**
+Browser backends are one of several **backend plugins** Hermes supports. The others (with their own ABCs) are [Web Search Provider Plugins](./web-search-provider-plugin.md) (which this ABC deliberately mirrors), [Image Generation](./image-gen-provider-plugin.md), [Video Generation](./video-gen-provider-plugin.md), [Memory Providers](./memory-provider-plugin.md), [Context Engines](./context-engine-plugin.md), [Secret Sources](./secret-source-plugin.md), and [Model Providers](./model-provider-plugin.md). General tool/hook/CLI plugins live in [Build a Hermes Plugin](./plugins/index.md).
 
 ## How it fits together
 
@@ -54,7 +53,6 @@ provides_browser_providers:
 ```python
 from plugins.browser.my_backend.provider import MyBackendProvider
 
-
 def register(ctx) -> None:
     ctx.register_browser_provider(MyBackendProvider())
 ```
@@ -65,7 +63,6 @@ Implement `agent.browser_provider.BrowserProvider`. Three lifecycle methods plus
 
 ```python
 from agent.browser_provider import BrowserProvider
-
 
 class MyBackendProvider(BrowserProvider):
     @property
@@ -126,7 +123,7 @@ def get_setup_schema(self) -> dict:
              "prompt": "My Backend API key",
              "url": "https://mybackend.example"},
         ],
-        "post_setup": "agent_browser",   # auto-installs the agent-browser npm dep
+        "post_setup": "agent_browser",   # ensures local Chromium is installed (agent-browser itself resolves via npx)
     }
 ```
 
