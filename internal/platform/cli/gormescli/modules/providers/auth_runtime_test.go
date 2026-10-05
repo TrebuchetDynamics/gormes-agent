@@ -363,6 +363,33 @@ func TestAuthPriorityMovesCredentialAndReportsRedactedEffectivePosition(t *testi
 	}
 }
 
+func TestAuthPriorityReportsConfiguredNonFillFirstStrategy(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	seedAuthCommandCredentials(t, "openrouter", []config.PooledCredential{
+		{ID: "cred-a", Label: "Alpha", Source: "manual", AccessToken: "strategy-secret-a"},
+		{ID: "cred-b", Label: "Beta", Source: "manual", AccessToken: "strategy-secret-b"},
+	})
+	configPath := config.YAMLConfigPath()
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath, []byte("credential_pool_strategies:\n  openrouter: round_robin\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "priority", "openrouter", "Beta", "0")
+	if err != nil {
+		t.Fatalf("auth priority: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stderr, "openrouter uses the round_robin strategy") || !strings.Contains(stderr, "priority only orders fill_first selection") {
+		t.Fatalf("strategy note = %q, want configured non-fill-first strategy note", stderr)
+	}
+	if strings.Contains(stdout+stderr, "strategy-secret") {
+		t.Fatalf("auth priority leaked credential secret:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
 func TestAuthPriorityTargetFormsAndClamping(t *testing.T) {
 	for _, tc := range []struct {
 		name     string

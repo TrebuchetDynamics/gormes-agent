@@ -818,6 +818,13 @@ func runAuthPriorityCommand(cmd *cobra.Command, providerInput, target string, re
 		}
 		fmt.Fprintf(cmd.ErrOrStderr(), "note: requested priority %d; effective priority is %d because %s.\n", requested, moved.Priority, reason)
 	}
+	if cfg, configErr := config.Load(nil); configErr == nil {
+		strategy := strings.ToLower(strings.TrimSpace(cfg.CredentialPoolStrategies[provider]))
+		switch strategy {
+		case string(config.CredentialPoolStrategyRoundRobin), string(config.CredentialPoolStrategyLeastUsed), string(config.CredentialPoolStrategyRandom):
+			fmt.Fprintf(cmd.ErrOrStderr(), "note: %s uses the %s strategy; priority only orders fill_first selection.\n", provider, strategy)
+		}
+	}
 	return nil
 }
 
