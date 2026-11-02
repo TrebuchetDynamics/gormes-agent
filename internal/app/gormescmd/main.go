@@ -32,6 +32,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/voicemode"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
@@ -1813,6 +1814,7 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			return fetcher.Fetch(ctx, llm.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
 		MaxToolIterations: gormescli.ConfiguredMaxToolIterations(cfg),
+		VoiceModeStore:    voicemode.NewFileStore(voicemode.DefaultPath(config.GormesHome())),
 	}
 }
 

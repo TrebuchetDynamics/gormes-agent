@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/audiodelivery"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/voicemode"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
@@ -55,7 +56,22 @@ func (m *Manager) appendAutoTTSMedia(ctx context.Context, platform, sessionKey, 
 	if cfg.Engine == TTSEngineDisabled {
 		return media
 	}
-	if !audioRequested && !cfg.Enabled {
+	if mode, found := m.turnVoiceMode(ctx, sessionKey); found {
+		switch mode {
+		case voicemode.ModeOff:
+			return media
+		case voicemode.ModeVoiceOnly:
+			if !audioRequested {
+				return media
+			}
+		case voicemode.ModeAll:
+			// Speak every reply.
+		default:
+			if !audioRequested && !cfg.Enabled {
+				return media
+			}
+		}
+	} else if !audioRequested && !cfg.Enabled {
 		return media
 	}
 	tool, ok := m.cfg.ToolRegistry.Get("text_to_speech")
