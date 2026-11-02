@@ -221,6 +221,7 @@ func NewDefaultSlashRegistry() *SlashRegistry {
 	r.Register("reload_skills", reloadSkillsSlashHandler, WithBusyAvailable())
 	r.Register("tools", toolsSlashHandler, WithBusyAvailable())
 	r.Register("voice", voiceSlashHandler, WithBusyAvailable())
+	r.Register("goal", goalSlashHandler, WithBusyAvailable())
 	r.Register("skin", skinSlashHandler, WithBusyAvailable())
 	r.Register("model", modelSlashHandler)
 	r.Register("m", modelSlashHandler)

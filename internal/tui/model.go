@@ -19,6 +19,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/banner"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/composer"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/goal"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/modelpicker"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/prompttemplates"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/sessionspage"
@@ -78,6 +79,14 @@ type SessionDirectoryEntry = sessionspage.Entry
 // SessionDirectoryFunc returns recent sessions for the native TUI picker page.
 // The limit is caller-supplied and already clamped by the slash handler.
 type SessionDirectoryFunc func(limit int) ([]SessionDirectoryEntry, error)
+
+// GoalStatusFunc returns the compact standing-goal bar for a session. Nil
+// disables the bar; the production adapter reads session goal metadata.
+type GoalStatusFunc func(sessionID string) (goal.Line, bool)
+
+// GoalCommandFunc executes one /goal invocation. Nil keeps /goal consumed
+// with visible unavailable evidence.
+type GoalCommandFunc func(sessionID, input string) (string, error)
 
 // SessionResumeResult is the replay payload returned by the local /resume
 // adapter. History is already ordered for direct render-frame replacement.
@@ -266,6 +275,12 @@ type Options struct {
 	// /title consumed with visible degraded evidence; cmd/gormes wires a
 	// metadata-backed adapter for local TUI startup.
 	SessionTitle SessionTitleFunc
+	// GoalStatus renders the compact /goal bar for the active session. Nil
+	// drops the bar; local TUI startup wires the session-metadata adapter.
+	GoalStatus GoalStatusFunc
+	// GoalCommand executes /goal subcommands. Nil keeps /goal consumed with
+	// visible unavailable evidence.
+	GoalCommand GoalCommandFunc
 	// SessionDirectory is the injected recent-session lister invoked by
 	// /sessions and /resume. nil keeps the commands consumed with visible
 	// degraded evidence; cmd/gormes wires a Goncho memory-backed adapter for
@@ -437,6 +452,10 @@ type Model struct {
 	promptTemplates    prompttemplates.Catalog
 	gatewayLogTail     GatewayLogTailFunc
 	sessionTitle       SessionTitleFunc
+	goalStatus         GoalStatusFunc
+	goalCommand        GoalCommandFunc
+	goalLine           goal.Line
+	goalLineSet        bool
 	sessionDirectory   SessionDirectoryFunc
 	sessionTree        SessionTreeFunc
 	sessionTreeLabel   SessionTreeLabelFunc
@@ -531,6 +550,8 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		promptTemplates:    opts.PromptTemplates,
 		gatewayLogTail:     opts.GatewayLogTail,
 		sessionTitle:       opts.SessionTitle,
+		goalStatus:         opts.GoalStatus,
+		goalCommand:        opts.GoalCommand,
 		sessionDirectory:   opts.SessionDirectory,
 		sessionTree:        opts.SessionTree,
 		sessionTreeLabel:   opts.SessionTreeLabel,

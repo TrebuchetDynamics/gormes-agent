@@ -47,6 +47,10 @@ type Input struct {
 	// above the status bar when active. Empty means no panel is active.
 	Panel string
 
+	// GoalBar is the optional standing-goal line rendered above the live-work
+	// dock. Empty means no active or paused goal.
+	GoalBar string
+
 	// TodoPanel is the optional todo list rendered when the session has
 	// active (pending or in-progress) tasks. Empty means no todos to show.
 	TodoPanel string
@@ -71,6 +75,7 @@ type Input struct {
 //
 //	conversation
 //	(optional) spinner/hint
+//	(optional) goal bar
 //	(optional) modal panel
 //	(optional) extension widgets above editor
 //	(optional) queued messages
@@ -97,6 +102,9 @@ func Render(in Input) string {
 	}
 	if in.Spinner != "" {
 		parts = append(parts, in.Spinner)
+	}
+	if in.GoalBar != "" {
+		parts = append(parts, in.GoalBar)
 	}
 	if in.TodoPanel != "" {
 		parts = append(parts, in.TodoPanel)
@@ -146,7 +154,7 @@ func Render(in Input) string {
 }
 
 func hasBottomChrome(in Input) bool {
-	return in.Spinner != "" || in.TodoPanel != "" || in.Panel != "" || in.ExtensionWidgetsAbove != "" || in.QueuedMessages != "" || in.StickyPrompt != "" || in.StatusBar != "" || in.Prompt != "" || in.ExtensionWidgetsBelow != "" || in.VoiceStatus != "" || in.ImageBar != "" || in.Completions != ""
+	return in.Spinner != "" || in.GoalBar != "" || in.TodoPanel != "" || in.Panel != "" || in.ExtensionWidgetsAbove != "" || in.QueuedMessages != "" || in.StickyPrompt != "" || in.StatusBar != "" || in.Prompt != "" || in.ExtensionWidgetsBelow != "" || in.VoiceStatus != "" || in.ImageBar != "" || in.Completions != ""
 }
 
 func inputRule(width int) string {

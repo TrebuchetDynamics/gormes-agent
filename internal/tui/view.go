@@ -16,6 +16,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools/trace"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/banner"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/extensionui"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/goal"
 )
 
 // Transcript chrome renders through the Gormes-owned semantic style system
@@ -127,11 +128,14 @@ func (m Model) View() string {
 	// Render todo panel if there are active tasks for the current session.
 	todoPanel := m.renderTodoPanel(convW)
 
+	goalBar := m.renderGoalBar(convW)
+
 	return RenderHermesChrome(HermesChromeInput{
 		Width:                 m.width,
 		Conversation:          conv,
 		Spinner:               hint,
 		Panel:                 panel,
+		GoalBar:               goalBar,
 		TodoPanel:             todoPanel,
 		ExtensionWidgetsAbove: m.renderExtensionWidgets(kernel.ExtensionUIWidgetAboveEditor, m.width),
 		QueuedMessages:        m.renderQueuedMessageWidgets(m.width),
@@ -914,6 +918,25 @@ func shortSessionID(id string) string {
 		return id
 	}
 	return id[:8] + "…"
+}
+
+func (m Model) renderGoalBar(width int) string {
+	if m.goalStatus == nil || !m.goalLineSet {
+		return ""
+	}
+	return goal.RenderBar(m.goalLine, width)
+}
+
+// refreshGoalLine reloads the cached goal bar. Rendering must not perform
+// session-store I/O, so this runs on frame/session changes and after /goal.
+func (m *Model) refreshGoalLine() {
+	if m == nil || m.goalStatus == nil {
+		m.goalLineSet = false
+		return
+	}
+	line, ok := m.goalStatus(m.SessionID())
+	m.goalLine = line
+	m.goalLineSet = ok
 }
 
 func (m Model) renderTodoPanel(width int) string {
