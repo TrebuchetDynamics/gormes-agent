@@ -1,6 +1,6 @@
 ---
 title: "Hermes Behavior Atom Inventory"
-date: 2026-05-26
+date: 2026-11-02
 description: "Evidence-first classification of every Hermes behavior atom against Gormes source. Trusts Hermes source + Gormes code/tests. Does not reference progress.json."
 ---
 
@@ -22,6 +22,41 @@ file+line ref or explicit `missing`, and a classification.
 | `missing` | No useful Gormes code or test exists. |
 | `owned` | Intentional Gormes divergence with rationale and test. |
 | `unknown` | Behavior exists in Hermes but has not been mapped. |
+
+## Upstream Delta Register (2026-11-02)
+
+**Last refreshed:** 2026-11-02 against upstream `197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee`.
+
+**Last atom audit:** `d0288be5b3330d2442e3907185b8e9d0958297bb`.
+
+**Delta:** 17,230 commits; 13,572 changed paths (3,669 runtime, 1,999 app/UI, 6,552 test, 1,098 docs, 254 tooling).
+
+Full path-by-path classification: [UPSTREAM-DELTA-d0288be5b333-197f16a12b09.md](UPSTREAM-DELTA-d0288be5b333-197f16a12b09.md).
+
+This register is a family-level triage of the upstream drift. It does not replace per-behavior atoms. The provisional statuses are inputs to Plan Round 2, which must split each partial/missing family into atoms with exact source refs and scenario tests. Until that split lands, the strict parity gate remains unverified.
+
+| Family | Changed paths | Provisional status | Evidence note |
+|---|---:|---|---|
+| `apps` | 1778 | `missing` | Upstream desktop/bootstrap installer app surface has no Go port. |
+| `plugin-catalog` | 744 | `missing` | No atom-level counterpart mapped at the new baseline. |
+| `hermes_cli` | 712 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `agent` | 381 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `plugins` | 368 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `tools` | 365 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `gateway` | 344 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `optional-skills` | 254 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `skills` | 177 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `ui-tui` | 144 | `partial` | Gormes TUI exists; upstream Ink components changed. |
+| `tui_gateway` | 108 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `root entrypoints/helpers` | 85 | `partial` | Root Hermes entrypoints and state/helper modules changed; atom-level review required. |
+| `web` | 74 | `partial` | Gormes native dashboard exists; upstream web SPA changed. |
+| `cron` | 51 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `pm` | 47 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `acp_adapter` | 18 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `hermes_platform` | 11 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `assets` | 3 | `missing` | Shared asset/UI class has no atom-level counterpart. |
+
+The delta report JSON contains all 13572 paths; this table groups runtime/app-UI families with at least 10 changed paths and one root-entrypoint row. Test, docs, and tooling paths are counted in the delta report and are not parity atoms.
 
 ## How to read
 
@@ -750,9 +785,10 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Goal set/pause/resume/clear/status | `hermes_cli/goals.py` | `internal/tui/slash_goal.go` + `internal/tools/` | covered | Goal management in TUI and tools. |
-| Goal subgoal add/remove/list | `hermes_cli/goals.py` | `internal/gateway/goal_loop.go` `handleSubgoalCommand` | covered | Add/remove/clear subgoals; saves in GoalState.Subgoals. |
-| Goal budget enforcement | `hermes_cli/goals.py` | `internal/persistence/session/goal_state.go` `GoalState.MaxTurns` + `goal_loop.go` | covered | Turn budget tracked via MaxTurns; pauses goal when exhausted. |
+| Goal set/pause/resume/clear/status | `hermes_cli/goals.py` | `internal/tui/slash_goal.go`; `internal/tui/goal/goal.go`; `internal/tui/goal/goal_test.go`; `internal/gateway/goal_loop.go` | partial | The native TUI now handles `/goal status|pause|resume|clear|done` and `/goal <objective>`, persists through session metadata, enforces per-session isolation, and renders the bar. The gateway owns auto-continuation. Remaining gap: the TUI does not auto-continue a set goal, and the gateway judge is still nil in production. |
+| Goal subgoal add/remove/list | `hermes_cli/goals.py` | `internal/tui/goal/goal.go`; `internal/tui/goal/goal_test.go` | covered | `/goal subgoal add|remove|list|clear` persists `GoalState.Subgoals` and is covered by controller tests. The gateway subgoal command still needs its own wiring. |
+| Goal bar | `ui-tui/src/app/goalStatus.ts`; `ui-tui/src/components/goalBar.tsx` | `internal/tui/goal/goal.go` `BuildLine`; `internal/tui/view.go` `renderGoalBar`; `internal/tui/chrome/chrome.go` `GoalBar`; `internal/tui/goal_bar_test.go` | covered | Active goals render `⊙ goal · N/M turns · title`; paused goals render `⏸ goal paused · reason · N/M turns · title`; done and cleared goals drop the bar. The bar is placed above the todo/live-work dock. |
+| Goal budget enforcement | `hermes_cli/goals.py` | `internal/persistence/session/goal_state.go` `GoalState.MaxTurns` + `goal_loop.go` | covered | Turn budget tracked via MaxTurns; the gateway pauses the goal when exhausted. The TUI control surface displays the budget. |
 
 ---
 
