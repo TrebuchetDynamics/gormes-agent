@@ -91,15 +91,15 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 106/112 subphases shipped · 6 in progress · 0 planned
+**Overall:** 104/112 subphases shipped · 8 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | ✅ | 22/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 20/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
@@ -164,7 +164,7 @@ classification and row-backed implementation queue.
 - [x] `install` Termux real-device smoke evidence
 - [x] `install` Termux remote execution guidance
 
-## Phase 2 — The Gateway ✅
+## Phase 2 — The Gateway 🔨
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -412,7 +412,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Mirror + sticker cache surfaces
 - [x] `gateway` Gateway delivery evidence in operator run report
 
-### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy ✅
+### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy 🔨
 
 - [x] `gateway` Steer slash command parser + preview helper
 - [x] `gateway` Steer slash command registry + queue fallback
@@ -420,6 +420,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gateway-handled slash commands bypass active-session guard
 - [x] `gateway` Gateway persistent goal loop + continuation judge
 - [x] `gateway` Gateway/TUI /queue explicit FIFO slash parity
+- [ ] `gateway` Gateway goal judge and subgoal command
 
 ### 2.G — OS-AI Spine: Skills Runtime ✅
 
@@ -726,6 +727,10 @@ classification and row-backed implementation queue.
 - [ ] `planner` Hermes observable-behavior parity closure and upstream drift gate
 - [x] `planner` Hermes source inventory fails closed on traversal errors
 - [x] `planner` Strict Hermes inventory rejects invalid pinned source-pair references
+- [ ] `planner` Rolling upstream baseline freshness gate
+- [ ] `docs` Advance Hermes checkout and source pairs to latest upstream
+- [ ] `docs` Classify the upstream delta by feature family
+- [ ] `planner` Plan round 2: split upstream delta into builder rows
 
 ### 4.J — Permission-Hardened Tool Execution ✅
 
@@ -1256,7 +1261,7 @@ classification and row-backed implementation queue.
 - [x] `install` Termux exec argv path-alias sanitizer
 - [x] `install` Termux binary-fetch publish verification source fallback
 
-### 5.Q — API Server + TUI Gateway Streaming ✅
+### 5.Q — API Server + TUI Gateway Streaming 🔨
 
 - [x] `profiles` Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
 - [x] `gateway` TUI gateway tool-progress mode normalizer
@@ -1342,6 +1347,7 @@ classification and row-backed implementation queue.
 - [x] `tui` Native TUI voice record key uses voice toggle adapter
 - [x] `tui` Native TUI live voice capture and playback parity
 - [x] `gateway` Hermes Wing/Desktop core remote API compatibility
+- [ ] `tui` TUI goal auto-continuation and judge
 
 ### 5.R — Code Execution Mode Policy ✅
 

@@ -4988,6 +4988,70 @@
     }
   },
   {
+    "phase": "5",
+    "subphase": "5.Q",
+    "pos": 84,
+    "item": {
+      "name": "TUI goal auto-continuation and judge",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Finish the in-flight native TUI goal slice. On each idle frame after a goal turn, increment the turn count once, evaluate an injected goal judge, pause at the budget, and submit the continuation prompt exactly once. Paused, done, cleared, cancelled, queued, and failed turns must not continue. The judge fails open on missing or malformed output.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "tui",
+      "module": "tui",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "A missing judge continues with continue evidence. A missing goal store disables continuation and keeps the bar empty. A session without an ID does not continue.",
+      "fixture": "internal/tui/goal/goal_test.go; internal/tui/goal_continuation_test.go; internal/tui/slash_goal_test.go",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/goals.py@fbf6c6c91d",
+        "./hermes-agent/ui-tui/src/app/goalStatus.ts@fbf6c6c91d",
+        "./hermes-agent/ui-tui/src/components/goalBar.tsx@fbf6c6c91d",
+        "internal/tui/goal/goal.go",
+        "internal/tui/slash_goal.go",
+        "internal/tui/update.go",
+        "internal/persistence/session/goal_state.go",
+        "internal/gateway/goalloop/goal.go"
+      ],
+      "ready_when": [
+        "The in-flight TUI goal control and bar slice is present.",
+        "The TUI idle frame path exposes a single post-turn hook.",
+        "The judge and continuation prompt are injected interfaces."
+      ],
+      "not_ready_when": [
+        "Continuation fires more than once for one idle frame.",
+        "Continuation ignores pause, done, clear, cancel, or queue state.",
+        "The judge is called with live credentials in a fixture."
+      ],
+      "acceptance": [
+        "TestGoalAfterIdleSubmitsOnce proves one active-goal idle frame submits exactly one continuation prompt and increments TurnsUsed once.",
+        "TestGoalAfterIdleBudgetPauses proves reaching MaxTurns pauses the goal and submits nothing.",
+        "TestGoalAfterIdleJudgeDone proves a done verdict marks the goal done and submits nothing.",
+        "TestGoalAfterIdleSkipsPausedQueuedCancelled proves paused, queued, cancelled, and failed turns do not continue."
+      ],
+      "write_scope": [
+        "internal/tui/goal/",
+        "internal/tui/",
+        "internal/adapters/tuiadapter/",
+        "internal/platform/cli/gormescli/tuiapp/",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tui/... ./internal/tui/goal -count=1",
+        "go test ./internal/adapters/tuiadapter -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "The TUI continues an active goal until the judge says done or the budget pauses it, with one submission per idle frame."
+      ]
+    }
+  },
+  {
     "phase": "8",
     "subphase": "8.D",
     "pos": 16,

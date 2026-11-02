@@ -10,9 +10,18 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Delivery Control Plane
 **Module:** `docs`
-**Rows:** 22
-**Status counts:** `complete`: 19 · `in_progress`: 0 · `planned`: 3
-**Priority counts:** `P1`: 13 · `P2`: 7 · `P3`: 2
+**Rows:** 24
+**Status counts:** `complete`: 19 · `in_progress`: 0 · `planned`: 5
+**Priority counts:** `P0`: 2 · `P1`: 13 · `P2`: 7 · `P3`: 2
+
+## Phase 4 — The Brain Transplant
+
+### 4.I — Native Agent Turn Closure
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `planned` | `P0` | `docs` | Advance Hermes checkout and source pairs to latest upstream |
+| `planned` | `P0` | `docs` | Classify the upstream delta by feature family |
 
 ## Phase 8 — Reputation & Publication
 

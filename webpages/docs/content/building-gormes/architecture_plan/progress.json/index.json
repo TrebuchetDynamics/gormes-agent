@@ -235,7 +235,7 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes 635253b9 remains the donor for busy-input /steer behavior and Hermes b816fd4e2 adds a separate `/goal` loop with per-session persistence, fail-open judging, and bounded post-turn continuations. Gormes has completed steer and active-turn command bypass; the remaining weakness is now tracked as `Gateway persistent goal loop + continuation judge` rather than leaving `/goal` as a recognized-unavailable command."
           },
-          "item_count": 6
+          "item_count": 7
         },
         {
           "id": "2.G",
@@ -459,7 +459,7 @@
             "last_upstream_check": "2026-04-28T02:56:53Z",
             "origin_decision": "Phase 4 needed an explicit closure subphase for the full Go-native agent turn. Provider, context, retry, and prompt rows remain useful, but Gormes is not Hermes in Go until the e2e turn proves provider, tool, Goncho memory, final response, and audit/status evidence together."
           },
-          "item_count": 15
+          "item_count": 19
         },
         {
           "id": "4.J",
@@ -699,7 +699,7 @@
             "last_upstream_check": "2026-05-09T00:00:00Z",
             "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, `ui-tui/packages/hermes-ink`, and `ui-tui/src/__tests__`) remains the TUI source of truth. The 2026-05-09 all-topic weakness sweep refreshed Hermes to a7e7921db and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Provider/auth, gateway/channel, tools, memory/Goncho, browser, docs/public, and release/operator gaps stayed complete, owned, blocked, or row-backed; the newly refreshed active Ink change was markdown/prose wrap-trim behavior, now tracked by `Native TUI markdown soft-wrap boundary trim`. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits TUI drift into narrow renderer rows rather than reopening completed chat-completions, cron-admin, keybinding, slash, or websocket rows."
           },
-          "item_count": 84
+          "item_count": 85
         },
         {
           "id": "5.R",

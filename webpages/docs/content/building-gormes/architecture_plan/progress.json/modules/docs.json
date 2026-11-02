@@ -1,5 +1,136 @@
 [
   {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 16,
+    "item": {
+      "name": "Advance Hermes checkout and source pairs to latest upstream",
+      "priority": "P0",
+      "status": "planned",
+      "contract": "Fetch NousResearch/hermes-agent origin/main, advance the in-repo hermes-agent gitlink to that exact SHA, update hermes-source-pairs.json to the same SHA, revalidate every source pair, and regenerate the contract inventory. The planning seed is fbf6c6c91d (17,175 commits ahead of d0288be5b); the builder must use the latest origin/main at execution time.",
+      "contract_status": "fixture_ready",
+      "slice_size": "large",
+      "execution_owner": "docs",
+      "module": "docs",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If upstream cannot be fetched, the submodule cannot be advanced, or any source pair lacks its upstream file at the new SHA, stop with the exact unresolved paths and keep the old baseline evidence unchanged.",
+      "fixture": "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json; webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json; webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md",
+      "source_refs": [
+        "https://github.com/NousResearch/hermes-agent/commit/fbf6c6c91d",
+        "./hermes-agent/agent/",
+        "./hermes-agent/tools/",
+        "./hermes-agent/gateway/",
+        "./hermes-agent/hermes_cli/",
+        "./hermes-agent/ui-tui/",
+        "./hermes-agent/web/",
+        "./hermes-agent/plugins/",
+        "./hermes-agent/skills/",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json"
+      ],
+      "ready_when": [
+        "Origin/main is reachable from the in-repo hermes-agent checkout.",
+        "The source-pairs manifest uses the existing schema and SHA field.",
+        "The source-pair validate, sync-sha, and inventory commands exist and pass on a matching baseline."
+      ],
+      "not_ready_when": [
+        "The submodule is advanced without updating the source-pairs SHA.",
+        "A source pair is deleted or left pointing at a path that no longer exists.",
+        "An old d0288be5b SHA remains in the inventory or atom evidence."
+      ],
+      "unblocks": [
+        "Classify the upstream delta by feature family",
+        "Plan round 2: split upstream delta into builder rows"
+      ],
+      "acceptance": [
+        "TestHermesCheckoutMatchesLatestUpstream proves the hermes-agent gitlink SHA equals the fetched origin/main SHA recorded in the manifest.",
+        "TestSourcePairsValidateAtLatestUpstream runs the source-pair validator at the new SHA with zero missing upstream files.",
+        "TestContractInventoryRecordsLatestSHA proves the generated inventory JSON and Markdown record the new SHA and current counts."
+      ],
+      "write_scope": [
+        "hermes-agent",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go run ./cmd/gormes-repo hermes-source-pairs validate",
+        "go run ./cmd/gormes-repo hermes-contract-inventory",
+        "go test ./internal/planning/progress/repoctl/inventory/... -count=1",
+        "go test ./webpages/docs -run TestUpstreamCoverage -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "The checkout, source-pairs manifest, and contract inventory all record the same latest origin/main SHA with no stale d0288be5b reference."
+      ]
+    }
+  },
+  {
+    "phase": "4",
+    "subphase": "4.I",
+    "pos": 17,
+    "item": {
+      "name": "Classify the upstream delta by feature family",
+      "priority": "P0",
+      "status": "planned",
+      "contract": "Produce a deterministic report for the changed paths between the recorded baseline SHA and the latest fetched origin/main. Classify each path as feature-bearing runtime, mapped test, doc/site, generated, or justified non-runtime exclusion. Group feature-bearing paths by subsystem and name the Gormes owner and next action. The planning seed is fbf6c6c91d.",
+      "contract_status": "fixture_ready",
+      "slice_size": "large",
+      "execution_owner": "docs",
+      "module": "docs",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "If the submodule is missing, the baseline SHA is unrecorded, or the diff cannot be resolved, stop with unverified evidence. Never guess a classification for a path that was not read.",
+      "fixture": "webpages/docs/parity-evidence/UPSTREAM-DELTA-<latest-sha>.md; webpages/docs/upstream_delta_test.go",
+      "source_refs": [
+        "./hermes-agent@fbf6c6c91d",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md"
+      ],
+      "ready_when": [
+        "The latest upstream SHA is recorded and the submodule is advanced to it.",
+        "The diff can be enumerated with git diff --name-status.",
+        "The report owner and path convention are fixed."
+      ],
+      "not_ready_when": [
+        "Any changed feature-bearing path remains unclassified.",
+        "Tests, website, contributors, or generated archives are counted as runtime features.",
+        "The report reuses stale d0288be5b-only counts for the new SHA."
+      ],
+      "blocked_by": [
+        "Rolling upstream baseline freshness gate",
+        "Advance Hermes checkout and source pairs to latest upstream"
+      ],
+      "unblocks": [
+        "Plan round 2: split upstream delta into builder rows"
+      ],
+      "acceptance": [
+        "TestUpstreamDeltaCoversEveryChangedPath proves the report classifies every path returned by git diff --name-status for the recorded baseline..origin/main range.",
+        "TestUpstreamDeltaGroupsFeatureFamilies proves agent, tools, gateway, hermes_cli, ui-tui, web, plugins, skills, cron, pm, and apps/desktop changes are grouped with a Gormes owner and next action.",
+        "TestUpstreamDeltaRecordsBothSHAs proves the report names the recorded baseline SHA and the fetched origin/main SHA."
+      ],
+      "write_scope": [
+        "webpages/docs/parity-evidence/",
+        "webpages/docs/upstream_delta_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs -run TestUpstreamDelta -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "The report accounts for every changed path, groups all feature-bearing work by subsystem, and leaves no unknown or unclassified feature path."
+      ]
+    }
+  },
+  {
     "phase": "8",
     "subphase": "8.A",
     "pos": 0,
