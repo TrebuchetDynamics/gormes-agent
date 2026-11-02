@@ -6,9 +6,9 @@
     "item": {
       "name": "Advance Hermes checkout and source pairs to latest upstream",
       "priority": "P0",
-      "status": "planned",
+      "status": "complete",
       "contract": "Fetch NousResearch/hermes-agent origin/main, advance the in-repo hermes-agent gitlink to that exact SHA, update hermes-source-pairs.json to the same SHA, revalidate every source pair, and regenerate the contract inventory. The planning seed is fbf6c6c91d (17,175 commits ahead of d0288be5b); the builder must use the latest origin/main at execution time.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "large",
       "execution_owner": "docs",
       "module": "docs",
@@ -47,24 +47,38 @@
       "acceptance": [
         "TestHermesCheckoutMatchesLatestUpstream proves the hermes-agent gitlink SHA equals the fetched origin/main SHA recorded in the manifest.",
         "TestSourcePairsValidateAtLatestUpstream runs the source-pair validator at the new SHA with zero missing upstream files.",
-        "TestContractInventoryRecordsLatestSHA proves the generated inventory JSON and Markdown record the new SHA and current counts."
+        "TestContractInventoryRecordsLatestSHA proves the generated inventory JSON and Markdown record the new SHA and current counts.",
+        "TestUpstreamCoverageLedgerMatchesSourceClasses passes for the new upstream source classes; new hermes_state_* and scratch classes are represented and lint/tooling files are explicitly ignored."
       ],
+      "note": "Complete 2026-11-02. Fetched NousResearch/hermes-agent origin/main at 197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee (17,230 commits ahead of d0288be5b). Advanced the in-repo hermes-agent gitlink, ran hermes-source-pairs sync-sha (27 pairs, 13,510 changed files, 0 demoted covered pairs), and passed hermes-source-pairs validate. Regenerated the contract inventory at the new SHA: 17,199 unmapped upstream files and 17,209 strict failures, so strict parity remains open. Historical d0288be5b refs inside older progress rows are left for the delta-classification and round-2 planner rows. The always-upstream gate still fails until those rows land. Historical d0288be5b refs inside older progress-row source_refs are explicitly deferred to the delta-classification and round-2 planner rows; this row covers the gitlink, source-pairs manifest, generated inventory, and coverage-ledger source classes. Also synced the upstream website docs mirror, updated nested coverage paths for the mcp-serve/Honcho/agent-importers plugin moves, refreshed the static user-stories mirror to 395 stories, and updated the profile-doc and archive-index assertions to the new upstream wording. Full docs tests pass. Downstream fixture fallout was repaired in the same pass: the Airtable skill moved to upstream optional-skills and is bundled again, the gateway platform manifest names the new plugin-catalog/plugin sources, and SkillsGuidance now matches upstream; porting the moved Skill Safety Rule into the Go compaction handoff remains a follow-up gap.",
       "write_scope": [
         "hermes-agent",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.json",
         "webpages/docs/content/building-gormes/architecture_plan/hermes-contract-inventory.md",
-        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "webpages/docs/content/upstream-hermes/",
+        "webpages/docs/scripts/sync-upstream-hermes-mirror.mjs",
+        "webpages/docs/upstream_coverage_test.go",
+        "webpages/docs/profile_docs_test.go",
+        "webpages/docs/upstream_user_stories_test.go",
+        "webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md",
+        "skills/productivity/airtable/",
+        "internal/gateway/platforms/inventory/",
+        "internal/llm/guidance/text/"
       ],
       "test_commands": [
         "go run ./cmd/gormes-repo hermes-source-pairs validate",
         "go run ./cmd/gormes-repo hermes-contract-inventory",
         "go test ./internal/planning/progress/repoctl/inventory/... -count=1",
         "go test ./webpages/docs -run TestUpstreamCoverage -count=1",
-        "go run ./cmd/progress validate"
+        "go run ./cmd/progress validate",
+        "go test ./webpages/docs -count=1",
+        "git diff --check"
       ],
       "done_signal": [
-        "The checkout, source-pairs manifest, and contract inventory all record the same latest origin/main SHA with no stale d0288be5b reference."
+        "The checkout, source-pairs manifest, and contract inventory all record the same latest origin/main SHA with no stale d0288be5b reference.",
+        "Executed at upstream 197f16a12b: gitlink, source-pairs manifest, and contract inventory agree; source-pair validation passes; strict parity failures are recorded but not claimed complete."
       ]
     }
   },
@@ -75,9 +89,9 @@
     "item": {
       "name": "Classify the upstream delta by feature family",
       "priority": "P0",
-      "status": "planned",
+      "status": "complete",
       "contract": "Produce a deterministic report for the changed paths between the recorded baseline SHA and the latest fetched origin/main. Classify each path as feature-bearing runtime, mapped test, doc/site, generated, or justified non-runtime exclusion. Group feature-bearing paths by subsystem and name the Gormes owner and next action. The planning seed is fbf6c6c91d.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "large",
       "execution_owner": "docs",
       "module": "docs",
@@ -115,6 +129,7 @@
         "TestUpstreamDeltaGroupsFeatureFamilies proves agent, tools, gateway, hermes_cli, ui-tui, web, plugins, skills, cron, pm, and apps/desktop changes are grouped with a Gormes owner and next action.",
         "TestUpstreamDeltaRecordsBothSHAs proves the report names the recorded baseline SHA and the fetched origin/main SHA."
       ],
+      "note": "Complete 2026-11-02. Generated UPSTREAM-DELTA-d0288be5b333-197f16a12b09.json and .md for the atom-audit baseline d0288be5b to latest 197f16a12b. The report classifies all 13,572 changed paths: runtime 3,669, app/UI 1,999, test 6,552, docs 1,098, tooling 254; zero unclassified. TestUpstreamDeltaCoversEveryChangedPath re-runs git diff and proves every changed path has exactly one matching status and category. Added the family-level Upstream Delta Register to HERMES-BEHAVIOR-ATOMS.md with 18 runtime/app-UI families. The strict gate ran with --require-latest: baseline matched, strict failed with 17,209 unresolved items; the non-strict inventory was refreshed to ok:true.",
       "write_scope": [
         "webpages/docs/parity-evidence/",
         "webpages/docs/upstream_delta_test.go",
@@ -126,7 +141,7 @@
         "git diff --check"
       ],
       "done_signal": [
-        "The report accounts for every changed path, groups all feature-bearing work by subsystem, and leaves no unknown or unclassified feature path."
+        "Every changed path between the atom-audit baseline and latest upstream has exactly one source-backed category in a checked-in report, the report is bound by a git-diff test, and the atom inventory records the family-level drift."
       ]
     }
   },

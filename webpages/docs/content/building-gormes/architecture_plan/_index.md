@@ -727,9 +727,9 @@ classification and row-backed implementation queue.
 - [ ] `planner` Hermes observable-behavior parity closure and upstream drift gate
 - [x] `planner` Hermes source inventory fails closed on traversal errors
 - [x] `planner` Strict Hermes inventory rejects invalid pinned source-pair references
-- [ ] `planner` Rolling upstream baseline freshness gate
-- [ ] `docs` Advance Hermes checkout and source pairs to latest upstream
-- [ ] `docs` Classify the upstream delta by feature family
+- [x] `planner` Rolling upstream baseline freshness gate
+- [x] `docs` Advance Hermes checkout and source pairs to latest upstream
+- [x] `docs` Classify the upstream delta by feature family
 - [ ] `planner` Plan round 2: split upstream delta into builder rows
 
 ### 4.J — Permission-Hardened Tool Execution ✅

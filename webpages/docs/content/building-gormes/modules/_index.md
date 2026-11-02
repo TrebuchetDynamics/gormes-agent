@@ -40,9 +40,9 @@ Planner, builder, skill, documentation, kanban, and progress-control surfaces th
 |---|---:|---:|---:|---:|---|
 | [Builder](delivery-control-plane/builder/) | 12 | 12 | 0 | 0 | `P0`: 1 · `P1`: 6 · `P2`: 3 · `unset`: 2 |
 | [Cross Cutting](delivery-control-plane/cross-cutting/) | 0 | 0 | 0 | 0 | - |
-| [Docs](delivery-control-plane/docs/) | 24 | 19 | 0 | 5 | `P0`: 2 · `P1`: 13 · `P2`: 7 · `P3`: 2 |
+| [Docs](delivery-control-plane/docs/) | 24 | 21 | 0 | 3 | `P0`: 2 · `P1`: 13 · `P2`: 7 · `P3`: 2 |
 | [Kanban](delivery-control-plane/kanban/) | 33 | 33 | 0 | 0 | `P1`: 14 · `P2`: 19 |
-| [Planner](delivery-control-plane/planner/) | 15 | 12 | 0 | 3 | `P0`: 5 · `P1`: 5 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
+| [Planner](delivery-control-plane/planner/) | 15 | 13 | 0 | 2 | `P0`: 5 · `P1`: 5 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
 | [Progress](delivery-control-plane/progress/) | 26 | 26 | 0 | 0 | `P1`: 11 · `P2`: 15 |
 | [Skills](delivery-control-plane/skills/) | 52 | 52 | 0 | 0 | `P0`: 6 · `P1`: 14 · `P2`: 16 · `P3`: 6 · `P4`: 1 · `unset`: 9 |
 

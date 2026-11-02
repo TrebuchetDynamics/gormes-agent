@@ -11,7 +11,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 **Module group:** Delivery Control Plane
 **Module:** `planner`
 **Rows:** 15
-**Status counts:** `complete`: 12 · `in_progress`: 0 · `planned`: 3
+**Status counts:** `complete`: 13 · `in_progress`: 0 · `planned`: 2
 **Priority counts:** `P0`: 5 · `P1`: 5 · `P2`: 1 · `P3`: 1 · `unset`: 3
 
 ## Phase 1 — The Dashboard
@@ -49,7 +49,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `planned` | `P0` | `planner` | Hermes observable-behavior parity closure and upstream drift gate |
 | `complete` | `P0` | `planner` | Hermes source inventory fails closed on traversal errors |
 | `complete` | `P0` | `planner` | Strict Hermes inventory rejects invalid pinned source-pair references |
-| `planned` | `P0` | `planner` | Rolling upstream baseline freshness gate |
+| `complete` | `P0` | `planner` | Rolling upstream baseline freshness gate |
 | `planned` | `P1` | `planner` | Plan round 2: split upstream delta into builder rows |
 
 ## Phase 5 — The Final Purge

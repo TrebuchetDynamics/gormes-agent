@@ -474,7 +474,7 @@
         "The final report distinguishes mapping-complete, implementation-incomplete, strict-parity-complete, and unverified; it records the SHA, delta dispositions, evidence counts, divergences, commands and exit results. Missing sources or not-run required evidence produce unverified, never complete.",
         "The gate fails with baseline_stale when the recorded baseline SHA is not the latest fetched origin/main, and fails with baseline_unverified when origin/main cannot be resolved."
       ],
-      "note": "Always-upstream policy accepted by the owner. Planning-time upstream origin/main is fbf6c6c91d, 17,175 commits ahead of the previous d0288be5b baseline; no newer stable tag exists, so upstream is defined as NousResearch/hermes-agent origin/main. The checked-in atom inventory is still written against d0288be5b and must be refreshed. The gate keeps one immutable SHA per pass so evidence stays reproducible while the policy advances that SHA on every pass.",
+      "note": "Always-upstream policy accepted by the owner. The executed planning-time baseline is 197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee, 17,230 commits ahead of the previous d0288be5b baseline. The hermes-agent gitlink, source-pairs manifest, and contract inventory now agree on that SHA; source-pair validation passes. The regenerated inventory reports 17,199 unmapped upstream files and 17,209 strict failures, so the strict claim remains unverified. The rolling gate, delta classification, and round-2 planner rows remain open. The rolling freshness gate is now implemented: gormes-repo hermes-contract-inventory --strict --require-latest matches the recorded 197f16a12b baseline and fails closed on drift; strict parity remains unverified with 17,209 unresolved items.",
       "write_scope": [
         "internal/planning/progress/repoctl/inventory/",
         "cmd/gormes-repo/",
@@ -621,9 +621,9 @@
     "item": {
       "name": "Rolling upstream baseline freshness gate",
       "priority": "P0",
-      "status": "planned",
+      "status": "complete",
       "contract": "Implement the always-upstream freshness step for the strict parity gate. The gate reads the recorded baseline SHA, resolves the latest fetched NousResearch/hermes-agent origin/main, and fails closed when they differ. A matching baseline proceeds to behavior evaluation and emits the source delta from the recorded SHA to origin/main.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "docs",
       "module": "planner",
@@ -661,18 +661,20 @@
         "TestBaselineFreshnessFailsClosedOnUnresolvableOrigin records a revision error and returns baseline_unverified without a parity claim.",
         "TestBaselineDeltaListsChangedPaths emits the added, modified, and deleted paths from the recorded SHA to origin/main."
       ],
+      "note": "Complete 2026-11-02. Added RequireLatest, OriginRevision, and BaselineDelta to the fidelity report, passed them through the contract inventory, and added --require-latest to gormes-repo. The gate emits baseline_match, baseline_stale, or baseline_unverified plus the recorded/latest SHAs and the added/modified/deleted path delta. Tests cover stale, matching, and unverifiable baselines. The live gate matches at 197f16a12b; strict parity still fails with 17,209 unresolved items, which is the expected implementation gap.",
       "write_scope": [
         "internal/planning/progress/repoctl/inventory/",
         "cmd/gormes-repo/",
         "webpages/docs/content/building-gormes/architecture_plan/progress.json"
       ],
       "test_commands": [
-        "go test ./internal/planning/progress/repoctl/inventory/... -run 'Baseline|Drift' -count=1",
+        "go test ./internal/planning/progress/repoctl/inventory/... -run 'Baseline|OriginUnverified' -count=1",
         "go test ./cmd/gormes-repo -count=1",
+        "go run ./cmd/gormes-repo hermes-contract-inventory --strict --require-latest --hermes-src hermes-agent",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [
-        "The gate rejects a stale or unverified baseline, accepts a matching latest baseline, and prints the delta for the current pass."
+        "The gate rejects a stale or unverifiable baseline with baseline_stale/baseline_unverified, accepts a matching latest baseline with baseline_match, and emits the recorded/latest SHAs and delta."
       ]
     }
   },
