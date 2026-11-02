@@ -28,7 +28,10 @@ const (
 	ServerSurfaceStatusExcluded    ServerSurfaceStatus = "excluded"
 )
 
-const ServerSurfaceRowBackedEvidence = "acp_server_surface_row_backed"
+const (
+	ServerSurfaceRowBackedEvidence   = "acp_server_surface_row_backed"
+	ServerSurfaceImplementedEvidence = "acp_server_surface_implemented"
+)
 
 type ServerSurfaceRow struct {
 	Surface        Surface
@@ -46,16 +49,16 @@ type ServerManifest struct {
 
 func DefaultServerManifest() ServerManifest {
 	rows := []ServerSurfaceRow{
-		rowBacked(SurfaceAuth, "acp_adapter/auth.py",
-			"DetectProvider", "HasProvider"),
+		implemented(SurfaceAuth, "acp_adapter/auth.py",
+			"DetectProvider", "BuildAuthMethods", "TerminalSetupAuthMethodID"),
 		rowBacked(SurfaceEntry, "acp_adapter/entry.py",
 			"RunStdioEntry", "BenignProbeMethods"),
 		rowBacked(SurfaceSession, "acp_adapter/session.py",
 			"SessionManager", "SessionState", "NormalizeCWD"),
 		rowBacked(SurfaceTools, "acp_adapter/tools.py",
 			"ToolKindFor", "ToolCallStart", "ToolCallProgress", "ToolCallComplete"),
-		rowBacked(SurfacePermissions, "acp_adapter/permissions.py",
-			"ApprovalCallback", "PermissionOption", "PermissionOutcomeForKind"),
+		implemented(SurfacePermissions, "acp_adapter/permissions.py",
+			"PermissionOption", "PermissionDecisionForOption", "RequestPermission", "PermissionTimeout"),
 		rowBacked(SurfaceEvents, "acp_adapter/events.py",
 			"SessionUpdate", "ToolProgressEmitter", "ThinkingEmitter", "MessageEmitter"),
 		rowBacked(SurfaceServer, "acp_adapter/server.py",
@@ -94,6 +97,18 @@ func (m ServerManifest) MissingUpstreamFiles(upstream []string) []string {
 	}
 	sort.Strings(missing)
 	return missing
+}
+
+func implemented(surface Surface, upstreamFile string, symbols ...string) ServerSurfaceRow {
+	return ServerSurfaceRow{
+		Surface:        surface,
+		UpstreamFile:   upstreamFile,
+		Status:         ServerSurfaceStatusImplemented,
+		TargetPackage:  "internal/protocols/acp",
+		ProgressRow:    "5.H ACP server side",
+		EvidenceCode:   ServerSurfaceImplementedEvidence,
+		PlannedSymbols: append([]string(nil), symbols...),
+	}
 }
 
 func rowBacked(surface Surface, upstreamFile string, symbols ...string) ServerSurfaceRow {

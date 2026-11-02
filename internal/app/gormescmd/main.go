@@ -664,6 +664,18 @@ func newACPCommand() *cobra.Command {
 	return gormescli.NewACPCommand(gormescli.ACPCommandOptions{
 		BuildProvenance: acpBuildProvenance,
 		ExitError:       newExitCodeError,
+		ServeOptions: func() gormescli.ACPRunServeOptions {
+			cfg, err := config.Load(nil)
+			if err != nil {
+				return gormescli.ACPRunServeOptions{}
+			}
+			available := strings.TrimSpace(cfg.Hermes.APIKey) != ""
+			return gormescli.ACPRunServeOptions{
+				Provider:            cfg.Hermes.Provider,
+				Model:               cfg.Hermes.Model,
+				CredentialAvailable: &available,
+			}
+		},
 	})
 }
 

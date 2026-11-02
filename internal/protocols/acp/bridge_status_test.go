@@ -11,8 +11,11 @@ func TestACPBridgeStatusDistinguishesLocalAndRemoteSupport(t *testing.T) {
 	if status.ServerEvidence != "acp_stdio_jsonrpc_ready" {
 		t.Fatalf("ServerEvidence = %q, want acp_stdio_jsonrpc_ready", status.ServerEvidence)
 	}
-	if status.ServerSurfaces == 0 || status.ServerRowBacked != status.ServerSurfaces {
-		t.Fatalf("server surfaces = %d row_backed=%d, want all surfaces row-backed", status.ServerSurfaces, status.ServerRowBacked)
+	if status.ServerSurfaces == 0 || status.ServerImplemented == 0 {
+		t.Fatalf("server surfaces = %d implemented=%d, want proven implemented surfaces", status.ServerSurfaces, status.ServerImplemented)
+	}
+	if status.ServerImplemented+status.ServerRowBacked != status.ServerSurfaces {
+		t.Fatalf("server surfaces = %d implemented=%d row_backed=%d, want accounted surfaces", status.ServerSurfaces, status.ServerImplemented, status.ServerRowBacked)
 	}
 	if !status.ClientReady {
 		t.Fatalf("ClientReady = false, want local ACP client bridge ready")

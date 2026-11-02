@@ -30,7 +30,7 @@ func TestACPJSONRPCInitializeAuthenticateAndImageCapability(t *testing.T) {
 	if len(frames) != 3 {
 		t.Fatalf("frames = %d, want 3\n%s", len(frames), out.String())
 	}
-	initResult := resultMap(t, frames[0])
+	initResult := resultByID(t, frames, 1)
 	if got := nestedBool(initResult, "agentCapabilities", "promptCapabilities", "image"); !got {
 		t.Fatalf("initialize prompt image capability = false, result=%v", initResult)
 	}
@@ -38,14 +38,20 @@ func TestACPJSONRPCInitializeAuthenticateAndImageCapability(t *testing.T) {
 		t.Fatalf("initialize loadSession = false, result=%v", initResult)
 	}
 	authMethods := initResult["authMethods"].([]any)
-	if len(authMethods) != 1 || authMethods[0].(map[string]any)["id"] != "openrouter" {
-		t.Fatalf("authMethods = %#v, want openrouter", authMethods)
+	if len(authMethods) != 2 {
+		t.Fatalf("authMethods = %#v, want provider plus terminal setup", authMethods)
 	}
-	if resultMap(t, frames[1])["authenticated"] != true {
-		t.Fatalf("matching authenticate result = %#v", frames[1]["result"])
+	if authMethods[0].(map[string]any)["id"] != "openrouter" {
+		t.Fatalf("authMethods[0] = %#v, want openrouter", authMethods[0])
 	}
-	if _, ok := frames[2]["result"]; !ok || frames[2]["result"] != nil {
-		t.Fatalf("mismatched authenticate result = %#v, want explicit null", frames[2])
+	if authMethods[1].(map[string]any)["id"] != TerminalSetupAuthMethodID || authMethods[1].(map[string]any)["type"] != "terminal" {
+		t.Fatalf("authMethods[1] = %#v, want terminal hermes-setup", authMethods[1])
+	}
+	if resultByID(t, frames, 2)["authenticated"] != true {
+		t.Fatalf("matching authenticate result = %#v", frameByID(t, frames, 2)["result"])
+	}
+	if _, ok := frameByID(t, frames, 3)["result"]; !ok || frameByID(t, frames, 3)["result"] != nil {
+		t.Fatalf("mismatched authenticate result = %#v, want explicit null", frameByID(t, frames, 3))
 	}
 }
 
@@ -71,7 +77,7 @@ func TestACPJSONRPCSessionLifecycle(t *testing.T) {
 	}
 
 	frames := decodeJSONRPCFrames(t, out.String())
-	newResult := resultMap(t, frames[0])
+	newResult := resultByID(t, frames, 1)
 	if newResult["sessionId"] != "session-one" {
 		t.Fatalf("new session id = %#v, want session-one", newResult["sessionId"])
 	}
@@ -81,14 +87,14 @@ func TestACPJSONRPCSessionLifecycle(t *testing.T) {
 	if got, err := smap.Get(context.Background(), "acp:session-one"); err != nil || got != "session-one" {
 		t.Fatalf("persisted ACP session = %q, %v; want session-one", got, err)
 	}
-	loadResult := resultMap(t, frames[1])
+	loadResult := resultByID(t, frames, 2)
 	if loadResult["sessionId"] != "session-one" || loadResult["cwd"] != "/tmp/load" {
 		t.Fatalf("load result = %#v, want session-one /tmp/load", loadResult)
 	}
-	if frames[2]["result"] != nil {
-		t.Fatalf("resume non-ACP session result = %#v, want null", frames[2]["result"])
+	if frameByID(t, frames, 3)["result"] != nil {
+		t.Fatalf("resume non-ACP session result = %#v, want null", frameByID(t, frames, 3)["result"])
 	}
-	cancelResult := resultMap(t, frames[3])
+	cancelResult := resultByID(t, frames, 4)
 	if cancelResult["cancelled"] != true {
 		t.Fatalf("cancel result = %#v, want cancelled", cancelResult)
 	}
@@ -183,6 +189,23 @@ func resultMap(t *testing.T, frame map[string]any) map[string]any {
 	return result
 }
 
+func frameByID(t *testing.T, frames []map[string]any, id int64) map[string]any {
+	t.Helper()
+	want := jsonRPCIDKey(float64(id))
+	for _, frame := range frames {
+		if jsonRPCIDKey(frame["id"]) == want {
+			return frame
+		}
+	}
+	t.Fatalf("no response frame for id %d in %#v", id, frames)
+	return nil
+}
+
+func resultByID(t *testing.T, frames []map[string]any, id int64) map[string]any {
+	t.Helper()
+	return resultMap(t, frameByID(t, frames, id))
+}
+
 func nestedBool(root map[string]any, path ...string) bool {
 	var cur any = root
 	for _, elem := range path {
@@ -207,7 +230,11 @@ func countSessionUpdates(frames []map[string]any, kind, text string) int {
 		if update["sessionUpdate"] != kind {
 			continue
 		}
-		if text != "" && update["text"] != text && update["title"] != text {
+		contentText := ""
+		if content, ok := update["content"].(map[string]any); ok {
+			contentText, _ = content["text"].(string)
+		}
+		if text != "" && update["text"] != text && update["title"] != text && contentText != text {
 			continue
 		}
 		count++

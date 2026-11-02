@@ -14,34 +14,39 @@ const (
 )
 
 type BridgeStatus struct {
-	ServerReady     bool
-	ServerEvidence  string
-	ServerSurfaces  int
-	ServerRowBacked int
-	ClientReady     bool
-	ClientEvidence  string
-	RemoteStatus    BridgeEndpointStatus
-	RemoteEvidence  string
-	RemoteReason    string
+	ServerReady       bool
+	ServerEvidence    string
+	ServerSurfaces    int
+	ServerImplemented int
+	ServerRowBacked   int
+	ClientReady       bool
+	ClientEvidence    string
+	RemoteStatus      BridgeEndpointStatus
+	RemoteEvidence    string
+	RemoteReason      string
 }
 
 func DefaultBridgeStatus() BridgeStatus {
 	manifest := DefaultServerManifest()
-	rowBacked := 0
+	implemented, rowBacked := 0, 0
 	for _, surface := range manifest.Surfaces {
-		if surface.Status == ServerSurfaceStatusRowBacked {
+		switch surface.Status {
+		case ServerSurfaceStatusImplemented:
+			implemented++
+		case ServerSurfaceStatusRowBacked:
 			rowBacked++
 		}
 	}
 	return BridgeStatus{
-		ServerReady:     true,
-		ServerEvidence:  BridgeServerEvidenceReady,
-		ServerSurfaces:  len(manifest.Surfaces),
-		ServerRowBacked: rowBacked,
-		ClientReady:     true,
-		ClientEvidence:  ClientEvidenceConnected,
-		RemoteStatus:    BridgeEndpointUnsupported,
-		RemoteEvidence:  BridgeRemoteEvidence,
-		RemoteReason:    "unsupported_remote_acp_endpoint",
+		ServerReady:       true,
+		ServerEvidence:    BridgeServerEvidenceReady,
+		ServerSurfaces:    len(manifest.Surfaces),
+		ServerImplemented: implemented,
+		ServerRowBacked:   rowBacked,
+		ClientReady:       true,
+		ClientEvidence:    ClientEvidenceConnected,
+		RemoteStatus:      BridgeEndpointUnsupported,
+		RemoteEvidence:    BridgeRemoteEvidence,
+		RemoteReason:      "unsupported_remote_acp_endpoint",
 	}
 }

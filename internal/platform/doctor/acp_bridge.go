@@ -42,7 +42,7 @@ func CheckACPBridgeStatus() CheckResult {
 			{
 				Name:   "server",
 				Status: serverStatus,
-				Note:   fmt.Sprintf("evidence=%s surfaces=%d row_backed=%d", status.ServerEvidence, status.ServerSurfaces, status.ServerRowBacked),
+				Note:   fmt.Sprintf("evidence=%s surfaces=%d implemented=%d row_backed=%d", status.ServerEvidence, status.ServerSurfaces, status.ServerImplemented, status.ServerRowBacked),
 			},
 			{
 				Name:   "client",

@@ -19,11 +19,11 @@ func TestACPServerManifest_ClassifiesUpstreamSurfaces(t *testing.T) {
 	}
 
 	expectations := []expectation{
-		{SurfaceAuth, "acp_adapter/auth.py", ServerSurfaceStatusRowBacked, "internal/protocols/acp", ServerSurfaceRowBackedEvidence, "DetectProvider"},
+		{SurfaceAuth, "acp_adapter/auth.py", ServerSurfaceStatusImplemented, "internal/protocols/acp", ServerSurfaceImplementedEvidence, "DetectProvider"},
 		{SurfaceEntry, "acp_adapter/entry.py", ServerSurfaceStatusRowBacked, "internal/protocols/acp", ServerSurfaceRowBackedEvidence, "RunStdioEntry"},
 		{SurfaceSession, "acp_adapter/session.py", ServerSurfaceStatusRowBacked, "internal/protocols/acp", ServerSurfaceRowBackedEvidence, "SessionManager"},
 		{SurfaceTools, "acp_adapter/tools.py", ServerSurfaceStatusRowBacked, "internal/protocols/acp", ServerSurfaceRowBackedEvidence, "ToolKindFor"},
-		{SurfacePermissions, "acp_adapter/permissions.py", ServerSurfaceStatusRowBacked, "internal/protocols/acp", ServerSurfaceRowBackedEvidence, "ApprovalCallback"},
+		{SurfacePermissions, "acp_adapter/permissions.py", ServerSurfaceStatusImplemented, "internal/protocols/acp", ServerSurfaceImplementedEvidence, "PermissionOption"},
 		{SurfaceEvents, "acp_adapter/events.py", ServerSurfaceStatusRowBacked, "internal/protocols/acp", ServerSurfaceRowBackedEvidence, "SessionUpdate"},
 		{SurfaceServer, "acp_adapter/server.py", ServerSurfaceStatusRowBacked, "internal/protocols/acp", ServerSurfaceRowBackedEvidence, "HermesACPAgent"},
 		{SurfaceRegistry, "acp_registry/agent.json", ServerSurfaceStatusRowBacked, "internal/protocols/acp", ServerSurfaceRowBackedEvidence, "AgentRegistryEntry"},
@@ -95,13 +95,18 @@ func TestACPServerManifest_RejectsUnknownUpstreamFiles(t *testing.T) {
 	}
 }
 
-func TestACPServerManifest_NoLiveACPSideEffects(t *testing.T) {
+func TestACPServerManifest_RequiresProvenImplementedSurfaces(t *testing.T) {
 	manifest := DefaultServerManifest()
+	proven := map[Surface]bool{
+		SurfaceAuth:        true,
+		SurfacePermissions: true,
+	}
 	for _, row := range manifest.Surfaces {
-		if row.Status == ServerSurfaceStatusImplemented {
-			t.Fatalf("surface %q claims implemented before live ACP rows; status=%q", row.Surface, row.Status)
+		if row.Status == ServerSurfaceStatusImplemented && !proven[row.Surface] {
+			t.Fatalf("surface %q claims implemented without a scenario fixture", row.Surface)
 		}
 		if row.Status != ServerSurfaceStatusRowBacked &&
+			row.Status != ServerSurfaceStatusImplemented &&
 			row.Status != ServerSurfaceStatusOwned &&
 			row.Status != ServerSurfaceStatusExcluded {
 			t.Fatalf("surface %q has unsupported status %q", row.Surface, row.Status)
