@@ -756,6 +756,114 @@ func TestMCPAddRejectsUnsupportedInputsWithoutWriting(t *testing.T) {
 	}
 }
 
+func TestMCPEnableDisablePersistsOnlyFlagAndReportsRefresh(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.toml")
+	if err := configwriter.WriteTOMLAtomic(configPath, map[string]any{
+		"hermes": map[string]any{"model": "keep-me"},
+		"mcp_servers": map[string]any{
+			"custom": map[string]any{
+				"url":     "https://example.test/private?token=query-secret",
+				"headers": map[string]any{"Authorization": "Bearer header-secret"},
+				"enabled": true,
+			},
+			"sibling": map[string]any{"url": "https://sibling.example/mcp", "enabled": true},
+		},
+	}); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+	opts := testMCPCommandOptions()
+	opts.MCPConfigPath = func() string { return configPath }
+	for _, test := range []struct {
+		command  string
+		action   string
+		evidence string
+		enabled  bool
+	}{
+		{command: "disable", action: "mcp_disable", evidence: "disabled", enabled: false},
+		{command: "enable", action: "mcp_enable", evidence: "enabled", enabled: true},
+	} {
+		stdout, stderr, err := executeMCPCommandForTest(NewMCPCommand(opts), test.command, "custom", "--json")
+		if err != nil {
+			t.Fatalf("%s: %v stdout=%s stderr=%s", test.command, err, stdout, stderr)
+		}
+		var report struct {
+			Build                  BuildProvenance `json:"build"`
+			Action                 string          `json:"action"`
+			Name                   string          `json:"name"`
+			Evidence               string          `json:"evidence"`
+			Enabled                bool            `json:"enabled"`
+			RuntimeRefreshRequired bool            `json:"runtime_refresh_required"`
+		}
+		if jsonErr := json.Unmarshal([]byte(stdout), &report); jsonErr != nil {
+			t.Fatalf("JSON invalid: %v stdout=%s", jsonErr, stdout)
+		}
+		if report.Build.Version != testMCPVersion || report.Action != test.action || report.Name != "custom" || report.Evidence != test.evidence || report.Enabled != test.enabled || !report.RuntimeRefreshRequired {
+			t.Fatalf("report = %+v", report)
+		}
+		combined := stdout + stderr
+		for _, secret := range []string{"private", "query-secret", "header-secret", configPath} {
+			if strings.Contains(combined, secret) {
+				t.Fatalf("%s output leaked %q: %s", test.command, secret, combined)
+			}
+		}
+		doc, err := configwriter.ReadTOMLDoc(configPath)
+		if err != nil {
+			t.Fatalf("ReadTOMLDoc: %v", err)
+		}
+		servers, _ := doc["mcp_servers"].(map[string]any)
+		custom, _ := servers["custom"].(map[string]any)
+		sibling, _ := servers["sibling"].(map[string]any)
+		hermes, _ := doc["hermes"].(map[string]any)
+		if custom["enabled"] != test.enabled || custom["url"] != "https://example.test/private?token=query-secret" || custom["headers"].(map[string]any)["Authorization"] != "Bearer header-secret" || sibling["enabled"] != true || hermes["model"] != "keep-me" {
+			t.Fatalf("config changed beyond enabled flag: %#v", doc)
+		}
+	}
+}
+
+func TestMCPEnableDisableFailuresAreStructuredAndNonMutating(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.toml")
+	if err := configwriter.WriteTOMLAtomic(configPath, map[string]any{
+		"mcp_servers": map[string]any{"custom": map[string]any{"url": "https://example.test/private?token=secret", "enabled": true}},
+	}); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+	before, _ := os.ReadFile(configPath)
+	opts := testMCPCommandOptions()
+	opts.MCPConfigPath = func() string { return configPath }
+	for _, test := range []struct {
+		name     string
+		command  string
+		server   string
+		evidence string
+	}{
+		{name: "missing", command: "enable", server: "missing", evidence: "not_found"},
+		{name: "invalid", command: "disable", server: "bad/name", evidence: "invalid_input"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr, err := executeMCPCommandForTest(NewMCPCommand(opts), test.command, test.server, "--json")
+			if err == nil {
+				t.Fatalf("%s succeeded: %s", test.command, stdout)
+			}
+			var report struct {
+				Action   string `json:"action"`
+				Evidence string `json:"evidence"`
+				Error    string `json:"error"`
+			}
+			if jsonErr := json.Unmarshal([]byte(stdout), &report); jsonErr != nil || report.Evidence != test.evidence || report.Error == "" {
+				t.Fatalf("report=%+v jsonErr=%v stdout=%s", report, jsonErr, stdout)
+			}
+			combined := stdout + stderr + err.Error()
+			if strings.Contains(combined, "private") || strings.Contains(combined, "secret") || strings.Contains(combined, configPath) {
+				t.Fatalf("error output leaked config details: %s", combined)
+			}
+			after, _ := os.ReadFile(configPath)
+			if string(after) != string(before) {
+				t.Fatalf("failed command changed config:\n%s", after)
+			}
+		})
+	}
+}
+
 func TestMCPRemoveDeletesExactConfigAndPreservesCredentialsArtifacts(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.toml")
 	if err := configwriter.WriteTOMLAtomic(configPath, map[string]any{

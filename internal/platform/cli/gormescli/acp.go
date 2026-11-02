@@ -25,6 +25,16 @@ type ACPProvenanceMode = acp.ProvenanceMode
 type ACPCommandOptions struct {
 	BuildProvenance func() BuildProvenance
 	ExitError       func(code int, err error) error
+	// ServeOptions resolves the provider identity for `gormes acp serve`. Nil
+	// keeps the server available with the terminal setup auth method only.
+	ServeOptions func() ACPRunServeOptions
+}
+
+// ACPRunServeOptions carries provider identity into the ACP stdio server.
+type ACPRunServeOptions struct {
+	Provider            string
+	Model               string
+	CredentialAvailable *bool
 }
 
 const (
@@ -72,7 +82,11 @@ func newACPServeCommand(opts ACPCommandOptions) *cobra.Command {
 		Use:   "serve",
 		Short: "Run the Go-native ACP JSON-RPC stdio server",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return acpCommandExitError(opts, ACPRunServe(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), cmd.ErrOrStderr()))
+			serveOpts := ACPRunServeOptions{}
+			if opts.ServeOptions != nil {
+				serveOpts = opts.ServeOptions()
+			}
+			return acpCommandExitError(opts, ACPRunServeWithOptions(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout(), cmd.ErrOrStderr(), serveOpts))
 		},
 	}
 }
@@ -138,6 +152,14 @@ func ACPRunSetupBrowser(ctx context.Context, stdout io.Writer, opts ACPBrowserBo
 
 func ACPRunServe(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
 	return appacp.RunServe(ctx, stdin, stdout, stderr)
+}
+
+func ACPRunServeWithOptions(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, opts ACPRunServeOptions) error {
+	return appacp.RunServeWithOptions(ctx, stdin, stdout, stderr, appacp.ServeOptions{
+		Provider:            opts.Provider,
+		Model:               opts.Model,
+		CredentialAvailable: opts.CredentialAvailable,
+	})
 }
 
 func ACPRunClient(ctx context.Context, stdout io.Writer, opts ACPClientOptions, jsonOut bool, build BuildProvenance) error {

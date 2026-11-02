@@ -1,13 +1,13 @@
 ---
-title: "Lbo Model"
+title: "Lbo Model — Build leveraged buyout workbooks with IRR/MOIC in Excel"
 sidebar_label: "Lbo Model"
-description: "Build leveraged buyout models in Excel — sources & uses, debt schedule, cash sweep, exit multiple, IRR/MOIC sensitivity"
+description: "Build leveraged buyout workbooks with IRR/MOIC in Excel"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/finance/finance-lbo-model.md
 ---
-
 
 # Lbo Model
 
-Build leveraged buyout models in Excel — sources & uses, debt schedule, cash sweep, exit multiple, IRR/MOIC sensitivity. Pairs with excel-author. Use for PE screening, sponsor-case valuation, or illustrative LBO in a pitch.
+Build leveraged buyout workbooks with IRR/MOIC in Excel.
 
 ## Skill metadata
 
@@ -20,11 +20,10 @@ Build leveraged buyout models in Excel — sources & uses, debt schedule, cash s
 | License | Apache-2.0 |
 | Platforms | linux, macos, windows |
 | Tags | `finance`, `valuation`, `lbo`, `private-equity`, `excel`, `openpyxl`, `modeling` |
-| Related skills | [`excel-author`](../finance-excel-author/), [`pptx-author`](../finance-pptx-author/), [`dcf-model`](../finance-dcf-model/), [`3-statement-model`](../finance-3-statement-model/) |
+| Related skills | [`excel-author`](../../optional/finance/finance-excel-author.md), [`pptx-author`](../../optional/finance/finance-pptx-author.md), [`dcf-model`](../../optional/finance/finance-dcf-model.md), [`3-statement-model`](../../optional/finance/finance-3-statement-model.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
+> **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 ## Environment
@@ -288,7 +287,6 @@ Must return success with zero errors.
 ---
 
 **This skill produces investment banking-quality LBO models by filling templates with correct formulas, proper formatting, and validated calculations. The skill adapts to any template structure while ensuring financial accuracy and professional presentation standards.**
-
 
 ## Data sources — MCP first, web fallback
 

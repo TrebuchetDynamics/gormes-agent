@@ -1,15 +1,13 @@
 ---
-title: "Concept Diagrams"
+title: "Concept Diagrams — Generate flat, minimal educational SVG visuals as HTML"
 sidebar_label: "Concept Diagrams"
-description: "Generate flat, minimal light/dark-aware SVG diagrams as standalone HTML files, using a unified educational visual language with 9 semantic color ramps, sente..."
+description: "Generate flat, minimal educational SVG visuals as HTML"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/creative/creative-concept-diagrams.md
 ---
-
-
-
 
 # Concept Diagrams
 
-Generate flat, minimal light/dark-aware SVG diagrams as standalone HTML files, using a unified educational visual language with 9 semantic color ramps, sentence-case typography, and automatic dark mode. Best suited for educational and non-software visuals — physics setups, chemistry mechanisms, math curves, physical objects (aircraft, turbines, smartphones, mechanical watches), anatomy, floor plans, cross-sections, narrative journeys (lifecycle of X, process of Y), hub-spoke system integrations (smart city, IoT), and exploded layer views. If a more specialized skill exists for the subject (dedicated software/cloud architecture, hand-drawn sketches, animated explainers, etc.), prefer that — otherwise this skill can also serve as a general-purpose SVG diagram fallback with a clean educational look. Ships with 15 example diagrams.
+Generate flat, minimal educational SVG visuals as HTML.
 
 ## Skill metadata
 
@@ -20,14 +18,13 @@ Generate flat, minimal light/dark-aware SVG diagrams as standalone HTML files, u
 | Version | `0.1.0` |
 | Author | v1k22 (original PR), ported into hermes-agent |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `diagrams`, `svg`, `visualization`, `education`, `physics`, `chemistry`, `engineering` |
-| Related skills | [`architecture-diagram`](../../../bundled/creative/creative-architecture-diagram/), [`excalidraw`](../../../bundled/creative/creative-excalidraw/), `generative-widgets` |
+| Related skills | [`architecture-diagram`](../../bundled/creative/creative-architecture-diagram.md), [`excalidraw`](../../optional/creative/creative-excalidraw.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Concept Diagrams
 
@@ -317,7 +314,7 @@ mkdir -p .diagrams/sn2-mechanism
 # ...write .diagrams/sn2-mechanism/index.html...
 
 # Serve on loopback only, free port
-cd .diagrams && python3 -c "
+cd .diagrams && python -c "
 import http.server, socketserver
 with socketserver.TCPServer(('127.0.0.1', 0), http.server.SimpleHTTPRequestHandler) as s:
     print(f'Serving at http://127.0.0.1:{s.server_address[1]}/')

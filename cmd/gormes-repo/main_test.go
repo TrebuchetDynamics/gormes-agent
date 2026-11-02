@@ -62,6 +62,30 @@ func TestRunHermesContractInventoryStrictFailsAfterWritingReports(t *testing.T) 
 		t.Fatalf("write progress: %v", err)
 	}
 
+	hermesFile := filepath.Join(root, "hermes-agent", "hermes_cli", "default_soul.py")
+	if err := os.MkdirAll(filepath.Dir(hermesFile), 0o755); err != nil {
+		t.Fatalf("mkdir Hermes source: %v", err)
+	}
+	if err := os.WriteFile(hermesFile, []byte("fixture\\n"), 0o644); err != nil {
+		t.Fatalf("write Hermes source: %v", err)
+	}
+	manifestPath := filepath.Join(root, "webpages/docs/content/building-gormes/architecture_plan/hermes-source-pairs.json")
+	manifest := `{
+  "schema_version": "1.0",
+  "hermes_sha": "abc123",
+  "pairs": [
+    {
+      "hermes_file": "hermes_cli/default_soul.py",
+      "status": "partial",
+      "contract": "Hermetic CLI inventory fixture source.",
+      "last_checked_hermes_sha": "abc123"
+    }
+  ]
+}`
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
+		t.Fatalf("write source-pairs manifest: %v", err)
+	}
+
 	var stdout, stderr bytes.Buffer
 	err := run(&stdout, &stderr, []string{"--repo-root", root, "hermes-contract-inventory", "--hermes-sha", "abc123", "--strict"})
 	if err == nil || !strings.Contains(err.Error(), "strict failed") {

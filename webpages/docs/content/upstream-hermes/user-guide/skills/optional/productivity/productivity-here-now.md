@@ -1,15 +1,13 @@
 ---
-title: "Here.Now — Publish static sites to {slug}"
-sidebar_label: "Here.Now"
-description: "Publish static sites to {slug}"
+title: "Here Now — Publish sites to {slug}.here.now and store files in Drives"
+sidebar_label: "Here Now"
+description: "Publish sites to {slug}.here.now and store files in Drives"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/productivity/productivity-here-now.md
 ---
 
+# Here Now
 
-
-
-# Here.Now
-
-Publish static sites to &#123;slug&#125;.here.now and store private files in cloud Drives for agent-to-agent handoff.
+Publish sites to &#123;slug&#125;.here.now and store files in Drives.
 
 ## Skill metadata
 
@@ -24,10 +22,8 @@ Publish static sites to &#123;slug&#125;.here.now and store private files in clo
 | Tags | `here.now`, `herenow`, `publish`, `deploy`, `hosting`, `static-site`, `web`, `share`, `URL`, `drive`, `storage` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # here.now
 

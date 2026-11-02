@@ -1,15 +1,13 @@
 ---
-title: "Adversarial Ux Test — Roleplay the most difficult, tech-resistant user for your product"
+title: "Adversarial Ux Test — Roleplay a hostile user to find and triage UX pain points"
 sidebar_label: "Adversarial Ux Test"
-description: "Roleplay the most difficult, tech-resistant user for your product"
+description: "Roleplay a hostile user to find and triage UX pain points"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/dogfood/dogfood-adversarial-ux-test.md
 ---
-
-
-
 
 # Adversarial Ux Test
 
-Roleplay the most difficult, tech-resistant user for your product. Browse the app as that persona, find every UX pain point, then filter complaints through a pragmatism layer to separate real problems from noise. Creates actionable tickets from genuine issues only.
+Roleplay a hostile user to find and triage UX pain points.
 
 ## Skill metadata
 
@@ -20,14 +18,13 @@ Roleplay the most difficult, tech-resistant user for your product. Browse the ap
 | Version | `1.0.0` |
 | Author | Omni @ Comelse |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `qa`, `ux`, `testing`, `adversarial`, `dogfood`, `personas`, `user-testing` |
-| Related skills | [`dogfood`](../../../bundled/dogfood/dogfood-dogfood/) |
+| Related skills | [`dogfood`](../../bundled/software-development/software-development-dogfood.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Adversarial UX Test
 

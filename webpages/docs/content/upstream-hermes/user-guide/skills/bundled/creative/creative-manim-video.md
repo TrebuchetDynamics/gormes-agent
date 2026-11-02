@@ -2,10 +2,8 @@
 title: "Manim Video — Manim CE animations: 3Blue1Brown math/algo videos"
 sidebar_label: "Manim Video"
 description: "Manim CE animations: 3Blue1Brown math/algo videos"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/creative/creative-manim-video.md
 ---
-
-
-
 
 # Manim Video
 
@@ -18,12 +16,14 @@ Manim CE animations: 3Blue1Brown math/algo videos.
 | Source | Bundled (installed by default) |
 | Path | `skills/creative/manim-video` |
 | Version | `1.0.0` |
+| Author | SHL0MS, Hermes Agent |
+| License | MIT |
+| Platforms | linux, macos, windows |
+| Tags | `Manim`, `Animation`, `Math`, `Video` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Manim Video Production Pipeline
 

@@ -401,6 +401,14 @@ func TestWelcomePanel_WideTerminalIncludesHeroLogoAbovePanel(t *testing.T) {
 	}
 }
 
+func TestWelcomePanelPreservesLongHomePath(t *testing.T) {
+	home := "/opt/data/profiles/executor/cache/scratch/TestResolvedRootTUIStartupSeedsWelcomeHomeFromGormesHome3549885993/001/gormes"
+	got := strings.Join(wrapWelcomeWords(home, 40), "")
+	if got != home {
+		t.Fatalf("wrapping should preserve the full path, got %q want %q", got, home)
+	}
+}
+
 func TestWelcomePanel_FullWidthDoesNotDuplicateBrandHeader(t *testing.T) {
 	got := WelcomePanel(skin.DefaultHermesSkin(), WelcomeContext{
 		Model:            "gpt-5.5",

@@ -30,8 +30,9 @@ func TestInstall_DryRunServiceMatrixWSLWithoutSystemdUsesManualGateway(t *testin
 		"GORMES_INSTALL_HOME":         filepath.Join(sb, "home"),
 		"GORMES_SKIP_SETUP":           "1",
 		"GORMES_RESTART_GATEWAY":      "never",
-		"GORMES_INSTALL_TEST_WSL":     "1",
-		"GORMES_INSTALL_TEST_SYSTEMD": "0",
+		"GORMES_INSTALL_TEST_WSL":       "1",
+		"GORMES_INSTALL_TEST_CONTAINER": "0",
+		"GORMES_INSTALL_TEST_SYSTEMD":   "0",
 	})
 	for _, want := range []string{"service    manual (WSL without systemd: tmux or gormes gateway)", "gateway    restart=never"} {
 		if !strings.Contains(out, want) {

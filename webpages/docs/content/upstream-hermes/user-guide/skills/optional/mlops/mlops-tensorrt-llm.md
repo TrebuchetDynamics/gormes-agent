@@ -1,15 +1,13 @@
 ---
-title: "Tensorrt Llm — Optimizes LLM inference with NVIDIA TensorRT for maximum throughput and lowest latency"
+title: "Tensorrt Llm — High-throughput LLM inference on NVIDIA GPUs"
 sidebar_label: "Tensorrt Llm"
-description: "Optimizes LLM inference with NVIDIA TensorRT for maximum throughput and lowest latency"
+description: "High-throughput LLM inference on NVIDIA GPUs"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-tensorrt-llm.md
 ---
-
-
-
 
 # Tensorrt Llm
 
-Optimizes LLM inference with NVIDIA TensorRT for maximum throughput and lowest latency. Use for production deployment on NVIDIA GPUs (A100/H100), when you need 10-100x faster inference than PyTorch, or for serving models with quantization (FP8/INT4), in-flight batching, and multi-GPU scaling.
+High-throughput LLM inference on NVIDIA GPUs.
 
 ## Skill metadata
 
@@ -17,21 +15,20 @@ Optimizes LLM inference with NVIDIA TensorRT for maximum throughput and lowest l
 |---|---|
 | Source | Optional — install with `hermes skills install official/mlops/tensorrt-llm` |
 | Path | `optional-skills/mlops/tensorrt-llm` |
-| Version | `1.0.0` |
+| Version | `1.0.1` |
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `tensorrt-llm`, `torch` |
+| Platforms | linux |
 | Tags | `Inference Serving`, `TensorRT-LLM`, `NVIDIA`, `Inference Optimization`, `High Throughput`, `Low Latency`, `Production`, `FP8`, `INT4`, `In-Flight Batching`, `Multi-GPU` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # TensorRT-LLM
 
-NVIDIA's open-source library for optimizing LLM inference with state-of-the-art performance on NVIDIA GPUs.
+NVIDIA's open-source library for optimizing LLM inference with high performance on NVIDIA GPUs.
 
 ## When to use TensorRT-LLM
 
@@ -57,13 +54,15 @@ NVIDIA's open-source library for optimizing LLM inference with state-of-the-art 
 ### Installation
 
 ```bash
-# Docker (recommended)
-docker pull nvidia/tensorrt_llm:latest
+# Docker (recommended) — images are on NGC (nvcr.io), not Docker Hub.
+# Replace x.y.z with the desired version (e.g. 1.2.1). Browse tags on NGC:
+# https://catalog.ngc.nvidia.com/orgs/nvidia/teams/tensorrt-llm/containers/release/tags
+docker pull nvcr.io/nvidia/tensorrt-llm/release:x.y.z
 
-# pip install
-pip install tensorrt_llm==1.2.0rc3
+# pip install (current stable GA)
+pip install tensorrt_llm
 
-# Requires CUDA 13.0.0, TensorRT 10.13.2, Python 3.10-3.12
+# Requires CUDA 13.2.1, TensorRT 10.x, Python 3.10-3.12
 ```
 
 ### Basic inference
@@ -93,8 +92,9 @@ for output in outputs:
 
 ```bash
 # Start server (automatic model download and compilation)
+# Tensor parallelism across 4 GPUs
 trtllm-serve meta-llama/Meta-Llama-3-8B \
-    --tp_size 4 \              # Tensor parallelism (4 GPUs)
+    --tp_size 4 \
     --max_batch_size 256 \
     --max_num_tokens 4096
 

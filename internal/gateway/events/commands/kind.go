@@ -71,6 +71,8 @@ const (
 	EventCompress
 	// EventTools handles /tools list|enable|disable subcommands.
 	EventTools
+	// EventVoice handles /voice on|off|tts|status and the bare toggle.
+	EventVoice
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -142,6 +144,8 @@ func (k EventKind) String() string {
 		return "compress"
 	case EventTools:
 		return "tools"
+	case EventVoice:
+		return "voice"
 	default:
 		return "unknown"
 	}

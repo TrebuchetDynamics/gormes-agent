@@ -2,6 +2,7 @@
 sidebar_position: 15
 title: "Subscription Proxy"
 description: "Use your Nous Portal subscription (or other OAuth provider) as an OpenAI-compatible endpoint for external apps"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/features/subscription-proxy.md
 ---
 
 # Subscription Proxy
@@ -12,7 +13,7 @@ chat completions — use your Hermes-managed provider subscription as their
 LLM endpoint. The proxy attaches the right credentials (refreshing them
 automatically) so the app never needs a static API key.
 
-This is different from the [API server](./api-server.md):
+This is different from the [API server](../../subscription-proxy/api-server.md/):
 
 | | API server | Subscription proxy |
 |---|---|---|
@@ -29,7 +30,7 @@ proxy when you just want **the model** through your subscription.
 ### 1. Log into your provider (one-time)
 
 ```bash
-hermes login nous
+hermes portal
 ```
 
 This opens your browser for the Nous Portal OAuth flow. Hermes stores
@@ -72,9 +73,9 @@ automatically when the bearer approaches expiry.
 hermes proxy providers
 ```
 
-Currently shipped: `nous` (Nous Portal). More OAuth providers can be
-added by implementing the `UpstreamAdapter` interface in
-`hermes_cli/proxy/adapters/`.
+Currently shipped: `nous` (Nous Portal) and `xai` (xAI / Grok). More
+OAuth providers can be added by implementing the `UpstreamAdapter`
+interface in `hermes_cli/proxy/adapters/`.
 
 ## Check status
 
@@ -88,10 +89,10 @@ Hermes proxy upstream adapters
   [nous    ] Nous Portal — ready (bearer expires 2026-05-15T06:43:21Z)
 ```
 
-If you see `not logged in`, run `hermes login nous`. If you see
+If you see `not logged in`, run `hermes portal`. If you see
 `credentials need attention`, your refresh token was revoked (rare —
 happens if you signed out from the Portal web UI) — just re-run
-`hermes login nous`.
+`hermes portal`.
 
 ## Allowed paths
 

@@ -1,15 +1,13 @@
 ---
-title: "Stable Diffusion Image Generation"
-sidebar_label: "Stable Diffusion Image Generation"
-description: "State-of-the-art text-to-image generation with Stable Diffusion models via HuggingFace Diffusers"
+title: "Stable Diffusion — Text-to-image generation, inpainting, and img2img"
+sidebar_label: "Stable Diffusion"
+description: "Text-to-image generation, inpainting, and img2img"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-stable-diffusion.md
 ---
 
+# Stable Diffusion
 
-
-
-# Stable Diffusion Image Generation
-
-State-of-the-art text-to-image generation with Stable Diffusion models via HuggingFace Diffusers. Use when generating images from text prompts, performing image-to-image translation, inpainting, or building custom diffusion pipelines.
+Text-to-image generation, inpainting, and img2img.
 
 ## Skill metadata
 
@@ -21,17 +19,16 @@ State-of-the-art text-to-image generation with Stable Diffusion models via Huggi
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `diffusers>=0.30.0`, `transformers>=4.41.0`, `accelerate>=0.31.0`, `torch>=2.0.0` |
+| Platforms | linux, macos, windows |
 | Tags | `Image Generation`, `Stable Diffusion`, `Diffusers`, `Text-to-Image`, `Multimodal`, `Computer Vision` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Stable Diffusion Image Generation
 
-Comprehensive guide to generating images with Stable Diffusion using the HuggingFace Diffusers library.
+Guide to generating images with Stable Diffusion using the HuggingFace Diffusers library.
 
 ## When to use Stable Diffusion
 

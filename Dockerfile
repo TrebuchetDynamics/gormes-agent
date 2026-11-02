@@ -2,7 +2,7 @@
 # Two-stage build keeps the final image to a single static gormes binary
 # plus the entrypoint shell script and a config example.
 
-FROM golang:1.26 AS build
+FROM golang:1.26.10 AS build
 WORKDIR /src
 COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/gormes ./cmd/gormes

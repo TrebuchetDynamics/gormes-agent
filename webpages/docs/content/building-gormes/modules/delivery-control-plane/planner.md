@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Delivery Control Plane
 **Module:** `planner`
-**Rows:** 10
-**Status counts:** `complete`: 10 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 1 · `P1`: 4 · `P2`: 1 · `P3`: 1 · `unset`: 3
+**Rows:** 13
+**Status counts:** `complete`: 12 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P0`: 4 · `P1`: 4 · `P2`: 1 · `P3`: 1 · `unset`: 3
 
 ## Phase 1 — The Dashboard
 
@@ -46,6 +46,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 |---|---|---|---|
 | `complete` | `P1` | `planner` | Hermes and Honcho feature parity map to Go implementation plan |
 | `complete` | `P1` | `planner` | Upstream source coverage ledger for Hermes/Honcho mapping completeness |
+| `planned` | `P0` | `planner` | Hermes observable-behavior parity closure and upstream drift gate |
+| `complete` | `P0` | `planner` | Hermes source inventory fails closed on traversal errors |
+| `complete` | `P0` | `planner` | Strict Hermes inventory rejects invalid pinned source-pair references |
 
 ## Phase 5 — The Final Purge
 

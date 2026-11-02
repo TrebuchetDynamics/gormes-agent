@@ -3694,9 +3694,9 @@
     "item": {
       "name": "Gormes MCP server enable/disable persistence",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Add noninteractive `gormes mcp enable <name>` and `gormes mcp disable <name>` commands that atomically update only an existing active-profile `mcp_servers.<name>.enabled` field, preserve every other server field including tool filters and secret references, emit redacted text or JSON evidence, and state that a runtime reload is required. This slice performs no probe, network request, process launch, secret lookup, or live registry mutation.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "small",
       "execution_owner": "tools",
       "module": "tools",
@@ -3706,9 +3706,9 @@
       "degraded_mode": "Invalid names, missing servers, malformed config, or atomic-write failures return stable redacted evidence and leave the config unchanged; active runtimes remain unchanged until reload or restart.",
       "fixture": "t.TempDir active-profile config.toml with HTTP and stdio entries, synthetic secret-reference/header fields, explicit tool filters, injected MCPConfigPath, and no environment, process, network, OAuth, or live MCP server access",
       "source_refs": [
-        "hermes-agent/hermes_cli/mcp_picker.py@bb5fc723:_enable_disable,_handle_row",
-        "hermes-agent/hermes_cli/mcp_catalog.py@bb5fc723:is_enabled",
-        "hermes-agent/tests/tools/test_mcp_probe.py@bb5fc723:TestProbeMCPServerTools.test_skips_disabled_servers",
+        "hermes-agent/hermes_cli/mcp_picker.py@d0288be5b3330d2442e3907185b8e9d0958297bb:_enable_disable,_handle_row",
+        "hermes-agent/hermes_cli/mcp_catalog.py@d0288be5b3330d2442e3907185b8e9d0958297bb:is_enabled",
+        "hermes-agent/tests/tools/test_mcp_probe.py@d0288be5b3330d2442e3907185b8e9d0958297bb:TestProbeMCPServerTools.test_skips_disabled_servers",
         "internal/config/mcpstore/store.go:Store.ConfigureTools,Store.Remove,Store.List",
         "internal/tools/mcp/config/config.go:resolveMCPEnabled,disabledMCPServer",
         "internal/platform/cli/gormescli/mcpconfig.go:newMCPConfigCommands",
@@ -3733,10 +3733,10 @@
       "acceptance": [
         "Enable and disable update only the exact existing server's enabled boolean for both HTTP and stdio-shaped fixtures while preserving URL/command, args, headers/env references, auth, timeouts, sampling, and tools fields.",
         "Invalid names, absent servers, malformed server maps, and injected write failures return stable redacted text/JSON evidence, a nonzero exit, and byte-unchanged config.",
-        "`gormes mcp list` reflects the persisted state; a fresh resolver/registry excludes disabled servers and includes them again after enable without any live reload claim.",
+        "After each toggle, `gormes mcp list` and a fresh resolver report the persisted enabled/disabled state for HTTP and stdio-shaped fixtures. A fresh HTTP registry never connects to or registers a disabled server, then registers the HTTP fixture after re-enable using a fake connector. The stdio fixture resolves as enabled after re-enable, while the HTTP-only registry reports `unsupported_transport` without launching a process; active-runtime refresh remains out of scope.",
         "Successful text and JSON output identifies only the sanitized server name, enabled state, and runtime_refresh_required=true; it never contains config values, paths, headers, environment values, or raw errors."
       ],
-      "note": "Planner split 2026-07-17 from the remaining MCP lifecycle umbrella. Scope is intentionally config-only; Hermes picker UX and active-session refresh are separate children.",
+      "note": "Planner split 2026-07-17 from the remaining MCP lifecycle umbrella. Scope remains config-only; Hermes picker UX and active-session refresh are separate children. Current Hermes source refs were verified at d0288be5b3330d2442e3907185b8e9d0958297bb. The store and CLI implementation pre-existed this pass and was verified-existing; this pass added `mcpconfig_transition_test.go` to close the unproven persisted-state transition. It covers HTTP and stdio-shaped field preservation across disable/enable, `mcp list`, fresh config resolution, and fresh registry construction with an inert fake connector. Disabled servers never connect/register; re-enabled HTTP registers, while re-enabled stdio remains explicitly unsupported by the HTTP-only registry and no process is launched. Existing tests cover redacted success/failure evidence, invalid/missing/malformed entries, injected write failure, and byte-unchanged failures. Focused/full MCP store, config, runtime, and CLI package tests passed; `go run ./cmd/progress validate`, `go test ./internal/planning/progress -count=1`, the completion-ledger test, and `git diff --check` passed. Repository-wide `go test ./... -count=1` failed outside this MCP slice in `internal/extensibility/skills` (four TouchDesigner fixture tests; missing workspace skill files), `internal/gateway/platforms/inventory` (two manifest coverage tests), `internal/llm/guidance` (four upstream parity tests), `internal/planning/progress/repoctl/sourcepairs` (stale Hermes pin bb5fc723 versus current d0288be5 and a missing upstream UI test), `internal/platform/installtest` (WSL manual-gateway output), `internal/support/repochecks` (missing jq and script expectations), `internal/tools` (deleted-CWD recovery expectation), and `webpages/docs` (Astro executable absent, mirrored-doc/source-class/path/user-story drift).",
       "write_scope": [
         "internal/config/mcpstore/",
         "internal/platform/cli/gormescli/",
@@ -3748,17 +3748,18 @@
         "go test ./internal/config/mcpstore -run 'TestStoreSetEnabled' -count=1",
         "go test ./internal/platform/cli/gormescli -run 'TestMCP(Enable|Disable)' -count=1",
         "go test ./internal/tools/mcp/config ./internal/tools/mcp/runtime -run 'Disabled|Enabled' -count=1",
-        "go run ./cmd/progress validate"
+        "go run ./cmd/progress validate",
+        "go test ./internal/platform/cli/gormescli -run '^TestMCPEnableDisableListResolverAndFreshRegistryTransitions$' -count=1"
       ],
       "done_signal": [
         "Focused store and CLI tests prove field-preserving atomic enable/disable writes, redacted failure behavior, and explicit runtime-refresh guidance.",
-        "Fresh config resolution and registry construction honor the persisted state, and the umbrella retains every non-config lifecycle gap."
+        "Fresh config resolution confirms persisted HTTP and stdio enabled states; a newly built HTTP registry excludes disabled servers and registers the re-enabled HTTP fixture through a fake connector, while enabled stdio is reported unsupported without process launch."
       ],
       "provenance": {
         "origin_type": "hybrid",
         "upstream_refs": [
-          "hermes:bb5fc723 hermes_cli/mcp_picker.py:_enable_disable",
-          "hermes:bb5fc723 tests/tools/test_mcp_probe.py:TestProbeMCPServerTools.test_skips_disabled_servers"
+          "hermes:d0288be5b3330d2442e3907185b8e9d0958297bb hermes_cli/mcp_picker.py:_enable_disable",
+          "hermes:d0288be5b3330d2442e3907185b8e9d0958297bb tests/tools/test_mcp_probe.py:TestProbeMCPServerTools.test_skips_disabled_servers"
         ],
         "note": "Hermes server enablement semantics are the parity target; explicit noninteractive commands and atomic profile persistence are Gormes-owned hardening."
       }

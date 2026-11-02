@@ -2,10 +2,8 @@
 title: "Requesting Code Review — Pre-commit review: security scan, quality gates, auto-fix"
 sidebar_label: "Requesting Code Review"
 description: "Pre-commit review: security scan, quality gates, auto-fix"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/software-development/software-development-requesting-code-review.md
 ---
-
-
-
 
 # Requesting Code Review
 
@@ -17,17 +15,16 @@ Pre-commit review: security scan, quality gates, auto-fix.
 |---|---|
 | Source | Bundled (installed by default) |
 | Path | `skills/software-development/requesting-code-review` |
-| Version | `2.0.0` |
+| Version | `2.1.0` |
 | Author | Hermes Agent (adapted from obra/superpowers + MorAlekss) |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `code-review`, `security`, `verification`, `quality`, `pre-commit`, `auto-fix` |
-| Related skills | [`subagent-driven-development`](../software-development-subagent-driven-development/), [`writing-plans`](../software-development-writing-plans/), [`test-driven-development`](../software-development-test-driven-development/), [`github-code-review`](../../github/github-github-code-review/) |
+| Related skills | [`subagent-driven-development`](../../optional/software-development/software-development-subagent-driven-development.md), [`test-driven-development`](../../bundled/software-development/software-development-test-driven-development.md), [`github`](../../bundled/software-development/software-development-github.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Pre-Commit Code Verification
 
@@ -45,8 +42,8 @@ quality gates, an independent reviewer subagent, and an auto-fix loop.
 
 **Skip for:** documentation-only changes, pure config tweaks, or when user says "skip verification".
 
-**This skill vs github-code-review:** This skill verifies YOUR changes before committing.
-`github-code-review` reviews OTHER people's PRs on GitHub with inline comments.
+**This skill vs github:** This skill verifies YOUR changes before committing.
+`github` reviews OTHER people's PRs on GitHub with inline comments.
 
 ## Step 1 — Get the diff
 
@@ -142,6 +139,11 @@ Quick scan before dispatching the reviewer:
 
 ## Step 5 — Independent reviewer subagent
 
+**Interactive sessions only.** In a one-shot run (`hermes chat -q`, `--oneshot`, a
+benchmark harness) there is no one to hand the verdict to and a fresh subagent re-pays
+the whole system prompt plus a repo re-read: skip Steps 5 and 7, apply the Step 4
+checklist to the diff yourself, run the tests, and go to Step 8.
+
 Call `delegate_task` directly — it is NOT available inside execute_code or scripts.
 
 The reviewer gets ONLY the diff and static scan results. No shared context with
@@ -211,7 +213,7 @@ Suggestions (non-blocking): [list]
 
 ## Step 7 — Auto-fix loop
 
-**Maximum 2 fix-and-reverify cycles.**
+**Maximum 2 fix-and-reverify cycles. Interactive sessions only (see Step 5).**
 
 Spawn a THIRD agent context — not you (the implementer), not the reviewer.
 It fixes ONLY the reported issues:
@@ -284,7 +286,7 @@ The two-stage review (spec compliance + code quality) uses this pipeline.
 **test-driven-development:** This pipeline verifies TDD discipline was followed —
 tests exist, tests pass, no regressions.
 
-**writing-plans:** Validates implementation matches the plan requirements.
+**plan:** Validates implementation matches the plan requirements.
 
 ## Pitfalls
 

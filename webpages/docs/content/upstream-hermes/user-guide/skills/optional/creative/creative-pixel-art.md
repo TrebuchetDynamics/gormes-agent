@@ -2,8 +2,8 @@
 title: "Pixel Art — Pixel art w/ era palettes (NES, Game Boy, PICO-8)"
 sidebar_label: "Pixel Art"
 description: "Pixel art w/ era palettes (NES, Game Boy, PICO-8)"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/creative/creative-pixel-art.md
 ---
-
 
 # Pixel Art
 
@@ -22,8 +22,7 @@ Pixel art w/ era palettes (NES, Game Boy, PICO-8).
 | Tags | `creative`, `pixel-art`, `arcade`, `snes`, `nes`, `gameboy`, `retro`, `image`, `video` |
 
 ## Reference: full SKILL.md
-
-> **Info**
+> **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Pixel Art
@@ -149,17 +148,19 @@ pixel_art("in.png", "out.png", preset="snes", palette="PICO_8", block=6)
 
 ```python
 import sys
-sys.path.insert(0, "/home/teknium/.hermes/skills/creative/pixel-art/scripts")
+import os
+sys.path.insert(0, os.path.expanduser("~/.hermes/skills/creative/pixel-art/scripts"))
 from pixel_art import pixel_art
 from pixel_art_video import pixel_art_video
 
 # 1. Convert to pixel art
-pixel_art("/path/to/photo.jpg", "/tmp/pixel.png", preset="nes")
+out = os.path.expanduser("~/.hermes/cache/scratch")
+pixel_art("/path/to/photo.jpg", f"{out}/pixel.png", preset="nes")
 
 # 2. Animate (optional)
 pixel_art_video(
-    "/tmp/pixel.png",
-    "/tmp/pixel.mp4",
+    f"{out}/pixel.png",
+    f"{out}/pixel.mp4",
     scene="night",
     duration=6,
     fps=15,
@@ -171,7 +172,7 @@ pixel_art_video(
 ### CLI
 
 ```bash
-cd /home/teknium/.hermes/skills/creative/pixel-art/scripts
+cd ~/.hermes/skills/creative/pixel-art/scripts
 
 python pixel_art.py in.jpg out.png --preset gameboy
 python pixel_art.py in.jpg out.png --preset snes --palette PICO_8 --block 6

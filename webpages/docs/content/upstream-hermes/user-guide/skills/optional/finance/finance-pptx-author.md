@@ -2,12 +2,12 @@
 title: "Pptx Author — Build PowerPoint decks headless with python-pptx"
 sidebar_label: "Pptx Author"
 description: "Build PowerPoint decks headless with python-pptx"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/finance/finance-pptx-author.md
 ---
-
 
 # Pptx Author
 
-Build PowerPoint decks headless with python-pptx. Pairs with excel-author for model-backed decks where every number traces to a workbook cell. Use for pitch decks, IC memos, earnings notes.
+Build PowerPoint decks headless with python-pptx.
 
 ## Skill metadata
 
@@ -20,11 +20,10 @@ Build PowerPoint decks headless with python-pptx. Pairs with excel-author for mo
 | License | Apache-2.0 |
 | Platforms | linux, macos, windows |
 | Tags | `powerpoint`, `pptx`, `python-pptx`, `presentation`, `finance` |
-| Related skills | [`excel-author`](../finance-excel-author/), [`powerpoint`](../../../bundled/productivity/productivity-powerpoint/) |
+| Related skills | [`excel-author`](../../optional/finance/finance-excel-author.md), [`powerpoint`](../../bundled/productivity/productivity-powerpoint.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
+> **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # pptx-author

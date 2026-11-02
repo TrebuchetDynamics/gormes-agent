@@ -1,15 +1,13 @@
 ---
-title: "Fastmcp — Build, test, inspect, install, and deploy MCP servers with FastMCP in Python"
+title: "Fastmcp — Build, test, and deploy Python MCP servers"
 sidebar_label: "Fastmcp"
-description: "Build, test, inspect, install, and deploy MCP servers with FastMCP in Python"
+description: "Build, test, and deploy Python MCP servers"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mcp/mcp-fastmcp.md
 ---
-
-
-
 
 # Fastmcp
 
-Build, test, inspect, install, and deploy MCP servers with FastMCP in Python. Use when creating a new MCP server, wrapping an API or database as MCP tools, exposing resources or prompts, or preparing a FastMCP server for Claude Code, Cursor, or HTTP deployment.
+Build, test, and deploy Python MCP servers.
 
 ## Skill metadata
 
@@ -20,14 +18,13 @@ Build, test, inspect, install, and deploy MCP servers with FastMCP in Python. Us
 | Version | `1.0.0` |
 | Author | Hermes Agent |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `MCP`, `FastMCP`, `Python`, `Tools`, `Resources`, `Prompts`, `Deployment` |
-| Related skills | [`native-mcp`](../../../bundled/mcp/mcp-native-mcp/), [`mcporter`](../mcp-mcporter/) |
+| Related skills | [`hermes-agent`](../../bundled/autonomous-ai-agents/autonomous-ai-agents-hermes-agent.md), [`mcporter`](../../optional/mcp/mcp-mcporter.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # FastMCP
 

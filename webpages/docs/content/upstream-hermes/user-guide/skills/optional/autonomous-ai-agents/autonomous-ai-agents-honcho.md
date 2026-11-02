@@ -1,15 +1,13 @@
 ---
-title: "Honcho"
+title: "Honcho — Configure and troubleshoot Honcho memory for Hermes"
 sidebar_label: "Honcho"
-description: "Configure and use Honcho memory with Hermes -- cross-session user modeling, multi-profile peer isolation, observation config, dialectic reasoning, session su..."
+description: "Configure and troubleshoot Honcho memory for Hermes"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/autonomous-ai-agents/autonomous-ai-agents-honcho.md
 ---
-
-
-
 
 # Honcho
 
-Configure and use Honcho memory with Hermes -- cross-session user modeling, multi-profile peer isolation, observation config, dialectic reasoning, session summaries, and context budget enforcement. Use when setting up Honcho, troubleshooting memory, managing profiles with Honcho peers, or tuning observation, recall, and dialectic settings.
+Configure and troubleshoot Honcho memory for Hermes.
 
 ## Skill metadata
 
@@ -20,14 +18,13 @@ Configure and use Honcho memory with Hermes -- cross-session user modeling, mult
 | Version | `2.0.0` |
 | Author | Hermes Agent |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `Honcho`, `Memory`, `Profiles`, `Observation`, `Dialectic`, `User-Modeling`, `Session-Summary` |
-| Related skills | [`hermes-agent`](../../../bundled/autonomous-ai-agents/autonomous-ai-agents-hermes-agent/) |
+| Related skills | [`hermes-agent`](../../bundled/autonomous-ai-agents/autonomous-ai-agents-hermes-agent.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Honcho Memory for Hermes
 
@@ -47,14 +44,14 @@ Honcho provides AI-native cross-session user modeling. It learns who the user is
 ### Cloud (app.honcho.dev)
 
 ```bash
-hermes honcho setup
+hermes memory setup honcho
 # select "cloud", paste API key from https://app.honcho.dev
 ```
 
 ### Self-hosted
 
 ```bash
-hermes honcho setup
+hermes memory setup honcho
 # select "local", enter base URL (e.g. http://localhost:8000)
 ```
 

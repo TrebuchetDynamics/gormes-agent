@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress"
@@ -96,6 +97,26 @@ func TestHermesReportStrictModeFailsOnUncoveredCriticalSurface(t *testing.T) {
 	}
 	if report.OK {
 		t.Fatalf("strict report OK=true with uncovered surfaces: %+v", report.Summary)
+	}
+}
+
+func TestHermesReportFailsClosedWhenInventoryRootCannotBeWalked(t *testing.T) {
+	root := t.TempDir()
+	hermes := filepath.Join(root, "missing-hermes-agent")
+	writeSourcePairsFixture(t, root, "abc123")
+	progressPath := writeProgressFixture(t, root)
+
+	_, err := GenerateHermesReport(context.Background(), Options{
+		RepoRoot:     root,
+		ProgressPath: progressPath,
+		HermesPath:   hermes,
+		HermesSHA:    "abc123",
+	})
+	if err == nil {
+		t.Fatal("GenerateHermesReport succeeded with an unreadable Hermes source root")
+	}
+	if !strings.Contains(err.Error(), filepath.Base(hermes)) {
+		t.Fatalf("GenerateHermesReport error = %q, want Hermes root %q", err, filepath.Base(hermes))
 	}
 }
 

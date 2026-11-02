@@ -111,7 +111,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "update", Description: "Update Gormes to the latest version", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "usage", Description: "Show token usage and rate limits", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "verbose", Description: "Cycle tool progress display", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
-	{Name: "voice", Description: "Toggle voice mode", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "voice", Description: "Control spoken replies for this chat", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true, Subcommands: []string{"on", "off", "tts", "status"}},
 	{Name: "yolo", Description: "Toggle YOLO mode", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "footer", Description: "Toggle the gateway footer", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "gquota", Description: "Show Google Gemini Code Assist quota usage", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},

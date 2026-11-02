@@ -1,15 +1,13 @@
 ---
-title: "Guidance"
+title: "Guidance — Constrain LLM output with grammars; guarantee valid JSON"
 sidebar_label: "Guidance"
-description: "Control LLM output with regex and grammars, guarantee valid JSON/XML/code generation, enforce structured formats, and build multi-step workflows with Guidanc..."
+description: "Constrain LLM output with grammars; guarantee valid JSON"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-guidance.md
 ---
-
-
-
 
 # Guidance
 
-Control LLM output with regex and grammars, guarantee valid JSON/XML/code generation, enforce structured formats, and build multi-step workflows with Guidance - Microsoft Research's constrained generation framework
+Constrain LLM output with grammars; guarantee valid JSON.
 
 ## Skill metadata
 
@@ -17,17 +15,16 @@ Control LLM output with regex and grammars, guarantee valid JSON/XML/code genera
 |---|---|
 | Source | Optional — install with `hermes skills install official/mlops/guidance` |
 | Path | `optional-skills/mlops/guidance` |
-| Version | `1.0.0` |
+| Version | `1.0.1` |
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `guidance`, `transformers` |
+| Platforms | linux, macos, windows |
 | Tags | `Prompt Engineering`, `Guidance`, `Constrained Generation`, `Structured Output`, `JSON Validation`, `Grammar`, `Microsoft Research`, `Format Enforcement`, `Multi-Step Workflows` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Guidance: Constrained LLM Generation
 
@@ -70,13 +67,19 @@ result = lm + "The capital of France is " + gen("capital", max_tokens=5)
 print(result["capital"])  # "Paris"
 ```
 
-### With Anthropic Claude
+### Chat format with a local model
+
+> **Constraint support requires local logit access.** Regex, `select()`, and
+> grammar-based constrained generation only work with local backends
+> (`Transformers`, `LlamaCpp`). Remote API backends (`OpenAI`, and Azure
+> variants) support unconstrained `gen()` / chat only — they cannot enforce
+> token-level constraints. guidance 0.3.x has no `models.Anthropic` class.
 
 ```python
 from guidance import models, gen, system, user, assistant
 
-# Configure Claude
-lm = models.Anthropic("claude-sonnet-4-5-20250929")
+# Local model (supports constrained generation)
+lm = models.Transformers("microsoft/Phi-4-mini-instruct")
 
 # Use context managers for chat format
 with system():
@@ -98,7 +101,7 @@ Guidance uses Pythonic context managers for chat-style interactions.
 ```python
 from guidance import system, user, assistant, gen
 
-lm = models.Anthropic("claude-sonnet-4-5-20250929")
+lm = models.Transformers("microsoft/Phi-4-mini-instruct")
 
 # System message
 with system():
@@ -129,7 +132,7 @@ Guidance ensures outputs match specified patterns using regex or grammars.
 ```python
 from guidance import models, gen
 
-lm = models.Anthropic("claude-sonnet-4-5-20250929")
+lm = models.Transformers("microsoft/Phi-4-mini-instruct")
 
 # Constrain to valid email format
 lm += "Email: " + gen("email", regex=r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
@@ -154,7 +157,7 @@ print(lm["date"])   # Guaranteed YYYY-MM-DD format
 ```python
 from guidance import models, gen, select
 
-lm = models.Anthropic("claude-sonnet-4-5-20250929")
+lm = models.Transformers("microsoft/Phi-4-mini-instruct")
 
 # Constrain to specific choices
 lm += "Sentiment: " + select(["positive", "negative", "neutral"], name="sentiment")
@@ -188,7 +191,7 @@ prompt = "The capital of France is "
 ```python
 from guidance import models, gen
 
-lm = models.Anthropic("claude-sonnet-4-5-20250929")
+lm = models.Transformers("microsoft/Phi-4-mini-instruct")
 
 # Token healing enabled by default
 lm += "The capital of France is " + gen("capital", max_tokens=5)
@@ -202,26 +205,30 @@ lm += "The capital of France is " + gen("capital", max_tokens=5)
 
 ### 4. Grammar-Based Generation
 
-Define complex structures using context-free grammars.
+Define complex structures by composing grammar functions. The template-string
+`grammar=` form is not part of current guidance — build grammars from
+composable functions, or use `guidance.json()` for JSON.
 
 ```python
 from guidance import models, gen
+from guidance import json as gen_json
+from pydantic import BaseModel, Field
 
-lm = models.Anthropic("claude-sonnet-4-5-20250929")
+lm = models.Transformers("microsoft/Phi-4-mini-instruct")
 
-# JSON grammar (simplified)
-json_grammar = """
-{
-    "name": <gen name regex="[A-Za-z ]+" max_tokens=20>,
-    "age": <gen age regex="[0-9]+" max_tokens=3>,
-    "email": <gen email regex="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}" max_tokens=50>
-}
-"""
+# JSON via a Pydantic schema (guidance.json compiles the schema to a grammar)
+class Person(BaseModel):
+    name: str = Field(pattern=r"[A-Za-z ]+")
+    age: int
+    email: str = Field(pattern=r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 
-# Generate valid JSON
-lm += gen("person", grammar=json_grammar)
+lm += gen_json(name="person", schema=Person)
 
-print(lm["person"])  # Guaranteed valid JSON structure
+print(lm["person"])  # Guaranteed valid JSON matching the schema
+
+# Or compose grammar functions directly:
+grammar = "name=" + gen("name", regex=r"[A-Za-z ]+") + " age=" + gen("age", regex=r"[0-9]+")
+lm += grammar
 ```
 
 **Use cases:**
@@ -245,7 +252,7 @@ def generate_person(lm):
     return lm
 
 # Use the function
-lm = models.Anthropic("claude-sonnet-4-5-20250929")
+lm = models.Transformers("microsoft/Phi-4-mini-instruct")
 lm = generate_person(lm)
 
 print(lm["name"])
@@ -283,20 +290,14 @@ def react_agent(lm, question, tools, max_rounds=5):
 
 ## Backend Configuration
 
-### Anthropic Claude
+### OpenAI (remote — unconstrained only)
+
+> Remote API backends cannot do constrained generation (regex/select/grammar);
+> use them only for plain chat/`gen()`. For constraints, use a local backend.
 
 ```python
 from guidance import models
 
-lm = models.Anthropic(
-    model="claude-sonnet-4-5-20250929",
-    api_key="your-api-key"  # Or set ANTHROPIC_API_KEY env var
-)
-```
-
-### OpenAI
-
-```python
 lm = models.OpenAI(
     model="gpt-4o-mini",
     api_key="your-api-key"  # Or set OPENAI_API_KEY env var
@@ -333,7 +334,7 @@ lm = LlamaCpp(
 ```python
 from guidance import models, gen, system, user, assistant
 
-lm = models.Anthropic("claude-sonnet-4-5-20250929")
+lm = models.Transformers("microsoft/Phi-4-mini-instruct")
 
 with system():
     lm += "You generate valid JSON."
@@ -356,7 +357,7 @@ print(lm)  # Valid JSON guaranteed
 ```python
 from guidance import models, gen, select
 
-lm = models.Anthropic("claude-sonnet-4-5-20250929")
+lm = models.Transformers("microsoft/Phi-4-mini-instruct")
 
 text = "This product is amazing! I love it."
 
@@ -387,7 +388,7 @@ def chain_of_thought(lm, question):
 
     return lm
 
-lm = models.Anthropic("claude-sonnet-4-5-20250929")
+lm = models.Transformers("microsoft/Phi-4-mini-instruct")
 lm = chain_of_thought(lm, "What is 15% of 200?")
 
 print(lm["answer"])
@@ -429,7 +430,7 @@ def react_agent(lm, question):
 
     return lm
 
-lm = models.Anthropic("claude-sonnet-4-5-20250929")
+lm = models.Transformers("microsoft/Phi-4-mini-instruct")
 lm = react_agent(lm, "What is 25 * 4 + 10?")
 print(lm["answer"])
 ```
@@ -460,7 +461,7 @@ def extract_entities(lm, text):
 
 text = "Tim Cook announced at Apple Park on 2024-09-15 in Cupertino."
 
-lm = models.Anthropic("claude-sonnet-4-5-20250929")
+lm = models.Transformers("microsoft/Phi-4-mini-instruct")
 lm = extract_entities(lm, text)
 
 print(f"Person: {lm['person']}")

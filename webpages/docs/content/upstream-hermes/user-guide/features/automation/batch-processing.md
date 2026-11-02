@@ -1,9 +1,9 @@
 ---
-weight: 12
+sidebar_position: 12
 title: "Batch Processing"
 description: "Generate agent trajectories at scale — parallel processing, checkpointing, and toolset distributions"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/features/batch-processing.md
 ---
-
 
 # Batch Processing
 
@@ -34,6 +34,8 @@ python batch_runner.py \
 # List available toolset distributions
 python batch_runner.py --list_distributions
 ```
+> **tip Predictable cost at scale**
+Batch runs spin up many concurrent agent sessions, each making model calls and tool calls. A [Nous Portal](../../batch-processing/tool-gateway.md/) subscription bundles model access plus web search, image gen, TTS, and cloud browsers under one bill — useful when you want stable cost-per-trajectory without juggling rate limits across five vendor accounts. Set up with `hermes setup --portal`, then point `--model` at a Nous model.
 
 ## Dataset Format
 
@@ -65,7 +67,6 @@ Entries can optionally include:
 | `--resume` | `false` | Resume from checkpoint |
 | `--verbose` | `false` | Enable verbose logging |
 | `--max_samples` | all | Only process first N samples from dataset |
-| `--max_tokens` | model default | Maximum tokens per model response |
 
 ### Provider Routing (OpenRouter)
 
@@ -80,7 +81,7 @@ Entries can optionally include:
 
 | Parameter | Description |
 |-----------|-------------|
-| `--reasoning_effort` | Effort level: `none`, `minimal`, `low`, `medium`, `high`, `xhigh` |
+| `--reasoning_effort` | Reasoning effort: `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
 | `--reasoning_disabled` | Completely disable reasoning/thinking tokens |
 
 ### Advanced Options

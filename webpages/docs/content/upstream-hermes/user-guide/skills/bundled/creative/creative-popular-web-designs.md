@@ -2,10 +2,8 @@
 title: "Popular Web Designs — 54 real design systems (Stripe, Linear, Vercel) as HTML/CSS"
 sidebar_label: "Popular Web Designs"
 description: "54 real design systems (Stripe, Linear, Vercel) as HTML/CSS"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/creative/creative-popular-web-designs.md
 ---
-
-
-
 
 # Popular Web Designs
 
@@ -20,12 +18,11 @@ description: "54 real design systems (Stripe, Linear, Vercel) as HTML/CSS"
 | Version | `1.0.0` |
 | Author | Hermes Agent + Teknium (design systems sourced from VoltAgent/awesome-design-md) |
 | License | MIT |
+| Platforms | linux, macos, windows |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Popular Web Designs
 

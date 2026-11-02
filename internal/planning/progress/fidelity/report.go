@@ -289,7 +289,10 @@ func GenerateHermesReport(ctx context.Context, opts Options) (Report, error) {
 	report.WebDashboardCatalog = buildWebDashboardClassification(hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
 	definitions := defaultSurfaces()
 	mappedUpstream := mappedUpstreamRefs(definitions, sourcePairs.Pairs, rows)
-	report.UnmappedUpstream = buildUnmappedUpstreamInventory(hermesPath, mappedUpstream, rows)
+	report.UnmappedUpstream, err = buildUnmappedUpstreamInventory(hermesPath, mappedUpstream, rows)
+	if err != nil {
+		return Report{}, fmt.Errorf("fidelity: inventory Hermes source tree: %w", err)
+	}
 	report.ReleaseCheckpoints = buildReleaseCheckpoints(repoRoot, hermesPath)
 	for _, def := range definitions {
 		surface := buildSurfaceReport(def, hermesPath, hermesSHA, sourcePairsState, sourcePairs.Pairs, rows)
@@ -998,13 +1001,16 @@ func addMappedUpstreamRef(mapped map[string]bool, ref string) {
 	}
 }
 
-func buildUnmappedUpstreamInventory(root string, mapped map[string]bool, rows []progressRow) UpstreamUnmappedInventory {
+func buildUnmappedUpstreamInventory(root string, mapped map[string]bool, rows []progressRow) (UpstreamUnmappedInventory, error) {
 	var unmapped UpstreamUnmappedInventory
 	if root == "" {
-		return unmapped
+		return unmapped, nil
 	}
-	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d == nil {
+	walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return fmt.Errorf("walk %s: %w", path, err)
+		}
+		if d == nil {
 			return nil
 		}
 		if d.IsDir() {
@@ -1015,7 +1021,7 @@ func buildUnmappedUpstreamInventory(root string, mapped map[string]bool, rows []
 		}
 		rel, relErr := filepath.Rel(root, path)
 		if relErr != nil {
-			return nil
+			return fmt.Errorf("relative path for %s: %w", path, relErr)
 		}
 		slash := filepath.ToSlash(rel)
 		if mapped[slash] {
@@ -1034,11 +1040,14 @@ func buildUnmappedUpstreamInventory(root string, mapped map[string]bool, rows []
 		}
 		return nil
 	})
+	if walkErr != nil {
+		return UpstreamUnmappedInventory{}, walkErr
+	}
 	unmapped.SourceFiles = uniqueSorted(unmapped.SourceFiles)
 	unmapped.DocsFiles = uniqueSorted(unmapped.DocsFiles)
 	unmapped.TestFiles = uniqueSorted(unmapped.TestFiles)
 	unmapped.TestSuites = buildUnmappedTestSuites(unmapped.TestFiles, rows)
-	return unmapped
+	return unmapped, nil
 }
 
 func buildUnmappedTestSuites(testFiles []string, rows []progressRow) []UpstreamUnmappedTestSuite {

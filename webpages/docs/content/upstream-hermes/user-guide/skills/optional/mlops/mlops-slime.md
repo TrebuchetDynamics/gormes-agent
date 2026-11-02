@@ -1,15 +1,13 @@
 ---
-title: "Slime Rl Training — Provides guidance for LLM post-training with RL using slime, a Megatron+SGLang framework"
-sidebar_label: "Slime Rl Training"
-description: "Provides guidance for LLM post-training with RL using slime, a Megatron+SGLang framework"
+title: "Slime — RL post-training for LLMs with Megatron and SGLang"
+sidebar_label: "Slime"
+description: "RL post-training for LLMs with Megatron and SGLang"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-slime.md
 ---
 
+# Slime
 
-
-
-# Slime Rl Training
-
-Provides guidance for LLM post-training with RL using slime, a Megatron+SGLang framework. Use when training GLM models, implementing custom data generation workflows, or needing tight Megatron-LM integration for RL scaling.
+RL post-training for LLMs with Megatron and SGLang.
 
 ## Skill metadata
 
@@ -21,13 +19,12 @@ Provides guidance for LLM post-training with RL using slime, a Megatron+SGLang f
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `sglang-router>=0.2.3`, `ray`, `torch>=2.0.0`, `transformers>=4.40.0` |
+| Platforms | linux, macos |
 | Tags | `Reinforcement Learning`, `Megatron-LM`, `SGLang`, `GRPO`, `Post-Training`, `GLM` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # slime: LLM Post-Training Framework for RL Scaling
 

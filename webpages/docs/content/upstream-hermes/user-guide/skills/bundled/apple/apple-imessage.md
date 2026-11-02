@@ -2,10 +2,8 @@
 title: "Imessage — Send and receive iMessages/SMS via the imsg CLI on macOS"
 sidebar_label: "Imessage"
 description: "Send and receive iMessages/SMS via the imsg CLI on macOS"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/apple/apple-imessage.md
 ---
-
-
-
 
 # Imessage
 
@@ -24,10 +22,8 @@ Send and receive iMessages/SMS via the imsg CLI on macOS.
 | Tags | `iMessage`, `SMS`, `messaging`, `macOS`, `Apple` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # iMessage
 

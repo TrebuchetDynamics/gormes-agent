@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -37,6 +38,7 @@ type AuthSeams struct {
 	RunAdd                     func(*cobra.Command, AuthAddOptions) error
 	RunList                    func(*cobra.Command, string, bool) error
 	RunRemove                  func(*cobra.Command, string, string) error
+	RunPriority                func(*cobra.Command, string, string, int) error
 	RunReset                   func(*cobra.Command, string) error
 	RunStatus                  func(*cobra.Command, string, bool) error
 	RunLogout                  func(*cobra.Command, string) error
@@ -61,6 +63,11 @@ func (s AuthSeams) withDefaults() AuthSeams {
 	if s.RunRemove == nil {
 		s.RunRemove = func(*cobra.Command, string, string) error {
 			return errors.New("gormes auth remove: seam is not configured")
+		}
+	}
+	if s.RunPriority == nil {
+		s.RunPriority = func(*cobra.Command, string, string, int) error {
+			return errors.New("gormes auth priority: seam is not configured")
 		}
 	}
 	if s.RunReset == nil {
@@ -98,6 +105,7 @@ func DefaultAuthSeams() AuthSeams {
 		RunAdd:                     runAuthAddCommandFromProvider,
 		RunList:                    runAuthListCommand,
 		RunRemove:                  runAuthRemoveCommand,
+		RunPriority:                runAuthPriorityCommand,
 		RunReset:                   runAuthResetCommand,
 		RunStatus:                  runAuthStatusCommand,
 		RunLogout:                  runAuthLogoutCommand,
@@ -177,6 +185,7 @@ func NewAuthCommandWithSeams(seams AuthSeams, opts Options) *cobra.Command {
 	cmd.AddCommand(newAuthAddCommand(seams))
 	cmd.AddCommand(newAuthListCommand(seams))
 	cmd.AddCommand(newAuthRemoveCommand(seams))
+	cmd.AddCommand(newAuthPriorityCommand(seams))
 	cmd.AddCommand(newAuthResetCommand(seams))
 	cmd.AddCommand(newAuthStatusCommand(seams))
 	cmd.AddCommand(newAuthLogoutCommand(seams))
@@ -283,6 +292,23 @@ func newAuthRemoveCommand(seams AuthSeams) *cobra.Command {
 		},
 	}
 	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action, provider, removed: {id, label}, redacted}`")
+	return cmd
+}
+
+func newAuthPriorityCommand(seams AuthSeams) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "priority <provider> <target> <priority>",
+		Short:        "Set the order of a provider credential",
+		Args:         cobra.ExactArgs(3),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			priority, err := strconv.Atoi(args[2])
+			if err != nil {
+				return fmt.Errorf("gormes auth priority: priority must be an integer")
+			}
+			return seams.RunPriority(cmd, args[0], args[1], priority)
+		},
+	}
 	return cmd
 }
 

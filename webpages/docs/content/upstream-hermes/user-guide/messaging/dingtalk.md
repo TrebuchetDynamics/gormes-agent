@@ -1,11 +1,15 @@
 ---
-weight: 10
+sidebar_position: 10
 title: "DingTalk"
 description: "Set up Hermes Agent as a DingTalk chatbot"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/messaging/dingtalk.md
 ---
 
-
 # DingTalk Setup
+
+Python dependency commands on this page use a
+[PM-prepared source checkout](../../reference/package-management.md#developer-workflow).
+After a dependency change, reactivate the checkout and restart Hermes.
 
 Hermes Agent integrates with DingTalk (钉钉) as a chatbot, letting you chat with your AI assistant through direct messages or group chats. The bot connects via DingTalk's Stream Mode — a long-lived WebSocket connection that requires no public URL or webhook server — and replies using markdown-formatted messages through DingTalk's session webhook API.
 
@@ -45,14 +49,10 @@ This guide walks you through the full setup process — from creating your DingT
 Install the required Python packages:
 
 ```bash
-pip install "hermes-agent[dingtalk]"
+cd ~/.hermes/hermes-agent && python -c "import pm; pm.sync_venv(['dingtalk'], explicit=True)"
 ```
 
-Or individually:
-
-```bash
-pip install dingtalk-stream httpx alibabacloud-dingtalk
-```
+This extra supplies the SDKs alongside core Hermes dependencies:
 
 - `dingtalk-stream` — DingTalk's official SDK for Stream Mode (WebSocket-based real-time messaging)
 - `httpx` — async HTTP client used for sending replies via session webhooks
@@ -67,20 +67,16 @@ pip install dingtalk-stream httpx alibabacloud-dingtalk
    - **App Name**: e.g., `Hermes Agent`
    - **Description**: optional
 5. After creating, navigate to **Credentials & Basic Info** to find your **Client ID** (AppKey) and **Client Secret** (AppSecret). Copy both.
-
-> **Warning: Credentials shown only once**
-> The Client Secret is only displayed once when you create the app. If you lose it, you'll need to regenerate it. Never share these credentials publicly or commit them to Git.
-
+> **warningCredentials shown only once**
+The Client Secret is only displayed once when you create the app. If you lose it, you'll need to regenerate it. Never share these credentials publicly or commit them to Git.
 
 ## Step 2: Enable the Robot Capability
 
 1. In your app's settings page, go to **Add Capability** → **Robot**.
 2. Enable the robot capability.
 3. Under **Message Reception Mode**, select **Stream Mode** (recommended — no public URL needed).
-
-> **Tip**
-> Stream Mode is the recommended setup. It uses a long-lived WebSocket connection initiated from your machine, so you don't need a public IP, domain name, or webhook endpoint. This works behind NAT, firewalls, and on local machines.
-
+> **tip**
+Stream Mode is the recommended setup. It uses a long-lived WebSocket connection initiated from your machine, so you don't need a public IP, domain name, or webhook endpoint. This works behind NAT, firewalls, and on local machines.
 
 ## Step 3: Find Your DingTalk User ID
 
@@ -105,10 +101,8 @@ Select **DingTalk** when prompted. The setup wizard can authorize via one of two
 
 - **QR-code device flow (recommended).** Scan the QR that prints in your terminal with the DingTalk mobile app — your Client ID and Client Secret are returned automatically and written to `~/.hermes/.env`. No developer-console trip needed.
 - **Manual paste.** If you already have credentials (or QR scanning isn't convenient), paste your Client ID, Client Secret, and allowed user IDs when prompted.
-
-> **Note: openClaw branding disclosure**
-> Because DingTalk's `verification_uri_complete` is hardcoded to the openClaw identity at the API layer, the QR currently authorizes under an `openClaw` source string until Alibaba / DingTalk-Real-AI registers a Hermes-specific template server-side. This is purely how DingTalk presents the consent screen — the bot you create is fully yours and private to your tenant.
-
+> **note openClaw branding disclosure**
+Because DingTalk's `verification_uri_complete` is hardcoded to the openClaw identity at the API layer, the QR currently authorizes under an `openClaw` source string until Alibaba / DingTalk-Real-AI registers a Hermes-specific template server-side. This is purely how DingTalk presents the consent screen — the bot you create is fully yours and private to your tenant.
 
 ### Option B: Manual Configuration
 
@@ -155,7 +149,7 @@ gateway:
 
 - `group_sessions_per_user: true` keeps each participant's context isolated inside shared group chats
 - `require_mention: true` prevents the bot from responding to every group message — it only answers when someone @-mentions it
-- `allowed_users` under `dingtalk.extra` is an alternative to `DINGTALK_ALLOWED_USERS`; if both are set, they're merged
+- `allowed_users` under `dingtalk.extra` is an alternative to `DINGTALK_ALLOWED_USERS`; set one or the other (if both are set, only users present in both lists are authorized)
 
 ### Start the Gateway
 
@@ -166,10 +160,8 @@ hermes gateway
 ```
 
 The bot should connect to DingTalk's Stream Mode within a few seconds. Send it a message — either a DM or in a group where it's been added — to test.
-
-> **Tip**
-> You can run `hermes gateway` in the background or as a systemd service for persistent operation. See the deployment docs for details.
-
+> **tip**
+You can run `hermes gateway` in the background or as a systemd service for persistent operation. See the deployment docs for details.
 
 ## Features
 
@@ -237,7 +229,7 @@ display:
 **Fix**: Install it:
 
 ```bash
-pip install dingtalk-stream httpx
+python -c "import pm; pm.sync_venv(['dingtalk'], explicit=True)"
 ```
 
 ### "DINGTALK_CLIENT_ID and DINGTALK_CLIENT_SECRET required"
@@ -265,12 +257,10 @@ pip install dingtalk-stream httpx
 **Fix**: Send a new message to the bot — each incoming message provides a fresh session webhook for replies. This is a normal DingTalk limitation; the bot can only reply to messages it has received recently.
 
 ## Security
+> **warning**
+Always set `DINGTALK_ALLOWED_USERS` to restrict who can interact with the bot. Without it, the gateway denies all users by default as a safety measure. Only add User IDs of people you trust — authorized users have full access to the agent's capabilities, including tool use and system access.
 
-> **Warning**
-> Always set `DINGTALK_ALLOWED_USERS` to restrict who can interact with the bot. Without it, the gateway denies all users by default as a safety measure. Only add User IDs of people you trust — authorized users have full access to the agent's capabilities, including tool use and system access.
-
-
-For more information on securing your Hermes Agent deployment, see the [Security Guide](../../security/).
+For more information on securing your Hermes Agent deployment, see the [Security Guide](../security.md).
 
 ## Notes
 

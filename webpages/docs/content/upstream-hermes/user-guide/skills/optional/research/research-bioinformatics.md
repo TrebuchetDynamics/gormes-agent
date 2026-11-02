@@ -1,15 +1,13 @@
 ---
-title: "Bioinformatics — Gateway to 400+ bioinformatics skills from bioSkills and ClawBio"
+title: "Bioinformatics — Gateway to 400+ genomics and computational biology skills"
 sidebar_label: "Bioinformatics"
-description: "Gateway to 400+ bioinformatics skills from bioSkills and ClawBio"
+description: "Gateway to 400+ genomics and computational biology skills"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/research/research-bioinformatics.md
 ---
-
-
-
 
 # Bioinformatics
 
-Gateway to 400+ bioinformatics skills from bioSkills and ClawBio. Covers genomics, transcriptomics, single-cell, variant calling, pharmacogenomics, metagenomics, structural biology, and more. Fetches domain-specific reference material on demand.
+Gateway to 400+ genomics and computational biology skills.
 
 ## Skill metadata
 
@@ -18,14 +16,14 @@ Gateway to 400+ bioinformatics skills from bioSkills and ClawBio. Covers genomic
 | Source | Optional — install with `hermes skills install official/research/bioinformatics` |
 | Path | `optional-skills/research/bioinformatics` |
 | Version | `1.0.0` |
+| Author | Teknium (teknium1), Hermes Agent |
+| License | MIT |
 | Platforms | linux, macos |
 | Tags | `bioinformatics`, `genomics`, `sequencing`, `biology`, `research`, `science` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Bioinformatics Skills Gateway
 
@@ -49,18 +47,18 @@ This skill is a gateway to two open-source bioinformatics skill libraries. Inste
 2. Clone the relevant repo (shallow clone to save time):
    ```bash
    # bioSkills (reference material)
-   git clone --depth 1 https://github.com/GPTomics/bioSkills.git /tmp/bioSkills
+   git clone --depth 1 https://github.com/GPTomics/bioSkills.git ~/.hermes/cache/scratch/bioSkills
 
    # ClawBio (runnable pipelines)
-   git clone --depth 1 https://github.com/ClawBio/ClawBio.git /tmp/ClawBio
+   git clone --depth 1 https://github.com/ClawBio/ClawBio.git ~/.hermes/cache/scratch/ClawBio
    ```
 3. Read the specific skill:
    ```bash
    # bioSkills — each skill is at: <category>/<skill-name>/SKILL.md
-   cat /tmp/bioSkills/variant-calling/gatk-variant-calling/SKILL.md
+   cat ~/.hermes/cache/scratch/bioSkills/variant-calling/gatk-variant-calling/SKILL.md
 
    # ClawBio — each skill is at: skills/<skill-name>/
-   cat /tmp/ClawBio/skills/pharmgx-reporter/README.md
+   cat ~/.hermes/cache/scratch/ClawBio/skills/pharmgx-reporter/README.md
    ```
 4. Follow the fetched skill as reference material. These are NOT Hermes-format skills — treat them as expert domain guides. They contain correct parameters, proper tool flags, and validated pipelines.
 

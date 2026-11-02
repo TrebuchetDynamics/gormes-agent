@@ -13,6 +13,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/voicemode"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
@@ -172,6 +173,10 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	if cfg.LiveTurnActiveProvider != nil {
 		seams.ActiveProvider = cfg.LiveTurnActiveProvider
 	}
+	voiceStore := cfg.VoiceModeStore
+	if voiceStore == nil {
+		voiceStore = voicemode.NewMemoryStore()
+	}
 	return &Manager{
 		cfg:                         cfg,
 		kernel:                      k,
@@ -179,6 +184,7 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 		channels:                    map[string]Channel{},
 		reasoningDispatcher:         NewReasoningDispatcher(cfg.PersistReasoningGlobal),
 		ttsConfigStore:              NewTTSConfigStore(),
+		voiceModeStore:              voiceStore,
 		inboundDedup:                NewMessageDeduplicator(defaultInboundDedupMaxSize),
 		liveTurnPromptSeams:         seams,
 		agentRouter:                 NewAgentRouter(cfg.AgentRouting.Agents, cfg.AgentRouting.Bindings),
@@ -1037,6 +1043,7 @@ func (m *Manager) pinTurn(platform, chatID, msgID string) {
 	m.turnLastUserText = ""
 	m.turnContentDedupKey = ""
 	m.turnAudioRequested = false
+	m.turnVoiceChatKey = platform + ":" + chatID
 	m.turnKernel = nil
 	m.turnReplySent = false
 	m.resetToolProgress()
@@ -1056,6 +1063,7 @@ func (m *Manager) clearTurn() {
 	m.turnLastUserText = ""
 	m.turnContentDedupKey = ""
 	m.turnAudioRequested = false
+	m.turnVoiceChatKey = ""
 	m.turnKernel = nil
 	m.resetToolProgress()
 }
@@ -1105,6 +1113,9 @@ func (m *Manager) setPinnedTurnSession(sessionKey, sessionID string, source Sess
 	m.turnSessionKey = sessionKey
 	m.turnSessionID = sessionID
 	m.turnSource = source
+	if source.Platform != "" && source.ChatID != "" {
+		m.turnVoiceChatKey = source.Platform + ":" + source.ChatID
+	}
 }
 
 func (m *Manager) markTurnCancelled() {
@@ -1385,6 +1396,7 @@ func (m *Manager) popNextFollowUpAsActive() (InboundEvent, bool) {
 	m.turnFrameSeen = false
 	m.turnContentDedupKey = inboundContentDedupKey(next)
 	m.turnAudioRequested = false
+	m.turnVoiceChatKey = next.ChatKey()
 	m.resetToolProgress()
 	return next, true
 }

@@ -2,10 +2,8 @@
 title: "Gif Search — Search/download GIFs from Tenor via curl + jq"
 sidebar_label: "Gif Search"
 description: "Search/download GIFs from Tenor via curl + jq"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/media/media-gif-search.md
 ---
-
-
-
 
 # Gif Search
 
@@ -20,13 +18,12 @@ Search/download GIFs from Tenor via curl + jq.
 | Version | `1.1.0` |
 | Author | Hermes Agent |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `GIF`, `Media`, `Search`, `Tenor`, `API` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # GIF Search (Tenor API)
 
@@ -38,7 +35,7 @@ Useful for finding reaction GIFs, creating visual content, and sending GIFs in c
 
 ## Setup
 
-Set your Tenor API key in your environment (add to `~/.hermes/.env`):
+Set your Tenor API key in your environment (add to `${HERMES_HOME:-~/.hermes}/.env`):
 
 ```bash
 TENOR_API_KEY=your_key_here

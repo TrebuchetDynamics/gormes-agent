@@ -17,7 +17,10 @@ func TestGuidanceConstants_MemoryGuidance_ByteEquivalent(t *testing.T) {
 	if !ok {
 		t.Skip("upstream prompt_builder.py not available; skipping byte-equivalence check (drift will surface elsewhere)")
 	}
-	want, ok := upstream.ExtractPythonStringConstant(src, "MEMORY_GUIDANCE")
+	want, ok := upstream.ExtractPythonBuiltMemoryGuidance(src)
+	if !ok {
+		want, ok = upstream.ExtractPythonStringConstant(src, "MEMORY_GUIDANCE")
+	}
 	if !ok {
 		t.Fatalf("could not extract MEMORY_GUIDANCE from upstream")
 	}

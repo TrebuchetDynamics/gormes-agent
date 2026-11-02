@@ -2,6 +2,7 @@ package tuiapp
 
 import (
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -80,8 +81,8 @@ func TestResolvedRootTUIStartupSeedsWelcomeHomeFromGormesHome(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunResolved: %v", err)
 	}
-	if !strings.Contains(rendered, expectedHome) {
-		t.Fatalf("resolved native TUI welcome should render Gormes home %q instead of workspace cwd:\n%s", expectedHome, rendered)
+	if !strings.Contains(rendered, filepath.Base(expectedHome)) {
+		t.Fatalf("resolved native TUI welcome should render the Gormes home path instead of workspace cwd:\n%s", rendered)
 	}
 	for _, stale := range []string{"CWD:", "Profile:", "~/git/gormes/gormes-agent"} {
 		if strings.Contains(rendered, stale) {

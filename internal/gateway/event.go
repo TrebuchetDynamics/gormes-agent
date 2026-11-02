@@ -48,6 +48,7 @@ const (
 	EventPersonality     = gatewayevents.EventPersonality
 	EventCompress        = gatewayevents.EventCompress
 	EventTools           = gatewayevents.EventTools
+	EventVoice           = gatewayevents.EventVoice
 )
 
 // ThreadLifecycleState is the platform-neutral lifecycle state for a threaded

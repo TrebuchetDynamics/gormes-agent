@@ -47,6 +47,7 @@ const (
 	EventPersonality     = gatewayevents.EventPersonality
 	EventCompress        = gatewayevents.EventCompress
 	EventTools           = gatewayevents.EventTools
+	EventVoice           = gatewayevents.EventVoice
 )
 
 // CommandDef is the canonical slash-command definition shared by gateway
@@ -169,7 +170,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "toolsets", Description: "List available toolsets", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "update", Description: "Update Gormes to the latest version", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "verbose", Description: "Cycle tool progress display", Kind: EventVerbose, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
-	{Name: "voice", Description: "Toggle voice mode", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "voice", Description: "Control spoken replies for this chat", Kind: EventVoice, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "yolo", Description: "Toggle YOLO mode", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "retry", Description: "Retry the last message (resend to agent)", Kind: EventRetry, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "undo", Description: "Remove the last user/assistant exchange", Kind: EventUndo, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},

@@ -1,6 +1,11 @@
+---
+title: "Kanban tutorial"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/features/kanban-tutorial.md
+---
+
 # Kanban tutorial
 
-A walkthrough of the four use-cases the Hermes Kanban system was designed for, with the dashboard open in a browser. If you haven't read the [Kanban overview](../kanban) yet, start there — this assumes you know what a task, run, assignee, and dispatcher are.
+A walkthrough of the four use-cases the Hermes Kanban system was designed for, with the dashboard open in a browser. If you haven't read the [Kanban overview](../../kanban-tutorial/kanban/) yet, start there — this assumes you know what a task, run, assignee, and dispatcher are.
 
 ## Setup
 
@@ -10,19 +15,19 @@ hermes dashboard             # opens http://127.0.0.1:9119 in your browser
 # click Kanban in the left nav
 ```
 
-The dashboard is the most comfortable place for **you** to watch the system. Agent workers the dispatcher spawns never see the dashboard or the CLI — they drive the board through a dedicated `kanban_*` [toolset](../kanban#how-workers-interact-with-the-board) (`kanban_show`, `kanban_list`, `kanban_complete`, `kanban_block`, `kanban_heartbeat`, `kanban_comment`, `kanban_create`, `kanban_link`, `kanban_unblock`). All three surfaces — dashboard, CLI, worker tools — route through the same per-board SQLite DB (`~/.hermes/kanban.db` for the default board, `~/.hermes/kanban/boards/<slug>/kanban.db` for any board you create later), so each board is consistent no matter which side of the fence a change came from.
+The dashboard is the most comfortable place for **you** to watch the system. Agent workers the dispatcher spawns never see the dashboard or the CLI — they drive the board through a dedicated `kanban_*` [toolset](../../kanban-tutorial/kanban/#how-workers-interact-with-the-board) (`kanban_show`, `kanban_list`, `kanban_complete`, `kanban_request_review`, `kanban_request_changes`, `kanban_block`, `kanban_heartbeat`, `kanban_comment`, `kanban_attach`, `kanban_attach_url`, `kanban_attachments`, `kanban_create`, `kanban_link`, `kanban_unblock`). All three surfaces — dashboard, CLI, worker tools — route through the same per-board SQLite DB (`~/.hermes/kanban.db` for the default board, `~/.hermes/kanban/boards/<slug>/kanban.db` for any board you create later), so each board is consistent no matter which side of the fence a change came from.
 
-This tutorial uses the `default` board throughout. If you want multiple isolated queues (one per project / repo / domain), see [Boards (multi-project)](../kanban#boards-multi-project) in the overview — the same CLI / dashboard / worker flows apply per board, and workers physically cannot see tasks on other boards.
+This tutorial uses the `default` board throughout. If you want multiple isolated queues (one per project / repo / domain), see [Boards (multi-project)](../../kanban-tutorial/kanban/#boards-multi-project) in the overview — the same CLI / dashboard / worker flows apply per board, and workers physically cannot see tasks on other boards.
 
 Throughout the tutorial, **code blocks labelled `bash` are commands *you* run.** Code blocks labelled `# worker tool calls` are what the spawned worker's model emits as tool calls — shown here so you can see the loop end-to-end, not because you'd ever run them yourself.
 
 ## The board at a glance
 
-![Kanban board overview](https://hermesagent.ai/img/kanban-tutorial/01-board-overview.png)
+![Kanban board overview](https://hermes-agent.nousresearch.com/img/kanban-tutorial/01-board-overview.png)
 
 Six columns, left to right:
 
-- **Triage** — raw ideas, a specifier will flesh out the spec before anyone works on them. Click the **✨ Specify** button on any triage card (or run `hermes kanban specify <id>` / `/kanban specify <id>` from a chat) to have the auxiliary LLM turn a one-liner into a full spec (goal, approach, acceptance criteria) and promote it to `todo` in one shot. Configure which model runs it under `auxiliary.triage_specifier` in `config.yaml`.
+- **Triage** — raw ideas. By default the dispatcher auto-runs the **decomposer** on tasks here: the built-in decomposer uses `auxiliary.kanban_decomposer`, reads your profile roster + descriptions, and produces a graph of child tasks routed to the best-fit specialists. The original task is held alive as the parent so its assignee (`kanban.orchestrator_profile`, or the active default profile when unset) wakes back up to judge completion when everything finishes. Flip the **Orchestration: Auto/Manual** pill at the top of the kanban page to switch modes. In Manual mode click **⚗ Decompose** on a card, or run `hermes kanban decompose <id>` / `/kanban decompose <id>`. For single tasks that don't need fan-out, **✨ Specify** does a one-shot spec rewrite (goal, approach, acceptance criteria) and promotes to `todo`. Configure the models under `auxiliary.kanban_decomposer` and `auxiliary.triage_specifier` in `config.yaml`. See [Auto vs Manual orchestration](../../kanban-tutorial/kanban/#auto-vs-manual-orchestration) in the main Kanban guide.
 - **Todo** — created but waiting on dependencies, or not yet assigned.
 - **Ready** — assigned and waiting for the dispatcher to claim.
 - **In progress** — a worker is actively running the task. With "Lanes by profile" on (the default), this column sub-groups by assignee so you can see at a glance what each worker is doing.
@@ -35,7 +40,7 @@ The top bar has filters for search, tenant, and assignee, plus a `Lanes by profi
 
 If the profile lanes are noisy, toggle "Lanes by profile" off and the In Progress column collapses to a single flat list ordered by claim time:
 
-![Board with lanes by profile off](https://hermesagent.ai/img/kanban-tutorial/02-board-flat.png)
+![Board with lanes by profile off](https://hermes-agent.nousresearch.com/img/kanban-tutorial/02-board-flat.png)
 
 ## Story 1 — Solo dev shipping a feature
 
@@ -90,7 +95,7 @@ When `SCHEMA` hits `done`, the dependency engine promotes `API` to `ready` autom
 
 Click the completed schema task on the board and the drawer shows everything:
 
-![Solo dev — completed schema task drawer](https://hermesagent.ai/img/kanban-tutorial/03-drawer-schema-task.png)
+![Solo dev — completed schema task drawer](https://hermes-agent.nousresearch.com/img/kanban-tutorial/03-drawer-schema-task.png)
 
 The Run History section at the bottom is the key addition. One attempt: outcome `completed`, worker `@backend-dev`, duration, timestamp, and the handoff summary in full. The metadata blob (`changed_files`, `decisions`) is stored on the run too and surfaced to any downstream worker that reads this parent.
 
@@ -135,7 +140,7 @@ hermes gateway start
 
 Now filter the board to `content-ops` (or just search for "Transcribe") and you get this:
 
-![Fleet view filtered to transcribe tasks](https://hermesagent.ai/img/kanban-tutorial/07-fleet-transcribes.png)
+![Fleet view filtered to transcribe tasks](https://hermes-agent.nousresearch.com/img/kanban-tutorial/07-fleet-transcribes.png)
 
 Two transcribes done, one running, two ready waiting for the next dispatcher tick. The In Progress column is grouped by profile (the "Lanes by profile" default) so you see each worker's active task without scanning a mixed list. The dispatcher will promote the next ready task to running as soon as the current one completes. With three daemons working on three assignee pools in parallel, the whole content queue drains without further human input.
 
@@ -147,58 +152,38 @@ This is where Kanban earns its keep over a flat TODO list. A PM writes a spec. A
 
 The dashboard view, filtered by `auth-project`:
 
-![Pipeline view for a multi-role feature](https://hermesagent.ai/img/kanban-tutorial/08-pipeline-auth.png)
+![Pipeline view for a multi-role feature](https://hermes-agent.nousresearch.com/img/kanban-tutorial/08-pipeline-auth.png)
 
-Three-stage chain visible at once: `Spec: password reset flow` (DONE, pm), `Implement password reset flow` (DONE, backend-dev), `Review password reset PR` (READY, reviewer). Each has its parent in green at the bottom and children as dependencies.
+The screenshot uses the **pre-created downstream card** model: the implementation card has a dedicated reviewer child. In that model the engineer must call `kanban_complete` when implementation is ready so the reviewer child can leave `todo`. Never block the implementation parent merely to ask for review.
 
-The interesting one is the implementation task, because it was blocked and retried. Here's the full three-agent choreography, shown as the tool calls each worker's model makes:
-
-```python
-# --- PM worker spawns on $SPEC and writes the acceptance criteria ---
-# worker tool calls
-kanban_show()
-kanban_complete(
-    summary="spec approved; POST /forgot-password sends email, "
-            "GET /reset/:token renders form, POST /reset applies new password",
-    metadata={"acceptance": [
-        "expired token returns 410",
-        "reused last-3 password returns 400 with message",
-        "successful reset invalidates all active sessions",
-    ]},
-)
-# → $SPEC is done; $IMPL auto-promotes from todo to ready
-
-# --- Engineer worker spawns on $IMPL (first attempt) ---
-# worker tool calls
-kanban_show()   # reads $SPEC's summary + acceptance metadata in worker_context
-# (engineer writes code, runs tests, opens PR)
-# Reviewer feedback arrives — engineer decides the concerns are valid and blocks
-kanban_block(
-    reason="Review: password strength check missing, reset link isn't "
-           "single-use (can be replayed within 30min)",
-)
-# → $IMPL transitions to blocked; run 1 closes with outcome='blocked'
-```
-
-Now you (the human, or a separate reviewer profile) read the block reason, decide the fix direction is clear, and unblock from the dashboard's "Unblock" button — or from the CLI / slash command:
-
-```bash
-hermes kanban unblock $IMPL
-# or from a chat: /kanban unblock $IMPL
-```
-
-The dispatcher promotes `$IMPL` back to `ready` and, on the next tick, respawns the `backend-dev` worker. This second spawn is a **new run** on the same task:
+For workflows where the same card owns implementation and review, use the first-class review lifecycle instead. The full implement → review → changes → re-review choreography is:
 
 ```python
-# --- Engineer worker spawns on $IMPL (second attempt) ---
-# worker tool calls
+# --- Engineer: first implementation attempt ---
 kanban_show()
-# → worker_context now includes the run 1 block reason, so this worker knows
-#   which two things to fix instead of re-reading the whole spec
-# (engineer adds zxcvbn check, makes reset tokens single-use, re-runs tests)
-kanban_complete(
-    summary="added zxcvbn strength check, reset tokens are now single-use "
-            "(stored + deleted on success)",
+# (write code, run tests, prepare the candidate)
+kanban_request_review(
+    summary="implemented reset flow; candidate is ready for review",
+    metadata={"changed_files": ["auth/reset.py"], "tests_run": 8},
+    reviewer="reviewer",
+)
+# → the same card enters review; the implementation run closes as
+#   outcome='review_requested'
+
+# --- Reviewer: request concrete changes ---
+kanban_show()
+# (inspect the handoff and candidate)
+kanban_request_changes(
+    reason="Add password-strength validation and make reset tokens single-use."
+)
+# → the review run closes as outcome='changes_requested'; the card returns
+#   to backend-dev in ready/todo without touching block-loop accounting
+
+# --- Engineer: second implementation attempt ---
+kanban_show()  # prior review evidence is in worker_context
+# (apply feedback and re-run tests)
+kanban_request_review(
+    summary="added zxcvbn validation and single-use reset tokens",
     metadata={
         "changed_files": [
             "auth/reset.py",
@@ -208,23 +193,21 @@ kanban_complete(
         "tests_run": 11,
         "review_iteration": 2,
     },
+    reviewer="reviewer",
 )
+
+# --- Reviewer: approve ---
+kanban_complete(summary="review passed; acceptance criteria verified")
+# → done
 ```
 
-Click the implementation task. The drawer shows **two attempts**:
+The task's run history now records `review_requested → changes_requested → review_requested → completed`. Each attempt has its own actor, summary, metadata, and outcome, so the second engineer sees exactly what the reviewer rejected and the final approval remains auditable. `kanban_block` is reserved for a real external escalation (missing access, a product decision, unavailable infrastructure), not normal review feedback.
 
-![Implementation task with two runs — blocked then completed](https://hermesagent.ai/img/kanban-tutorial/04b-drawer-retry-history-scrolled.png)
+If you intentionally use the downstream-card model shown in the screenshot, the reviewer opens `Review password reset PR` after its implementation parent completes:
 
-- **Run 1** — `blocked` by `@backend-dev`. The review feedback sits right under the outcome: "password strength check missing, reset link isn't single-use (can be replayed within 30min)".
-- **Run 2** — `completed` by `@backend-dev`. Fresh summary, fresh metadata.
+![Reviewer's drawer view of the pipeline](https://hermes-agent.nousresearch.com/img/kanban-tutorial/09-drawer-pipeline-review.png)
 
-Each run is a row in `task_runs` with its own outcome, summary, and metadata. Retry history is not a conceptual afterthought layered on top of a "latest state" task — it's the primary representation. When a retrying worker opens the task, `build_worker_context` shows it the prior attempts, so the second-pass worker sees why the first pass was blocked and addresses those specific findings instead of re-running from scratch.
-
-The reviewer picks up next. When they open `Review password reset PR`, they see:
-
-![Reviewer's drawer view of the pipeline](https://hermesagent.ai/img/kanban-tutorial/09-drawer-pipeline-review.png)
-
-The parent link is the completed implementation. When the reviewer's worker spawns on `Review password reset PR` and calls `kanban_show()`, the returned `worker_context` includes the parent's most-recent-completed-run summary + metadata — so the reviewer reads "added zxcvbn strength check, reset tokens are now single-use" and has the list of changed files in hand before looking at a diff.
+The reviewer card's `worker_context` includes the completed implementation handoff. That is a separate card workflow; do not combine it with same-card `kanban_request_review` or you will duplicate the review lane.
 
 ## Story 4 — Circuit breaker and crash recovery
 
@@ -236,14 +219,15 @@ A deploy task that can't spawn its worker because `AWS_ACCESS_KEY_ID` isn't set 
 
 ```bash
 hermes kanban create "Deploy to staging (missing creds)" \
-    --assignee deploy-bot --tenant ops
+    --assignee deploy-bot --tenant ops \
+    --max-retries 3
 ```
 
-The dispatcher tries to spawn the worker. Spawn fails (`RuntimeError: AWS_ACCESS_KEY_ID not set`). The dispatcher releases the claim, increments a failure counter, and tries again next tick. After three consecutive failures (the default `failure_limit`), the circuit trips: the task goes to `blocked` with outcome `gave_up`. No more retries until a human unblocks it.
+The dispatcher tries to spawn the worker. Spawn fails (`RuntimeError: AWS_ACCESS_KEY_ID not set`). The dispatcher releases the claim, increments a failure counter, and tries again next tick. Because this example sets `--max-retries 3`, the circuit trips after three consecutive failures: the task goes to `blocked` with outcome `gave_up`. If you omit the flag, Hermes uses `kanban.failure_limit` (default: 2). No more retries until a human unblocks it.
 
 Click the blocked task:
 
-![Circuit breaker — 2 spawn_failed + 1 gave_up](https://hermesagent.ai/img/kanban-tutorial/11-drawer-gave-up.png)
+![Circuit breaker — 2 spawn_failed + 1 gave_up](https://hermes-agent.nousresearch.com/img/kanban-tutorial/11-drawer-gave-up.png)
 
 Three runs, all with the same error on the `error` field. The first two are `spawn_failed` (retryable), the third is `gave_up` (terminal). The event log above shows the full sequence: `created → claimed → spawn_failed → claimed → spawn_failed → claimed → gave_up`.
 
@@ -276,7 +260,7 @@ The example in the seed data is a migration that was running out of memory:
 
 The drawer shows the full two-attempt history:
 
-![Crash and recovery — 1 crashed + 1 completed](https://hermesagent.ai/img/kanban-tutorial/06-drawer-crash-recovery.png)
+![Crash and recovery — 1 crashed + 1 completed](https://hermes-agent.nousresearch.com/img/kanban-tutorial/06-drawer-crash-recovery.png)
 
 Run 1 — `crashed`, with the error `OOM kill at row 2.3M (process 99999 gone)`. Run 2 — `completed`, with `"strategy": "chunked with LIMIT + WHERE id > last_id"` in its metadata. The retrying worker saw the crash of run 1 in its context and picked a safer strategy; the metadata makes it obvious to a future observer (or postmortem writer) what changed.
 
@@ -293,17 +277,39 @@ This replaces the "dig through comments and the work output" dance that plagues 
 
 The bulk-close guard exists because this data is per-run. `hermes kanban complete a b c --summary X` (you, from the CLI) is refused — copy-pasting the same summary to three tasks is almost always wrong. Bulk close without the handoff flags still works for the common "I finished a pile of admin tasks" case. The tool surface doesn't expose a bulk variant at all; `kanban_complete` is always single-task-at-a-time for the same reason.
 
+## Follow-up on a done card — CI remediation via the parent link
+
+Story 1's implementation card is `done`. Two hours later CI fails on the merged branch. Don't reopen the done card — completed cards are history, and their handoff flows forward. Create a remediation card with the done card as its **parent**:
+
+```bash
+hermes kanban create "Fix CI: test_backoff_jitter flakes on 3.11" \
+    --assignee backend-dev \
+    --parent t_impl \
+    --workspace worktree --branch wt/ci-fix-backoff \
+    --body "CI run #4812 failed after t_impl completed.
+FAILED tests/test_retry.py::test_backoff_jitter - TimeoutError
+Acceptance: tests/test_retry.py green on 3.11 and 3.12."
+```
+
+Three things make this work:
+
+- **Immediate dispatch.** Because the parent is already `done`, the child is created straight into `ready` — the dispatcher can claim it on the next tick. (A child of a still-open parent would wait in `todo`.)
+- **Inherited context.** The remediation worker's context includes a *Parent task results* section carrying `t_impl`'s completion summary and metadata — the changed files and decisions the original worker recorded — so it knows why the code is shaped the way it is before reading a line of it.
+- **Fresh evidence in the body.** The CI log didn't exist when `t_impl` completed, so it can't be in the parent's handoff — it goes in the new card's body, alongside explicit acceptance criteria.
+
+Prefer a fresh worktree/branch for the remediation card. Checking out the original branch gives the worker repo *state* but none of the *rationale* — the parent handoff carries that. Same assignee profile is usually right: the profile that wrote the code has the skills to fix it.
+
 ## Inspecting a task currently running
 
 For completeness — here's the drawer of a task still in flight (the API implementation from Story 1, claimed by `backend-dev` but not yet complete):
 
-![Claimed, in-flight task](https://hermesagent.ai/img/kanban-tutorial/10-drawer-in-flight.png)
+![Claimed, in-flight task](https://hermes-agent.nousresearch.com/img/kanban-tutorial/10-drawer-in-flight.png)
 
 Status is `Running`. The active run appears in the Run History section with outcome `active` and no `ended_at`. If this worker dies or times out, the dispatcher closes this run with the appropriate outcome and opens a new one on the next claim — the attempt row never disappears.
 
 ## Next steps
 
-- [Kanban overview](../kanban) — the full data model, event vocabulary, and CLI reference.
+- [Kanban overview](../../kanban-tutorial/kanban/) — the full data model, event vocabulary, and CLI reference.
 - `hermes kanban --help` — every subcommand, every flag.
 - `hermes kanban watch --kinds completed,gave_up,timed_out` — live stream terminal events across the whole board.
 - `hermes kanban notify-subscribe <task> --platform telegram --chat-id <id>` — get a gateway ping when a specific task finishes.

@@ -1,15 +1,13 @@
 ---
-title: "Gitnexus Explorer"
+title: "Gitnexus Explorer — Serve an interactive codebase knowledge graph web UI"
 sidebar_label: "Gitnexus Explorer"
-description: "Index a codebase with GitNexus and serve an interactive knowledge graph via web UI + Cloudflare tunnel"
+description: "Serve an interactive codebase knowledge graph web UI"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/research/research-gitnexus-explorer.md
 ---
-
-
-
 
 # Gitnexus Explorer
 
-Index a codebase with GitNexus and serve an interactive knowledge graph via web UI + Cloudflare tunnel.
+Serve an interactive codebase knowledge graph web UI.
 
 ## Skill metadata
 
@@ -20,14 +18,13 @@ Index a codebase with GitNexus and serve an interactive knowledge graph via web 
 | Version | `1.0.0` |
 | Author | Hermes Agent + Teknium |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `gitnexus`, `code-intelligence`, `knowledge-graph`, `visualization` |
-| Related skills | [`native-mcp`](../../../bundled/mcp/mcp-native-mcp/), [`codebase-inspection`](../../../bundled/github/github-codebase-inspection/) |
+| Related skills | [`hermes-agent`](../../bundled/autonomous-ai-agents/autonomous-ai-agents-hermes-agent.md), [`codebase-inspection`](../../bundled/software-development/software-development-codebase-inspection.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # GitNexus Explorer
 

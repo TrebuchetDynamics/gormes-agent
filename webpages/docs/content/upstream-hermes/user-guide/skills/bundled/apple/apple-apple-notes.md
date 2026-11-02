@@ -2,10 +2,8 @@
 title: "Apple Notes — Manage Apple Notes via memo CLI: create, search, edit"
 sidebar_label: "Apple Notes"
 description: "Manage Apple Notes via memo CLI: create, search, edit"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/apple/apple-apple-notes.md
 ---
-
-
-
 
 # Apple Notes
 
@@ -17,18 +15,16 @@ Manage Apple Notes via memo CLI: create, search, edit.
 |---|---|
 | Source | Bundled (installed by default) |
 | Path | `skills/apple/apple-notes` |
-| Version | `1.0.0` |
+| Version | `1.0.1` |
 | Author | Hermes Agent |
 | License | MIT |
 | Platforms | macos |
 | Tags | `Notes`, `Apple`, `macOS`, `note-taking` |
-| Related skills | [`obsidian`](../../note-taking/note-taking-obsidian/) |
+| Related skills | [`obsidian`](../../bundled/note-taking/note-taking-obsidian.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Apple Notes
 
@@ -66,9 +62,13 @@ memo notes -s "query"             # Search notes (fuzzy)
 ### Create Notes
 
 ```bash
-memo notes -a                     # Interactive editor
-memo notes -a "Note Title"        # Quick add with title
+memo notes -a                     # Add a note (opens your $EDITOR)
+memo notes -a -f "Folder Name"    # Add a note into a specific folder
 ```
+
+`-a`/`--add` is a bare flag — it opens your `$EDITOR` to compose the note; it does
+not take a title argument. Use `-f/--folder` to target a folder. Set `$EDITOR`
+first (e.g. `export EDITOR=vim`).
 
 ### Edit Notes
 

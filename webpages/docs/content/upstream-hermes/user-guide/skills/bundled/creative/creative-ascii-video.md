@@ -2,10 +2,8 @@
 title: "Ascii Video — ASCII video: convert video/audio to colored ASCII MP4/GIF"
 sidebar_label: "Ascii Video"
 description: "ASCII video: convert video/audio to colored ASCII MP4/GIF"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/creative/creative-ascii-video.md
 ---
-
-
-
 
 # Ascii Video
 
@@ -17,12 +15,15 @@ ASCII video: convert video/audio to colored ASCII MP4/GIF.
 |---|---|
 | Source | Bundled (installed by default) |
 | Path | `skills/creative/ascii-video` |
+| Version | `1.0.0` |
+| Author | SHL0MS, Hermes Agent |
+| License | MIT |
+| Platforms | linux, macos, windows |
+| Tags | `ASCII`, `Video`, `FFmpeg`, `Terminal-Art` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # ASCII Video Production Pipeline
 

@@ -2,11 +2,11 @@ package main
 
 import "github.com/TrebuchetDynamics/gormes-agent/internal/app/gormescmd"
 
-var Version = "0.2.28"
+var Version = "0.2.29"
 
 // VersionDateAlias is the Hermes-style vYYYY.M.D paired alias for the
 // operator-facing semantic release version.
-var VersionDateAlias = "v2026.7.20"
+var VersionDateAlias = "v2026.11.2"
 
 // GitCommit is injected by release builds via -ldflags -X main.GitCommit=...
 var GitCommit = "unknown"

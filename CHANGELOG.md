@@ -8,6 +8,25 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.29] - 2026-11-02
+
+Date alias: `v2026.11.2`.
+
+> **ACP approval parity, gateway voice modes, and a patched Go toolchain.**
+
+### Added
+- ACP auth method advertisement, provider detection, `session/request_permission` approval rounds, and tool-call lifecycle events, with an end-to-end fake-client fixture for allow, deny, and timeout paths.
+- Gateway `/voice on|off|tts|status` with per-chat persistence and auto-TTS gating.
+- In-repo Goncho webhook CRUD and signature parity tests against the pinned module.
+
+### Changed
+- The Go source-build floor and managed installer fallback now use Go 1.26.10.
+- `golang.org/x/net` updated to v0.62.0, with `x/crypto`, `x/sync`, `x/sys`, `x/term`, and `x/text` updated to compatible releases.
+- Parity evidence reconciled for ACP, voice, curator, approval, native dashboard, and Goncho webhooks.
+
+### Fixed
+- `govulncheck` no longer reports reachable standard-library or `x/net` vulnerabilities.
+
 ## [0.2.28] - 2026-07-20
 
 Date alias: `v2026.7.20`.

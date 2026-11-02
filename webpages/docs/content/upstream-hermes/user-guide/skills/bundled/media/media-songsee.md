@@ -2,10 +2,8 @@
 title: "Songsee — Audio spectrograms/features (mel, chroma, MFCC) via CLI"
 sidebar_label: "Songsee"
 description: "Audio spectrograms/features (mel, chroma, MFCC) via CLI"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/media/media-songsee.md
 ---
-
-
-
 
 # Songsee
 
@@ -20,13 +18,12 @@ Audio spectrograms/features (mel, chroma, MFCC) via CLI.
 | Version | `1.0.0` |
 | Author | community |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `Audio`, `Visualization`, `Spectrogram`, `Music`, `Analysis` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # songsee
 

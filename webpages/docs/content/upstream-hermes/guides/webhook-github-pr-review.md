@@ -1,28 +1,24 @@
 ---
-weight: 11
+sidebar_position: 11
 sidebar_label: "GitHub PR Reviews via Webhook"
 title: "Automated GitHub PR Comments with Webhooks"
 description: "Connect Hermes to GitHub so it automatically fetches PR diffs, reviews code changes, and posts comments — triggered by webhooks with no manual prompting"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/guides/webhook-github-pr-review.md
 ---
-
 
 # Automated GitHub PR Comments with Webhooks
 
 This guide walks you through connecting Hermes Agent to GitHub so it automatically fetches a pull request's diff, analyzes the code changes, and posts a comment — triggered by a webhook event with no manual prompting.
 
 When a PR is opened or updated, GitHub sends a webhook POST to your Hermes instance. Hermes runs the agent with a prompt that instructs it to retrieve the diff via the `gh` CLI, and the response is posted back to the PR thread.
+> **tip Want a simpler setup without a public endpoint?**
+If you don't have a public URL or just want to get started quickly, check out [Build a GitHub PR Review Agent](./github-pr-review-agent.md) — uses cron jobs to poll for PRs on a schedule, works behind NAT and firewalls.
 
-> **Tip: Want a simpler setup without a public endpoint?**
-> If you don't have a public URL or just want to get started quickly, check out [Build a GitHub PR Review Agent](../github-pr-review-agent/) — uses cron jobs to poll for PRs on a schedule, works behind NAT and firewalls.
+> **info Reference docs**
+For the full webhook platform reference (all config options, delivery types, dynamic subscriptions, security model) see [Webhooks](../user-guide/messaging/webhooks.md).
 
-
-> **Info: Reference docs**
-> For the full webhook platform reference (all config options, delivery types, dynamic subscriptions, security model) see [Webhooks](../../user-guide/messaging/webhooks/).
-
-
-> **Warning: Prompt injection risk**
-> Webhook payloads contain attacker-controlled data — PR titles, commit messages, and descriptions can contain malicious instructions. When your webhook endpoint is exposed to the internet, run the gateway in a sandboxed environment (Docker, SSH backend). See the [security section](#security-notes) below.
-
+> **warning Prompt injection risk**
+Webhook payloads contain attacker-controlled data — PR titles, commit messages, and descriptions can contain malicious instructions. When your webhook endpoint is exposed to the internet, run the gateway in a sandboxed environment (Docker, SSH backend). See the [security section](#security-notes) below.
 
 ---
 
@@ -87,10 +83,8 @@ platforms:
 | `deliver` | `github_comment` posts via `gh pr comment`. `log` just writes to the gateway log. |
 | `deliver_extra.repo` | Resolves to e.g. `org/repo` from the payload. |
 | `deliver_extra.pr_number` | Resolves to the PR number from the payload. |
-
-> **Note: The payload does not contain code**
-> The GitHub webhook payload includes PR metadata (title, description, branch names, URLs) but **not the diff**. The prompt above instructs the agent to run `gh pr diff` to fetch the actual changes. The `terminal` tool is included in the default `hermes-webhook` toolset, so no extra configuration is needed.
-
+> **note The payload does not contain code**
+The GitHub webhook payload includes PR metadata (title, description, branch names, URLs) but **not the diff**. The prompt above instructs the agent to run `gh pr diff` to fetch the actual changes. The default `hermes-webhook` toolset is deliberately constrained (web search/extract, vision, clarify — **no terminal**) because webhook payloads can carry untrusted content. To let this route run `gh`, add a per-route toolset grant: `toolsets: ["terminal", "web"]` on the route config — see [Per-route toolsets](../user-guide/messaging/webhooks.md#per-route-toolsets).
 
 ---
 
@@ -152,10 +146,8 @@ ngrok http 8644
 Copy the `https://...ngrok-free.app` URL and use it as your GitHub Payload URL. On the free ngrok tier the URL changes each time ngrok restarts — update your GitHub webhook each session. Paid ngrok accounts get a static domain.
 
 You can smoke-test a static route directly with `curl` — no GitHub account or real PR needed.
-
-> **Tip: Use `deliver: log` when testing locally**
-> Change `deliver: github_comment` to `deliver: log` in your config while testing. Otherwise the agent will attempt to post a comment to the fake `org/repo#99` repo in the test payload, which will fail. Switch back to `deliver: github_comment` once you're satisfied with the prompt output.
-
+> **tip Use `deliver: log` when testing locally**
+Change `deliver: github_comment` to `deliver: log` in your config while testing. Otherwise the agent will attempt to post a comment to the fake `org/repo#99` repo in the test payload, which will fail. Switch back to `deliver: github_comment` once you're satisfied with the prompt output.
 
 ```bash
 SECRET="your-webhook-secret-here"
@@ -174,22 +166,26 @@ Then watch the agent run:
 ```bash
 tail -f "${HERMES_HOME:-$HOME/.hermes}/logs/gateway.log"
 ```
-
-> **Note**
-> `hermes webhook test <name>` only works for **dynamic subscriptions** created with `hermes webhook subscribe`. It does not read routes from `config.yaml`.
-
+> **note**
+`hermes webhook test <name>` only works for **dynamic subscriptions** created with `hermes webhook subscribe`. It does not read routes from `config.yaml`.
 
 ---
 
 ## Filtering to specific actions
 
-GitHub sends `pull_request` events for many actions: `opened`, `synchronize`, `reopened`, `closed`, `labeled`, etc. The `events` list filters only by the `X-GitHub-Event` header value — it cannot filter by action sub-type at the routing level.
+GitHub sends `pull_request` events for many actions: `opened`, `synchronize`, `reopened`, `closed`, `labeled`, etc. The `events` list filters by the `X-GitHub-Event` header value, and route-level `filters` can narrow by payload fields such as `action`.
 
 The prompt in Step 1 already handles this by instructing the agent to stop early for `closed` and `labeled` events.
+> **warning The agent still runs and consumes tokens**
+The "stop here" instruction prevents a meaningful review, but the agent still runs to completion for every `pull_request` event regardless of action. Prefer filtering before the agent wakes:
 
-> **Warning: The agent still runs and consumes tokens**
-> The "stop here" instruction prevents a meaningful review, but the agent still runs to completion for every `pull_request` event regardless of action. GitHub webhooks can only filter by event type (`pull_request`, `push`, `issues`, etc.) — not by action sub-type (`opened`, `closed`, `labeled`). There is no routing-level filter for sub-actions. For high-volume repos, accept this cost or filter upstream with a GitHub Actions workflow that calls your webhook URL conditionally.
+```yaml
+filters:
+  - field: "action"
+    in: ["opened", "synchronize", "reopened"]
+```
 
+For high-volume repositories, you can still filter upstream with a GitHub Actions workflow that calls your webhook URL conditionally.
 
 > There is no Jinja2 or conditional template syntax. `{field}` and `{nested.field}` are the only substitutions supported. Anything else is passed verbatim to the agent.
 
@@ -197,7 +193,7 @@ The prompt in Step 1 already handles this by instructing the agent to stop early
 
 ## Using a skill for consistent review style
 
-Load a [Hermes skill](../../user-guide/features/skills/) to give the agent a consistent review persona. Add `skills` to your route inside `platforms.webhook.extra.routes` in `config.yaml`:
+Load a [Hermes skill](../user-guide/features/skills.md) to give the agent a consistent review persona. Add `skills` to your route inside `platforms.webhook.extra.routes` in `config.yaml`:
 
 ```yaml
 platforms:
@@ -304,7 +300,6 @@ platforms:
   webhook:
     enabled: true
     extra:
-      host: "0.0.0.0"         # bind address (default: 0.0.0.0)
       port: 8644               # listen port (default: 8644)
       secret: ""               # optional global fallback secret
       rate_limit: 30           # requests per minute per route
@@ -324,7 +319,7 @@ platforms:
 
 ## What's Next?
 
-- **[Cron-Based PR Reviews](../github-pr-review-agent/)** — poll for PRs on a schedule, no public endpoint needed
-- **[Webhook Reference](../../user-guide/messaging/webhooks/)** — full config reference for the webhook platform
-- **[Build a Plugin](../build-a-hermes-plugin/)** — package review logic into a shareable plugin
-- **[Profiles](../../user-guide/profiles/)** — run a dedicated reviewer profile with its own memory and config
+- **[Cron-Based PR Reviews](./github-pr-review-agent.md)** — poll for PRs on a schedule, no public endpoint needed
+- **[Webhook Reference](../user-guide/messaging/webhooks.md)** — full config reference for the webhook platform
+- **[Build a Plugin](../developer-guide/plugins/index.md)** — package review logic into a shareable plugin
+- **[Profiles](../user-guide/profiles.md)** — run a dedicated reviewer profile with its own memory and config

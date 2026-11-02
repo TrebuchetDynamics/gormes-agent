@@ -2,10 +2,8 @@
 title: "Baoyu Infographic — Infographics: 21 layouts x 21 styles (信息图, 可视化)"
 sidebar_label: "Baoyu Infographic"
 description: "Infographics: 21 layouts x 21 styles (信息图, 可视化)"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/creative/creative-baoyu-infographic.md
 ---
-
-
-
 
 # Baoyu Infographic
 
@@ -20,13 +18,12 @@ Infographics: 21 layouts x 21 styles (信息图, 可视化).
 | Version | `1.56.1` |
 | Author | 宝玉 (JimLiu) |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `infographic`, `visual-summary`, `creative`, `image-generation` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Infographic Generator
 

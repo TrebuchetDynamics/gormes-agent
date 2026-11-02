@@ -251,14 +251,16 @@ function rewriteRelativeLinks(markdown, sourceRel) {
   });
 }
 
-function transformFrontmatter(frontmatter, sourceRel) {
+function transformFrontmatter(frontmatter, sourceRel, body) {
   const lines = frontmatter.split(/\r?\n/);
   const out = [];
+  let hasTitle = false;
   let weight = '';
   let hasSidebar = false;
   let hasEditUrl = false;
 
   for (const line of lines) {
+    if (/^title:\s*/.test(line)) hasTitle = true;
     const weightMatch = line.match(/^weight:\s*(\d+)\s*$/);
     if (weightMatch) {
       weight = weightMatch[1];
@@ -269,6 +271,7 @@ function transformFrontmatter(frontmatter, sourceRel) {
     out.push(line);
   }
 
+  if (!hasTitle) out.unshift(`title: ${JSON.stringify(titleFromMarkdown(body, sourceRel))}`);
   if (weight && !hasSidebar) {
     out.push('sidebar:');
     out.push(`  order: ${weight}`);
@@ -288,7 +291,7 @@ export function transformMarkdown(raw, sourceRel) {
     return `---\ntitle: ${JSON.stringify(title)}\neditUrl: ${editUrlForSourceRel(sourceRel)}\n---\n\n${rewriteRelativeLinks(raw, sourceRel)}`;
   }
 
-  const frontmatter = transformFrontmatter(match[1], sourceRel);
+  const frontmatter = transformFrontmatter(match[1], sourceRel, match[2]);
   return `---\n${frontmatter}\n---${rewriteRelativeLinks(match[2], sourceRel)}`;
 }
 

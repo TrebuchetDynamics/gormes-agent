@@ -8,6 +8,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/voicemode"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
@@ -225,6 +226,10 @@ type ManagerConfig struct {
 	// DynamicAgentRegistry persists runtime-spawned agents and bindings for
 	// channel-native /spawn flows. Nil keeps /spawn unavailable.
 	DynamicAgentRegistry SpawnAgentRegistry
+	// VoiceModeStore persists per-chat /voice reply modes. Nil uses an
+	// in-memory store, which keeps the command available without cross-restart
+	// persistence.
+	VoiceModeStore voicemode.Store
 }
 
 type KernelSubmitter interface {
@@ -297,6 +302,7 @@ type Manager struct {
 	turnLastUserText    string // captures the last inbound submit text for auto-title
 	turnContentDedupKey string
 	turnAudioRequested  bool
+	turnVoiceChatKey    string
 	turnKernel          KernelSubmitter
 	turnReplySent       bool // tracks first reply for ReplyMode "first"
 	kernelSessionKey    string
@@ -306,6 +312,7 @@ type Manager struct {
 
 	reasoningDispatcher *ReasoningDispatcher
 	ttsConfigStore      *TTSConfigStore
+	voiceModeStore      voicemode.Store
 
 	inboundDedup *MessageDeduplicator
 

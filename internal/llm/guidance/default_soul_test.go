@@ -22,12 +22,7 @@ func TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormPersona(t *testing.T) {
 		t.Fatalf("could not extract DEFAULT_SOUL_MD from %s", path)
 	}
 	want := strings.Replace(upstreamSoul,
-		"Hermes Agent, an intelligent AI assistant created by Nous Research",
-		"Gorm, an AI assistant run by gormes, a Go-native Hermes-compatible agent runtime",
-		1,
-	)
-	want = strings.Replace(want,
-		"You are Gorm, an AI assistant run by gormes, a Go-native Hermes-compatible agent runtime.",
+		"You are Hermes Agent, built by Nous Research.",
 		"You are Gorm by default, an AI assistant run by gormes, a Go-native Hermes-compatible agent runtime. If the user asks you to use another name in the current conversation, honor that preference.",
 		1,
 	)

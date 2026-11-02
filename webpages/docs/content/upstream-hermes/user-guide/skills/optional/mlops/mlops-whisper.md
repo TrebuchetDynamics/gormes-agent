@@ -1,15 +1,13 @@
 ---
-title: "Whisper — OpenAI's general-purpose speech recognition model"
+title: "Whisper — Transcribe and translate speech in 99 languages"
 sidebar_label: "Whisper"
-description: "OpenAI's general-purpose speech recognition model"
+description: "Transcribe and translate speech in 99 languages"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-whisper.md
 ---
-
-
-
 
 # Whisper
 
-OpenAI's general-purpose speech recognition model. Supports 99 languages, transcription, translation to English, and language identification. Six model sizes from tiny (39M params) to large (1550M params). Use for speech-to-text, podcast transcription, or multilingual audio processing. Best for robust, multilingual ASR.
+Transcribe and translate speech in 99 languages.
 
 ## Skill metadata
 
@@ -21,13 +19,12 @@ OpenAI's general-purpose speech recognition model. Supports 99 languages, transc
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `openai-whisper`, `transformers`, `torch` |
+| Platforms | linux, macos |
 | Tags | `Whisper`, `Speech Recognition`, `ASR`, `Multimodal`, `Multilingual`, `OpenAI`, `Speech-To-Text`, `Transcription`, `Translation`, `Audio Processing` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Whisper - Robust Speech Recognition
 

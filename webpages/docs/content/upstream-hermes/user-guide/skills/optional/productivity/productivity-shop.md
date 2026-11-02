@@ -2,8 +2,8 @@
 title: "Shop — Shop catalog search, checkout, order tracking, returns"
 sidebar_label: "Shop"
 description: "Shop catalog search, checkout, order tracking, returns"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/productivity/productivity-shop.md
 ---
-
 
 # Shop
 
@@ -20,13 +20,11 @@ Shop catalog search, checkout, order tracking, returns.
 | License | MIT |
 | Platforms | linux, macos, windows |
 | Tags | `Shopping`, `E-commerce`, `Shop`, `Products`, `Orders`, `Returns`, `Checkout`, `Reorder` |
-| Related skills | [`shopify`](https://hermes-agent.nousresearch.com/docs/user-guide/skills/optional/productivity/productivity-shopify), [`maps`](https://hermes-agent.nousresearch.com/docs/user-guide/skills/bundled/productivity/productivity-maps) |
+| Related skills | [`shopify`](../../optional/productivity/productivity-shopify.md), [`maps`](../../bundled/productivity/productivity-maps.md) |
 
 ## Reference: full SKILL.md
-
 > **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
 
 # Shop CLI Skill
 

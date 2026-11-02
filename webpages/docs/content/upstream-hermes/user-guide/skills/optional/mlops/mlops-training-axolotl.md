@@ -2,8 +2,8 @@
 title: "Axolotl — Axolotl: YAML LLM fine-tuning (LoRA, DPO, GRPO)"
 sidebar_label: "Axolotl"
 description: "Axolotl: YAML LLM fine-tuning (LoRA, DPO, GRPO)"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/mlops/mlops-training-axolotl.md
 ---
-
 
 # Axolotl
 
@@ -23,10 +23,8 @@ Axolotl: YAML LLM fine-tuning (LoRA, DPO, GRPO).
 | Tags | `Fine-Tuning`, `Axolotl`, `LLM`, `LoRA`, `QLoRA`, `DPO`, `KTO`, `ORPO`, `GRPO`, `YAML`, `HuggingFace`, `DeepSpeed`, `Multimodal` |
 
 ## Reference: full SKILL.md
-
-> **Info**
->
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Axolotl Skill
 
@@ -34,7 +32,7 @@ Axolotl: YAML LLM fine-tuning (LoRA, DPO, GRPO).
 
 Expert guidance for fine-tuning LLMs with Axolotl — YAML configs, 100+ models, LoRA/QLoRA, DPO/KTO/ORPO/GRPO, multimodal support.
 
-Comprehensive assistance with axolotl development, generated from official documentation.
+Assistance with axolotl development, generated from official documentation.
 
 ## When to Use This Skill
 

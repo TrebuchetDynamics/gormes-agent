@@ -2,8 +2,8 @@
 title: "Mpp Agent — Pay HTTP 402 APIs via Machine Payments Protocol (MPP)"
 sidebar_label: "Mpp Agent"
 description: "Pay HTTP 402 APIs via Machine Payments Protocol (MPP)"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/payments/payments-mpp-agent.md
 ---
-
 
 # Mpp Agent
 
@@ -20,13 +20,11 @@ Pay HTTP 402 APIs via Machine Payments Protocol (MPP).
 | License | MIT |
 | Platforms | linux, macos |
 | Tags | `Payments`, `MPP`, `HTTP-402`, `Tempo`, `Stripe` |
-| Related skills | [`stripe-link-cli`](https://hermes-agent.nousresearch.com/docs/user-guide/skills/optional/payments/payments-stripe-link-cli), [`stripe-projects`](https://hermes-agent.nousresearch.com/docs/user-guide/skills/optional/payments/payments-stripe-projects) |
+| Related skills | [`stripe-link-cli`](../../optional/payments/payments-stripe-link-cli.md), [`stripe-projects`](../../optional/payments/payments-stripe-projects.md) |
 
 ## Reference: full SKILL.md
-
 > **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
 
 # MPP Agent Skill
 

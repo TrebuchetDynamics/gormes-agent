@@ -182,6 +182,112 @@ func TestStoreServerReturnsDisabledWithoutDefinition(t *testing.T) {
 	}
 }
 
+func TestStoreSetEnabledTogglesAndPreservesConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "profile", "config.toml")
+	if err := configwriter.WriteTOMLAtomic(path, map[string]any{
+		"hermes": map[string]any{"model": "keep-me"},
+		"mcp_servers": map[string]any{
+			"demo": map[string]any{
+				"url":     "https://example.test/private?token=query-secret",
+				"headers": map[string]any{"Authorization": "Bearer header-secret"},
+				"enabled": true,
+				"tools":   map[string]any{"include": []string{"search"}},
+			},
+			"sibling": map[string]any{"url": "https://sibling.example/mcp", "enabled": true},
+		},
+	}); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+	store := Store{Path: path}
+	for _, enabled := range []bool{false, true} {
+		if err := store.SetEnabled("demo", enabled); err != nil {
+			t.Fatalf("SetEnabled(%v): %v", enabled, err)
+		}
+		doc, err := configwriter.ReadTOMLDoc(path)
+		if err != nil {
+			t.Fatalf("ReadTOMLDoc: %v", err)
+		}
+		servers, _ := doc["mcp_servers"].(map[string]any)
+		demo, _ := servers["demo"].(map[string]any)
+		sibling, _ := servers["sibling"].(map[string]any)
+		hermes, _ := doc["hermes"].(map[string]any)
+		if demo["enabled"] != enabled || demo["url"] != "https://example.test/private?token=query-secret" {
+			t.Fatalf("demo config = %#v", demo)
+		}
+		if demo["headers"].(map[string]any)["Authorization"] != "Bearer header-secret" {
+			t.Fatalf("headers changed: %#v", demo["headers"])
+		}
+		if len(demo["tools"].(map[string]any)["include"].([]any)) != 1 || sibling["enabled"] != true || hermes["model"] != "keep-me" {
+			t.Fatalf("unrelated config changed: %#v", doc)
+		}
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat config: %v", err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("config mode = %o, want 600", info.Mode().Perm())
+	}
+}
+
+func TestStoreSetEnabledFailuresAreRedactedAndNonMutating(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := configwriter.WriteTOMLAtomic(path, map[string]any{
+		"mcp_servers": map[string]any{
+			"demo":      map[string]any{"url": "https://example.test/private?token=secret", "enabled": true},
+			"malformed": "private-secret",
+		},
+	}); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+	store := Store{Path: path}
+	tests := []struct {
+		name   string
+		server string
+		kind   ErrorKind
+	}{
+		{name: "invalid name", server: "bad/name", kind: ErrorInvalidInput},
+		{name: "missing server", server: "missing", kind: ErrorNotFound},
+		{name: "malformed server", server: "malformed", kind: ErrorRejected},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			before, _ := os.ReadFile(path)
+			err := store.SetEnabled(test.server, false)
+			var storeErr *Error
+			if !errors.As(err, &storeErr) || storeErr.Kind != test.kind {
+				t.Fatalf("SetEnabled error = %v, want kind %s", err, test.kind)
+			}
+			after, _ := os.ReadFile(path)
+			if string(after) != string(before) {
+				t.Fatalf("failure changed config:\n%s", after)
+			}
+			if strings.Contains(err.Error(), "private") || strings.Contains(err.Error(), "secret") || strings.Contains(err.Error(), path) {
+				t.Fatalf("error leaked config details: %v", err)
+			}
+		})
+	}
+	writerPath := filepath.Join(t.TempDir(), "writer.toml")
+	if err := configwriter.WriteTOMLAtomic(writerPath, map[string]any{
+		"mcp_servers": map[string]any{"demo": map[string]any{"url": "https://example.test/mcp", "enabled": true}},
+	}); err != nil {
+		t.Fatalf("seed writer config: %v", err)
+	}
+	before, _ := os.ReadFile(writerPath)
+	writerStore := Store{Path: writerPath, WriteDocument: func(string, map[string]any) error {
+		return errors.New("private path and token-secret")
+	}}
+	err := writerStore.SetEnabled("demo", false)
+	var storeErr *Error
+	if !errors.As(err, &storeErr) || storeErr.Kind != ErrorUnavailable || strings.Contains(err.Error(), "private") || strings.Contains(err.Error(), "secret") {
+		t.Fatalf("writer error = %v", err)
+	}
+	after, _ := os.ReadFile(writerPath)
+	if string(after) != string(before) {
+		t.Fatalf("writer failure changed config:\n%s", after)
+	}
+}
+
 func TestStoreConfigureToolsIncludeNoneAllPreservesConfig(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "profile", "config.toml")
 	if err := configwriter.WriteTOMLAtomic(path, map[string]any{

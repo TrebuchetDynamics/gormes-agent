@@ -1,25 +1,23 @@
 ---
-weight: 2
+sidebar_position: 2
 title: "Adding Tools"
 description: "How to add a new tool to Hermes Agent — schemas, handlers, registration, and toolsets"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/developer-guide/adding-tools.md
 ---
-
 
 # Adding Tools
 
-Before writing a tool, ask yourself: **should this be a [skill](../creating-skills/) instead?**
+Before writing a tool, ask yourself: **should this be a [skill](creating-skills.md) instead?**
+> **warning Built-in Core Tools Only**
+This page is for adding a **built-in Hermes tool** to the repository itself.
+If you want a personal, project-local, or otherwise custom tool without
+modifying Hermes core, use the plugin route instead:
 
-> **Warning: Built-in Core Tools Only**
-> This page is for adding a **built-in Hermes tool** to the repository itself.
-> If you want a personal, project-local, or otherwise custom tool without
-> modifying Hermes core, use the plugin route instead:
->
-> - [Plugins](../../user-guide/features/plugins/)
-> - [Build a Hermes Plugin](../../guides/build-a-hermes-plugin/)
->
-> Default to plugins for most custom tool creation. Only follow this page when
-> you explicitly want to ship a new built-in tool in `tools/` and `toolsets.py`.
+- [Plugins](../user-guide/features/plugins.md)
+- [Build a Hermes Plugin](./plugins/index.md)
 
+Default to plugins for most custom tool creation. Only follow this page when
+you explicitly want to ship a new built-in tool in `tools/` and `toolsets.py`.
 
 Make it a **Skill** when the capability can be expressed as instructions + shell commands + existing tools (arXiv search, git workflows, Docker management, PDF processing).
 
@@ -48,13 +46,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 # --- Availability check ---
 
 def check_weather_requirements() -> bool:
     """Return True if the tool's dependencies are available."""
     return bool(os.getenv("WEATHER_API_KEY"))
-
 
 # --- Handler ---
 
@@ -68,7 +64,6 @@ def weather_tool(location: str, units: str = "metric") -> str:
         return json.dumps({"location": location, "temp": 22, "units": units})
     except Exception as e:
         return json.dumps({"error": str(e)})
-
 
 # --- Schema ---
 
@@ -93,7 +88,6 @@ WEATHER_SCHEMA = {
     }
 }
 
-
 # --- Registration ---
 
 from tools.registry import registry
@@ -111,13 +105,11 @@ registry.register(
 ```
 
 ### Key Rules
-
-> **Danger: Important**
-> - Handlers **MUST** return a JSON string (via `json.dumps()`), never raw dicts
-> - Errors **MUST** be returned as `{"error": "message"}`, never raised as exceptions
-> - The `check_fn` is called when building tool definitions — if it returns `False`, the tool is silently excluded
-> - The `handler` receives `(args: dict, **kwargs)` where `args` is the LLM's tool call arguments
-
+> **danger Important**
+- Handlers **MUST** return a JSON string (via `json.dumps()`), never raw dicts
+- Errors **MUST** be returned as `{"error": "message"}`, never raised as exceptions
+- The `check_fn` is called when building tool definitions — if it returns `False`, the tool is silently excluded
+- The `handler` receives `(args: dict, **kwargs)` where `args` is the LLM's tool call arguments
 
 ## Step 2: Add the Built-in Tool to a Toolset
 
@@ -182,7 +174,7 @@ registry.register(
 
 ## Agent-Loop Intercepted Tools
 
-Some tools (`todo`, `memory`, `session_search`, `delegate_task`) need access to per-session agent state. These are intercepted by `run_agent.py` before reaching the registry. The registry still holds their schemas, but `dispatch()` returns a fallback error if the intercept is bypassed.
+Some tools (`todo_list`, `memory`, `session_search`, `delegate_task`) need access to per-session agent state. These are intercepted by the agent loop (`agent/tool_executor.py`, called from `agent/conversation_loop.py`) before reaching the registry. The registry still holds their schemas, but `dispatch()` returns a fallback error if the intercept is bypassed.
 
 ## Optional: Setup Wizard Integration
 

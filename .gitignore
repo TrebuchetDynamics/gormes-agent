@@ -1,5 +1,7 @@
 # ── Generated codemap files (clog builder context) ────
 codemap.md
+# Keep maintained repository maps trackable.
+!/codemap.md
 !/pkg/codemap.md
 hermes-knowledge-graph.json
 

@@ -140,6 +140,7 @@ Use TDD unless the row is explicitly `no_test_required`.
 - For Goncho/Honcho work, include compatibility expectations for public `honcho_*` names when relevant.
 - For gateway/provider work, include degraded-mode and error classification tests.
 - For CLI/TUI/API work, include command/server behavior tests or e2e where practical.
+- For profile-backed MCP enable/disable rows, test disable → list → fresh config resolution → fresh registry → re-enable with a temporary config and a fake HTTP connector. Assert disabled servers never connect or register; after enable, assert the HTTP tool is registered. For stdio-shaped fixtures, prove persisted resolver state and explicit unsupported-transport handling without launching a process when the registry is HTTP-only.
 - For visible Hermes UX bugs, test the artifact the user actually sees:
   stale "Hermes" labels, duplicate replies, hourglass/status messages,
   hidden or leaked tool-call noise, debug chrome, old prompt boxes/rules, and

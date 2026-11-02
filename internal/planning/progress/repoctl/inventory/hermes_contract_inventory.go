@@ -11,6 +11,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/fidelity"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/repoctl/inventory/markdown"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/repoctl/sourcepairs"
 )
 
 const (
@@ -74,6 +75,24 @@ func WriteHermesContractInventory(opts HermesContractInventoryOptions) (HermesCo
 
 func BuildHermesContractInventory(opts HermesContractInventoryOptions) (fidelity.Report, error) {
 	root := hermesContractInventoryRoot(opts.Root)
+	if opts.Strict {
+		manifestPath := opts.SourcePairsPath
+		if manifestPath != "" && !filepath.IsAbs(manifestPath) {
+			manifestPath = filepath.Join(root, filepath.FromSlash(manifestPath))
+		}
+		hermesPath := opts.HermesSrc
+		if hermesPath != "" && !filepath.IsAbs(hermesPath) {
+			hermesPath = filepath.Join(root, filepath.FromSlash(hermesPath))
+		}
+		if _, err := sourcepairs.ValidateSourcePairs(sourcepairs.SourcePairOptions{
+			Root:             root,
+			ManifestPath:     manifestPath,
+			HermesSrc:        hermesPath,
+			CurrentHermesSHA: opts.CurrentHermesSHA,
+		}); err != nil {
+			return fidelity.Report{}, err
+		}
+	}
 	return fidelity.GenerateHermesReport(context.Background(), fidelity.Options{
 		RepoRoot:        root,
 		ProgressPath:    opts.ProgressPath,

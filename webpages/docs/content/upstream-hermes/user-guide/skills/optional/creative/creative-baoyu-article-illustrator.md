@@ -2,8 +2,8 @@
 title: "Baoyu Article Illustrator — Article illustrations: type × style × palette consistency"
 sidebar_label: "Baoyu Article Illustrator"
 description: "Article illustrations: type × style × palette consistency"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/creative/creative-baoyu-article-illustrator.md
 ---
-
 
 # Baoyu Article Illustrator
 
@@ -22,8 +22,7 @@ Article illustrations: type × style × palette consistency.
 | Tags | `article-illustration`, `creative`, `image-generation` |
 
 ## Reference: full SKILL.md
-
-> **Info**
+> **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Article Illustrator

@@ -38,7 +38,7 @@ func TestAgentTemplateDefaultFilesMatchLiveTurnLookup(t *testing.T) {
 	if soul := got["SOUL.md"].Content; !strings.HasPrefix(soul, llm.DefaultSoulMD) {
 		t.Fatalf("SOUL.md template must start with llm.DefaultSoulMD\n--- got ---\n%s\n--- want prefix ---\n%s", soul, llm.DefaultSoulMD)
 	}
-	if soul := got["SOUL.md"].Content; !strings.Contains(soul, "You are Gorm by default") || !strings.Contains(soul, "run by gormes") || !strings.Contains(soul, "helpful, knowledgeable, and direct") {
+	if soul := got["SOUL.md"].Content; !strings.Contains(soul, "You are Gorm by default") || !strings.Contains(soul, "run by gormes") || !strings.Contains(soul, "match the length of your reply") {
 		t.Fatalf("SOUL.md template does not carry the Hermes-derived persona defaults:\n%s", soul)
 	}
 }

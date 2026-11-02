@@ -1,3 +1,8 @@
+---
+title: "IRC"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/messaging/irc.md
+---
+
 # IRC
 
 The IRC adapter connects Hermes to any IRC server and relays messages between an IRC channel (or direct messages) and the agent. It speaks the IRC protocol over Python's stdlib `asyncio` — **no external dependencies, no SDK, no daemon**. It works with public networks like [Libera.Chat](https://libera.chat/) and any self-hosted ircd.
@@ -15,9 +20,9 @@ IRC is plain text: there is no voice, image, file, thread, reaction, typing, or 
 
 ## Configure Hermes
 
-You can configure IRC two ways — environment variables (for a quick env-only setup) or the `gateway` block in `~/.hermes/gateway-config.yaml`.
+You can configure IRC two ways — environment variables (for a quick env-only setup) or the `gateway` block in `~/.hermes/config.yaml`.
 
-### Option A — gateway-config.yaml
+### Option A — config.yaml
 
 ```yaml
 gateway:

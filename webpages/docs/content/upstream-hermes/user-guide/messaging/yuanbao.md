@@ -1,29 +1,26 @@
 ---
-weight: 16
+sidebar_position: 16
 title: "Yuanbao"
 description: "Connect Hermes Agent to the Yuanbao enterprise messaging platform via WebSocket gateway"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/messaging/yuanbao.md
 ---
-
 
 # Yuanbao
 
 Connect Hermes to [Yuanbao](https://yuanbao.tencent.com/), Tencent's enterprise messaging platform. The adapter uses a WebSocket gateway for real-time message delivery and supports both direct (C2C) and group conversations.
-
-> **Info**
-> Yuanbao is an enterprise messaging platform primarily used within Tencent and enterprise environments. It uses WebSocket for real-time communication, HMAC-based authentication, and supports rich media including images, files, and voice messages.
-
+> **info**
+Yuanbao is an enterprise messaging platform primarily used within Tencent and enterprise environments. It uses WebSocket for real-time communication, HMAC-based authentication, and supports rich media including images, files, and voice messages.
 
 ## Prerequisites
 
 - A Yuanbao account with bot creation permissions
 - Yuanbao APP_ID and APP_SECRET (from platform admin)
-- Python packages: `websockets` and `httpx`
-- For media support: `aiofiles`
+- Python packages: `websockets` and `httpx`, both core Hermes dependencies
 
-Install the required dependencies:
+If these core dependencies are damaged, repair the selected environment:
 
 ```bash
-pip install websockets httpx aiofiles
+hermes pm repair
 ```
 
 ## Setup
@@ -47,10 +44,8 @@ Select **Yuanbao** when prompted. The wizard will:
 1. Ask for your APP_ID
 2. Ask for your APP_SECRET
 3. Save the configuration automatically
-
-> **Tip**
-> The WebSocket URL and API Domain have sensible defaults built in. You only need to provide APP_ID and APP_SECRET to get started.
-
+> **tip**
+The WebSocket URL and API Domain have sensible defaults built in. You only need to provide APP_ID and APP_SECRET to get started.
 
 ### 3. Configure Environment Variables
 
@@ -99,6 +94,7 @@ The adapter will connect to the Yuanbao WebSocket gateway, authenticate using HM
 - **Automatic reconnection** — handles WebSocket disconnections with exponential backoff
 - **Group information queries** — retrieve group details and member lists
 - **Sticker/Emoji support** — send TIMFaceElem stickers and emoji in conversations
+- **WeChat forwarded chat-history support** — when a user forwards a WeChat chat-history bundle into Yuanbao, the adapter decodes the forwarded records (sender nicknames, text, and multimedia entries, including nested forwards) and injects them into the conversation so the agent can read the full forwarded thread
 - **Auto-sethome** — first user to message the bot is automatically set as the home channel owner
 - **Slow-response notification** — sends a waiting message when the agent takes longer than expected
 
@@ -126,10 +122,8 @@ Media URLs are automatically validated and downloaded before upload to prevent S
 ## Home Channel
 
 Use the `/sethome` command in any Yuanbao chat (DM or group) to designate it as the **home channel**. Scheduled tasks (cron jobs) deliver their results to this channel.
-
-> **Tip: Auto-sethome**
-> If no home channel is configured, the first user to message the bot will be automatically set as the home channel owner. If the current home channel is a group chat, the first DM will upgrade it to a direct channel.
-
+> **tip Auto-sethome**
+If no home channel is configured, the first user to message the bot will be automatically set as the home channel owner. If the current home channel is a group chat, the first DM will upgrade it to a direct channel.
 
 You can also set it manually in `~/.hermes/.env`:
 
@@ -245,7 +239,7 @@ When you ask the bot to create or export a file, it sends the file directly to y
 1. Check gateway logs for error patterns
 2. Increase heartbeat timeout in connection settings
 3. Ensure stable network connection to Yuanbao API
-4. Consider enabling verbose logging: `HERMES_LOG_LEVEL=debug`
+4. Consider enabling verbose logging: `hermes gateway run -vv`
 
 ## Access Control
 
@@ -293,17 +287,15 @@ The following connection parameters are built into the adapter with sensible def
 | Reconnect backoff | 1s → 60s (exponential) | Wait time between reconnect attempts |
 | Reply heartbeat interval | 2 seconds | RUNNING status send frequency |
 | Send timeout | 30 seconds | Timeout for outbound WS messages |
-
-> **Note**
-> These values are currently not configurable via environment variables. They are optimized for typical Yuanbao deployments.
-
+> **note**
+These values are currently not configurable via environment variables. They are optimized for typical Yuanbao deployments.
 
 ### Verbose Logging
 
 Enable debug logging to troubleshoot connection issues:
 
 ```bash
-HERMES_LOG_LEVEL=debug hermes gateway
+hermes gateway run -vv
 ```
 
 ## Integration with Other Features
@@ -323,7 +315,7 @@ Results are delivered to your home channel.
 Run long operations without blocking the conversation:
 
 ```
-/background Analyze all files in the archive
+/bg Analyze all files in the archive
 ```
 
 ### Cross-Platform Messages
@@ -336,7 +328,7 @@ hermes chat -q "Send 'Hello from CLI' to yuanbao:group:group_code"
 
 ## Related Documentation
 
-- [Messaging Gateway Overview](../)
-- [Slash Commands Reference](../../../reference/slash-commands/)
-- [Cron Jobs](../../features/cron/)
-- [Background Sessions](../../cli/#background-sessions)
+- [Messaging Gateway Overview](./index.md)
+- [Slash Commands Reference](../../reference/slash-commands.md)
+- [Cron Jobs](../features/cron.md)
+- [Background Sessions](../cli.md#background-sessions)

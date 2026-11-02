@@ -2,9 +2,9 @@
 title: Home Assistant
 description: Control your smart home with Hermes Agent via Home Assistant integration.
 sidebar_label: Home Assistant
-weight: 5
+sidebar_position: 5
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/messaging/homeassistant.md
 ---
-
 
 # Home Assistant Integration
 
@@ -34,10 +34,8 @@ HASS_TOKEN=your-long-lived-access-token
 # Optional: HA URL (default: http://homeassistant.local:8123)
 HASS_URL=http://192.168.1.100:8123
 ```
-
-> **Info**
-> The `homeassistant` toolset is automatically enabled when `HASS_TOKEN` is set. Both the gateway platform and the device control tools activate from this single token.
-
+> **info**
+The `homeassistant` toolset is automatically enabled when `HASS_TOKEN` is set. Both the gateway platform and the device control tools activate from this single token.
 
 ### 3. Start the Gateway
 
@@ -126,10 +124,8 @@ Set living room lights to blue at 50% brightness
 The Home Assistant gateway adapter connects via WebSocket and subscribes to `state_changed` events. When a device state changes and matches your filters, it's forwarded to the agent as a message.
 
 ### Event Filtering
-
-> **Warning: Required Configuration**
-> By default, **no events are forwarded**. You must configure at least one of `watch_domains`, `watch_entities`, or `watch_all` to receive events. Without filters, a warning is logged at startup and all state changes are silently dropped.
-
+> **warning Required Configuration**
+By default, **no events are forwarded**. You must configure at least one of `watch_domains`, `watch_entities`, or `watch_all` to receive events. Without filters, a warning is logged at startup and all state changes are silently dropped.
 
 Configure which events the agent sees in `~/.hermes/config.yaml` under the Home Assistant platform's `extra` section:
 
@@ -159,10 +155,8 @@ platforms:
 | `watch_all` | `false` | Set to `true` to receive **all** state changes (not recommended for most setups) |
 | `ignore_entities` | *(none)* | Always ignore these entities (applied before domain/entity filters) |
 | `cooldown_seconds` | `30` | Minimum seconds between events for the same entity |
-
-> **Tip**
-> Start with a focused set of domains — `climate`, `binary_sensor`, and `alarm_control_panel` cover the most useful automations. Add more as needed. Use `ignore_entities` to suppress noisy sensors like CPU temperature or uptime counters.
-
+> **tip**
+Start with a focused set of domains — `climate`, `binary_sensor`, and `alarm_control_panel` cover the most useful automations. Add more as needed. Use `ignore_entities` to suppress noisy sensors like CPU temperature or uptime counters.
 
 ### Event Formatting
 
@@ -191,19 +185,17 @@ Outbound messages from the agent are delivered as **Home Assistant persistent no
 ## Security
 
 The Home Assistant tools enforce security restrictions:
+> **warning Blocked Domains**
+The following service domains are **blocked** to prevent arbitrary code execution on the HA host:
 
-> **Warning: Blocked Domains**
-> The following service domains are **blocked** to prevent arbitrary code execution on the HA host:
->
-> - `shell_command` — arbitrary shell commands
-> - `command_line` — sensors/switches that execute commands
-> - `python_script` — scripted Python execution
-> - `pyscript` — broader scripting integration
-> - `hassio` — addon control, host shutdown/reboot
-> - `rest_command` — HTTP requests from HA server (SSRF vector)
->
-> Attempting to call services in these domains returns an error.
+- `shell_command` — arbitrary shell commands
+- `command_line` — sensors/switches that execute commands
+- `python_script` — scripted Python execution
+- `pyscript` — broader scripting integration
+- `hassio` — addon control, host shutdown/reboot
+- `rest_command` — HTTP requests from HA server (SSRF vector)
 
+Attempting to call services in these domains returns an error.
 
 Entity IDs are validated against the pattern `^[a-z_][a-z0-9_]*\.[a-z0-9_]+$` to prevent injection attacks.
 
@@ -251,3 +243,19 @@ Agent automatically:
      entity_id="light.hallway")
 3. Sends notification: "Front door opened. Hallway lights turned on."
 ```
+
+## Troubleshooting
+
+**Environment variables not picked up.**
+The adapter reads credentials from `~/.hermes/.env` (auto-merged at startup) or
+from `config.yaml`. Double-check the file lives under the active Hermes profile
+home and that there's no stray quoting around the URL/token. Restart the gateway
+after editing — env changes are only applied on process start.
+
+**REST auth failing (`401 Unauthorized`).**
+The token must be a *Long-Lived Access Token* created from your HA user profile
+page (**Profile → Security → Long-lived access tokens**). Short-lived UI
+session tokens won't work. Also verify the base URL includes the scheme and
+port (e.g. `http://homeassistant.local:8123`) and is reachable from the host
+running Hermes — `curl -H "Authorization: Bearer <token>" <url>/api/` should
+return `{"message": "API running."}`.

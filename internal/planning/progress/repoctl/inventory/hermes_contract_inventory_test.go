@@ -75,6 +75,77 @@ func TestWriteHermesContractInventoryWritesJSONAndMarkdown(t *testing.T) {
 	}
 }
 
+func TestBuildHermesContractInventoryStrictRejectsMissingUpstreamSourcePairRef(t *testing.T) {
+	root := hermesContractInventoryFixtureRoot(t)
+	gormesTarget := filepath.Join(root, "internal", "goncho", "memory.go")
+	if err := os.MkdirAll(filepath.Dir(gormesTarget), 0o755); err != nil {
+		t.Fatalf("mkdir Gormes target: %v", err)
+	}
+	if err := os.WriteFile(gormesTarget, []byte("package goncho\n"), 0o644); err != nil {
+		t.Fatalf("write Gormes target: %v", err)
+	}
+
+	manifestPath := filepath.Join(root, "webpages", "docs", "content", "building-gormes", "architecture_plan", "hermes-source-pairs.json")
+	manifestBytes, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("read source-pairs fixture: %v", err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+		t.Fatalf("decode source-pairs fixture: %v", err)
+	}
+	pairs, ok := manifest["pairs"].([]any)
+	if !ok || len(pairs) != 1 {
+		t.Fatalf("source-pairs fixture has unexpected pairs: %#v", manifest["pairs"])
+	}
+	pair, ok := pairs[0].(map[string]any)
+	if !ok {
+		t.Fatalf("source-pairs fixture row has type %T", pairs[0])
+	}
+	pair["upstream_tests"] = []any{"tests/absent_source_pair_test.py"}
+	manifestBytes, err = json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		t.Fatalf("encode source-pairs fixture: %v", err)
+	}
+	if err := os.WriteFile(manifestPath, manifestBytes, 0o644); err != nil {
+		t.Fatalf("write source-pairs fixture: %v", err)
+	}
+
+	jsonPath := filepath.Join(root, "strict-output", "inventory.json")
+	markdownPath := filepath.Join(root, "strict-output", "inventory.md")
+	_, err = WriteHermesContractInventory(HermesContractInventoryOptions{
+		Root:             root,
+		CurrentHermesSHA: "abc123",
+		Strict:           true,
+		JSONPath:         jsonPath,
+		MarkdownPath:     markdownPath,
+	})
+	if err == nil || !strings.Contains(err.Error(), `missing upstream test "tests/absent_source_pair_test.py"`) {
+		t.Fatalf("strict inventory error = %v, want missing source-pair test diagnostic", err)
+	}
+	for _, output := range []string{jsonPath, markdownPath} {
+		if _, statErr := os.Stat(output); !os.IsNotExist(statErr) {
+			t.Fatalf("strict inventory wrote %s despite invalid source-pair refs (stat err=%v)", output, statErr)
+		}
+	}
+
+	reportOnlyJSON := filepath.Join(root, "report-only-output", "inventory.json")
+	reportOnlyMarkdown := filepath.Join(root, "report-only-output", "inventory.md")
+	if _, err := WriteHermesContractInventory(HermesContractInventoryOptions{
+		Root:             root,
+		CurrentHermesSHA: "abc123",
+		JSONPath:         reportOnlyJSON,
+		MarkdownPath:     reportOnlyMarkdown,
+	}); err != nil {
+		t.Fatalf("report-only inventory should remain available: %v", err)
+	}
+	for _, output := range []string{reportOnlyJSON, reportOnlyMarkdown} {
+		if _, statErr := os.Stat(output); statErr != nil {
+			t.Fatalf("report-only inventory did not write %s: %v", output, statErr)
+		}
+	}
+}
+
 func TestWriteHermesContractInventoryPreservesTimestampWhenContentIsUnchanged(t *testing.T) {
 	root := hermesContractInventoryFixtureRoot(t)
 	first := time.Date(2026, 5, 18, 10, 0, 0, 0, time.UTC)

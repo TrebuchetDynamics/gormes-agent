@@ -20,17 +20,22 @@ type SessionRuntimeConfig struct {
 	SessionMap  session.Map
 	IDGenerator func() string
 	Permissions *PermissionBroker
+	// CredentialAvailable reports whether the configured provider has a usable
+	// credential. Nil treats a non-empty provider as configured so existing
+	// callers keep their behavior; production serving should set it explicitly.
+	CredentialAvailable *bool
 }
 
 type SessionRuntime struct {
-	mu          sync.Mutex
-	provider    string
-	model       string
-	runner      PromptRunner
-	sessionMap  session.Map
-	idGenerator func() string
-	permissions *PermissionBroker
-	sessions    map[string]*runtimeSessionState
+	mu                  sync.Mutex
+	provider            string
+	model               string
+	runner              PromptRunner
+	sessionMap          session.Map
+	idGenerator         func() string
+	permissions         *PermissionBroker
+	credentialAvailable bool
+	sessions            map[string]*runtimeSessionState
 }
 
 type RuntimeSession struct {
@@ -73,9 +78,12 @@ type PromptEventKind string
 
 const (
 	PromptEventAgentMessageChunk PromptEventKind = "agent_message_chunk"
+	PromptEventAgentThoughtChunk PromptEventKind = "agent_thought_chunk"
 	PromptEventUserMessageChunk  PromptEventKind = "user_message_chunk"
 	PromptEventSessionTitle      PromptEventKind = "session_title_update"
 	PromptEventUsage             PromptEventKind = "usage_update"
+	PromptEventToolCall          PromptEventKind = "tool_call"
+	PromptEventToolCallUpdate    PromptEventKind = "tool_call_update"
 )
 
 type PromptEvent struct {
@@ -83,7 +91,17 @@ type PromptEvent struct {
 	Text     string
 	Title    string
 	Usage    *ACPUsage
-	ToolCall *ToolCallStart
+	ToolCall *ToolCallEvent
+}
+
+// ToolCallEvent is an ACP tool_call or tool_call_update payload.
+type ToolCallEvent struct {
+	ToolCallID string            `json:"toolCallId"`
+	Title      string            `json:"title,omitempty"`
+	Kind       ToolKind          `json:"kind,omitempty"`
+	Status     string            `json:"status,omitempty"`
+	Content    []ToolCallContent `json:"content,omitempty"`
+	RawInput   map[string]any    `json:"rawInput,omitempty"`
 }
 
 type ACPUsage struct {
@@ -133,14 +151,19 @@ func NewSessionRuntime(cfg SessionRuntimeConfig) *SessionRuntime {
 	if permissions == nil {
 		permissions = NewPermissionBroker()
 	}
+	credentialAvailable := provider != ""
+	if cfg.CredentialAvailable != nil {
+		credentialAvailable = *cfg.CredentialAvailable
+	}
 	return &SessionRuntime{
-		provider:    provider,
-		model:       model,
-		runner:      runner,
-		sessionMap:  cfg.SessionMap,
-		idGenerator: cfg.IDGenerator,
-		permissions: permissions,
-		sessions:    make(map[string]*runtimeSessionState),
+		provider:            provider,
+		model:               model,
+		runner:              runner,
+		sessionMap:          cfg.SessionMap,
+		idGenerator:         cfg.IDGenerator,
+		permissions:         permissions,
+		credentialAvailable: credentialAvailable,
+		sessions:            make(map[string]*runtimeSessionState),
 	}
 }
 
@@ -149,6 +172,14 @@ func (r *SessionRuntime) Provider() string {
 		return ""
 	}
 	return r.provider
+}
+
+// AuthMethods returns the ACP auth methods advertised during initialize.
+func (r *SessionRuntime) AuthMethods() []AuthMethod {
+	if r == nil {
+		return BuildAuthMethods("", false)
+	}
+	return BuildAuthMethods(r.provider, r.credentialAvailable)
 }
 
 func (r *SessionRuntime) NewSession(ctx context.Context, cwd string) (RuntimeSession, error) {
@@ -390,6 +421,9 @@ type PermissionRequest struct {
 	Key         string
 	Command     string
 	Description string
+	SessionID   string
+	ToolCall    *PermissionToolCall
+	Options     []PermissionOption
 }
 
 type PermissionDecision struct {

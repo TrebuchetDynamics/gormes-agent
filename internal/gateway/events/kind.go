@@ -73,4 +73,6 @@ const (
 	EventCompress = eventcommands.EventCompress
 	// EventTools handles /tools list|enable|disable subcommands.
 	EventTools = eventcommands.EventTools
+	// EventVoice handles /voice on|off|tts|status and the bare toggle.
+	EventVoice = eventcommands.EventVoice
 )

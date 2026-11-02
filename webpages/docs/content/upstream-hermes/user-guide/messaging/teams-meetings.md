@@ -2,32 +2,35 @@
 sidebar_position: 6
 title: "Teams Meetings"
 description: "Set up the Microsoft Teams meeting summary pipeline with Microsoft Graph webhooks"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/messaging/teams-meetings.md
 ---
 
 # Microsoft Teams Meetings
 
 Use the Teams meeting pipeline when you want Hermes to ingest Microsoft Graph meeting events, fetch transcripts first, fall back to recordings plus STT when needed, and deliver a structured summary to downstream sinks.
 
-This page focuses on setup and enablement:
+Prerequisites: see [Microsoft Teams](./teams.md) for the underlying bot/credential setup.
 
+> Run `hermes gateway setup` and pick **Teams Meetings** for a guided walk-through.
+
+This page focuses on setup and enablement:
 - Graph credentials
 - webhook listener configuration
 - Teams delivery modes
 - pipeline config shape
 
-For day-2 operations, go-live checks, and the operator worksheet, use the dedicated guide: [Operate the Teams Meeting Pipeline](../../../guides/operate-teams-meeting-pipeline/).
+For day-2 operations, go-live checks, and the operator worksheet, use the dedicated guide: [Operate the Teams Meeting Pipeline](../../guides/operate-teams-meeting-pipeline.md).
 
 ## What This Feature Does
 
 The pipeline:
-
 1. receives Microsoft Graph webhook events
 2. resolves the meeting and prefers transcript artifacts first
 3. falls back to recording download plus STT when no usable transcript is available
 4. stores durable job state and sink records locally
 5. can write summaries to Notion, Linear, and Microsoft Teams
 
-Operator actions stay in the CLI:
+Operator actions stay in the CLI (the `teams-pipeline` subcommand is registered by the `teams_pipeline` plugin — enable it via `hermes plugins enable teams_pipeline` or set `plugins.enabled: [teams_pipeline]` in `config.yaml`):
 
 ```bash
 hermes teams-pipeline validate
@@ -40,7 +43,7 @@ hermes teams-pipeline maintain-subscriptions
 Before enabling the meetings pipeline, make sure you have:
 
 - a working Hermes install
-- the existing [Microsoft Teams bot setup](../teams/) if you want Teams outbound delivery
+- the existing [Microsoft Teams bot setup](./teams.md) if you want Teams outbound delivery
 - Microsoft Graph application credentials with the permissions required for the meeting resources you plan to subscribe to
 - a public HTTPS URL that Microsoft Graph can call for webhook delivery
 - `ffmpeg` installed if you want recording-plus-STT fallback
@@ -56,7 +59,6 @@ MSGRAPH_CLIENT_SECRET=<client-secret>
 ```
 
 These credentials are used by:
-
 - the Graph client foundation
 - subscription maintenance commands
 - meeting resolution and artifact fetches
@@ -73,8 +75,9 @@ MSGRAPH_WEBHOOK_CLIENT_STATE=<random-shared-secret>
 MSGRAPH_WEBHOOK_ACCEPTED_RESOURCES=communications/onlineMeetings
 ```
 
-The listener exposes:
+The bind host is read from the platform's `extra.host` in `config.yaml` (there is no `MSGRAPH_WEBHOOK_HOST` env var — see the [webhook listener reference](msgraph-webhook.md)).
 
+The listener exposes:
 - `/msgraph/webhook` for Graph notifications
 - `/health` for a simple health check
 
@@ -95,6 +98,7 @@ platforms:
   msgraph_webhook:
     enabled: true
     extra:
+      host: 127.0.0.1
       port: 8646
       client_state: "replace-me"
       accepted_resources:
@@ -124,6 +128,8 @@ platforms:
           enabled: false
 ```
 
+If you bind the listener to a non-loopback host such as `0.0.0.0`, you must also set `allowed_source_cidrs` to Microsoft's webhook egress ranges. Loopback binds (`127.0.0.1` / `::1`) are the intended dev-tunnel and local reverse-proxy setup.
+
 ## Teams Delivery Modes
 
 The pipeline supports two Teams summary-delivery modes inside the existing Teams plugin.
@@ -148,7 +154,6 @@ platforms:
 Use this when you want Hermes to post the summary through Microsoft Graph into a Teams chat or channel.
 
 Supported targets:
-
 - `chat_id`
 - `team_id` + `channel_id`
 - `team_id` + `home_channel` fallback for the existing Teams platform
@@ -198,11 +203,11 @@ hermes teams-pipeline subscribe \
   --notification-url https://ops.example.com/msgraph/webhook \
   --client-state "$MSGRAPH_WEBHOOK_CLIENT_STATE"
 ```
+> **warning Graph subscriptions expire in 72 hours**
 
-> **Warning**
-> Graph subscriptions expire in 72 hours. Microsoft Graph caps webhook subscriptions at 72 hours and will not auto-renew them. You MUST schedule `hermes teams-pipeline maintain-subscriptions` before going live, or notifications will silently stop three days after any manual subscription creation. See [Automating subscription renewal](../../../guides/operate-teams-meeting-pipeline/#automating-subscription-renewal-required-for-production) in the operator runbook.
+Microsoft Graph caps webhook subscriptions at 72 hours and will not auto-renew them. You MUST schedule `hermes teams-pipeline maintain-subscriptions` before going live, or notifications will silently stop three days after any manual subscription creation. See [Automating subscription renewal](../../guides/operate-teams-meeting-pipeline.md#automating-subscription-renewal-required-for-production) in the operator runbook — three options (Hermes cron, systemd timer, plain crontab).
 
-For subscription maintenance and day-2 operator flows, continue with the guide: [Operate the Teams Meeting Pipeline](../../../guides/operate-teams-meeting-pipeline/).
+For subscription maintenance and day-2 operator flows, continue with the guide: [Operate the Teams Meeting Pipeline](../../guides/operate-teams-meeting-pipeline.md).
 
 ## Validation
 
@@ -231,5 +236,5 @@ hermes teams-pipeline subscriptions
 
 ## Related Docs
 
-- [Microsoft Teams bot setup](../teams/)
-- [Operate the Teams Meeting Pipeline](../../../guides/operate-teams-meeting-pipeline/)
+- [Microsoft Teams bot setup](./teams.md)
+- [Operate the Teams Meeting Pipeline](../../guides/operate-teams-meeting-pipeline.md)

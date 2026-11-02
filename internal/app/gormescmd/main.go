@@ -32,6 +32,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/extensibility/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/voicemode"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
@@ -663,6 +664,18 @@ func newACPCommand() *cobra.Command {
 	return gormescli.NewACPCommand(gormescli.ACPCommandOptions{
 		BuildProvenance: acpBuildProvenance,
 		ExitError:       newExitCodeError,
+		ServeOptions: func() gormescli.ACPRunServeOptions {
+			cfg, err := config.Load(nil)
+			if err != nil {
+				return gormescli.ACPRunServeOptions{}
+			}
+			available := strings.TrimSpace(cfg.Hermes.APIKey) != ""
+			return gormescli.ACPRunServeOptions{
+				Provider:            cfg.Hermes.Provider,
+				Model:               cfg.Hermes.Model,
+				CredentialAvailable: &available,
+			}
+		},
 	})
 }
 
@@ -1813,6 +1826,7 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			return fetcher.Fetch(ctx, llm.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
 		MaxToolIterations: gormescli.ConfiguredMaxToolIterations(cfg),
+		VoiceModeStore:    voicemode.NewFileStore(voicemode.DefaultPath(config.GormesHome())),
 	}
 }
 

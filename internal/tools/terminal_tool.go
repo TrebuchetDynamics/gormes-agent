@@ -335,7 +335,7 @@ func terminalWorkdir(defaultWorkdir, requested string) (terminalWorkdirResult, e
 	processCWDDeleted := processCWDErr != nil
 
 	workdir := strings.TrimSpace(defaultWorkdir)
-	if workdir == "" || terminalCWDPlaceholder(workdir) {
+	if (workdir == "" || terminalCWDPlaceholder(workdir)) && !processCWDDeleted {
 		if envWorkdir := strings.TrimSpace(os.Getenv("TERMINAL_CWD")); envWorkdir != "" && !terminalCWDPlaceholder(envWorkdir) {
 			workdir = envWorkdir
 		}

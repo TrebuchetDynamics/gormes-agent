@@ -1,13 +1,13 @@
 ---
-weight: 8
+sidebar_position: 8
 title: "Extending the CLI"
 description: "Build wrapper CLIs that extend the Hermes TUI with custom widgets, keybindings, and layout changes"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/developer-guide/extending-the-cli.md
 ---
-
 
 # Extending the CLI
 
-Hermes exposes protected extension hooks on `HermesCLI` so wrapper CLIs can add widgets, keybindings, and layout customizations without overriding the 1000+ line `run()` method. This keeps your extension decoupled from internal changes.
+Hermes exposes protected extension hooks on `HermesCLI` so wrapper CLIs can add widgets, keybindings, and layout customizations without overriding the `run()` method or the TUI construction in `hermes_cli/cli_tui_mixin.py` (where these hooks are defined; `HermesCLI` in `cli.py` mixes it in). This keeps your extension decoupled from internal changes.
 
 ## Extension points
 
@@ -32,7 +32,6 @@ The first three are new protected hooks. The last two already existed.
 from cli import HermesCLI
 from prompt_toolkit.layout import FormattedTextControl, Window
 from prompt_toolkit.filters import Condition
-
 
 class MyCLI(HermesCLI):
 
@@ -68,17 +67,16 @@ class MyCLI(HermesCLI):
             return True
         return super().process_command(cmd)
 
-
 if __name__ == "__main__":
     cli = MyCLI()
     cli.run()
 ```
 
-Run it:
+Run it from your source checkout after selecting an isolated development home
+with the [PM developer workflow](../reference/package-management.md#developer-workflow):
 
 ```bash
-cd ~/.hermes/hermes-agent
-source .venv/bin/activate
+source ./activate
 python my_cli.py
 ```
 

@@ -1,9 +1,9 @@
 ---
-weight: 15
+sidebar_position: 15
 title: "MiniMax OAuth"
 description: "Log into MiniMax via browser OAuth and use MiniMax-M2.7 models in Hermes Agent — no API key required"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/guides/minimax-oauth.md
 ---
-
 
 # MiniMax OAuth
 
@@ -17,7 +17,7 @@ The transport reuses the `anthropic_messages` adapter (MiniMax exposes an Anthro
 |------|-------|
 | Provider ID | `minimax-oauth` |
 | Display name | MiniMax (OAuth) |
-| Auth type | Browser OAuth (PKCE device-code flow) |
+| Auth type | Browser OAuth (PKCE redirect flow) |
 | Transport | Anthropic Messages-compatible (`anthropic_messages`) |
 | Models | `MiniMax-M2.7`, `MiniMax-M2.7-highspeed` |
 | Global endpoint | `https://api.minimax.io/anthropic` |
@@ -57,10 +57,10 @@ hermes auth add minimax-oauth
 
 ### China region
 
-If your account is on the China platform (`minimaxi.com`), pass `--region cn`:
+If your account is on the China platform (`minimaxi.com`), use the API-key-based `minimax-cn` provider instead — `minimax-cn` is registered with `auth_type="api_key"` only (no OAuth flow). Configure `MINIMAX_CN_API_KEY` (and optionally `MINIMAX_CN_BASE_URL`) directly:
 
 ```bash
-hermes auth add minimax-oauth --region cn
+echo 'MINIMAX_CN_API_KEY=your-key' >> ~/.hermes/.env
 ```
 
 ### Remote / headless sessions
@@ -75,7 +75,7 @@ Hermes will print the verification URL and user code — open the URL on any dev
 
 ## The OAuth Flow
 
-Hermes implements a PKCE device-code flow against the MiniMax OAuth endpoints:
+Hermes implements a PKCE browser OAuth flow against the MiniMax OAuth endpoints:
 
 1. Hermes generates a PKCE verifier / challenge pair and a random state value.
 2. It POSTs to `{base_url}/oauth/code` with the challenge and receives a `user_code` and `verification_uri`.
@@ -114,8 +114,8 @@ hermes model
 Or set the model directly:
 
 ```bash
-hermes config set model MiniMax-M2.7
-hermes config set provider minimax-oauth
+hermes config set model.default MiniMax-M2.7
+hermes config set model.provider minimax-oauth
 ```
 
 ## Configuration Reference
@@ -129,12 +129,12 @@ model:
   base_url: https://api.minimax.io/anthropic
 ```
 
-### `--region` flag
+### Region endpoints
 
-| Value | Portal | Inference endpoint |
-|-------|--------|-------------------|
-| `global` (default) | `https://api.minimax.io` | `https://api.minimax.io/anthropic` |
-| `cn` | `https://api.minimaxi.com` | `https://api.minimaxi.com/anthropic` |
+| Provider id | Portal | Inference endpoint |
+|-------------|--------|-------------------|
+| `minimax-oauth` (global) | `https://api.minimax.io` | `https://api.minimax.io/anthropic` |
+| `minimax-cn` (China) | `https://api.minimaxi.com` | `https://api.minimaxi.com/anthropic` |
 
 ### Provider aliases
 
@@ -156,10 +156,10 @@ The `minimax-oauth` provider does **not** use `MINIMAX_API_KEY` or `MINIMAX_BASE
 | `MINIMAX_API_KEY` | Used by `minimax` provider only — ignored for `minimax-oauth` |
 | `MINIMAX_CN_API_KEY` | Used by `minimax-cn` provider only — ignored for `minimax-oauth` |
 
-To force the `minimax-oauth` provider at runtime:
+To use `minimax-oauth` as the active provider, set `model.provider: minimax-oauth` in `config.yaml` (use `hermes setup` for the guided flow), or pass `--provider minimax-oauth` for a single invocation:
 
 ```bash
-HERMES_INFERENCE_PROVIDER=minimax-oauth hermes
+hermes --provider minimax-oauth
 ```
 
 ## Models
@@ -171,7 +171,7 @@ HERMES_INFERENCE_PROVIDER=minimax-oauth hermes
 
 Both models support up to 200,000 tokens of context.
 
-`MiniMax-M2.7-highspeed` is also used automatically as the auxiliary model for vision and delegation tasks when `minimax-oauth` is the primary provider.
+`MiniMax-M2.7` is also used automatically as the auxiliary model for vision and delegation tasks when `minimax-oauth` is the primary provider.
 
 ## Troubleshooting
 
@@ -179,7 +179,9 @@ Both models support up to 200,000 tokens of context.
 
 Hermes refreshes the token on every session start if it is within 60 seconds of expiry. If the access token is already expired (for example, after a long offline period), the refresh happens automatically on the next request. If refresh fails with `refresh_token_reused` or `invalid_grant`, Hermes marks the session as requiring re-login.
 
-**Fix:** run `hermes auth add minimax-oauth` again to start a fresh login.
+When the refresh failure is terminal (HTTP 4xx, `invalid_grant`, revoked grant, etc.), Hermes marks the refresh token as dead and quarantines it locally so it doesn't keep replaying the doomed exchange. The agent surfaces a single "re-authentication required" message and stays out of the way until you log in again.
+
+**Fix:** run `hermes auth add minimax-oauth` again to start a fresh login. The quarantine clears on the next successful exchange.
 
 ### Authorization timed out
 
@@ -209,17 +211,23 @@ The auth store has no credentials for `minimax-oauth`. You have not logged in ye
 
 **Fix:** run `hermes model` and select MiniMax (OAuth), or run `hermes auth add minimax-oauth`.
 
+### "Provider 'minimax-oauth' is set in config.yaml but no credentials were found"
+
+The main agent or an auxiliary task (compression, vision, …) is pinned to `minimax-oauth` and the auth store has no login. There is no `MINIMAX_API_KEY`-style environment variable for the OAuth provider — `MINIMAX_API_KEY` belongs to the plain API-key `minimax` provider.
+
+**Fix:** run `hermes auth add minimax-oauth` to sign in, or switch that provider to `minimax` with an API key.
+
 ## Logging Out
 
 To remove stored MiniMax OAuth credentials:
 
 ```bash
-hermes auth remove minimax-oauth
+hermes auth logout minimax-oauth
 ```
 
 ## See Also
 
-- [AI Providers reference](../../integrations/providers/)
-- [Environment Variables](../../reference/environment-variables/)
-- [Configuration](../../user-guide/configuration/)
-- [hermes doctor](../../reference/cli-commands/)
+- [AI Providers reference](../integrations/providers.md)
+- [Environment Variables](../reference/environment-variables.md)
+- [Configuration](../user-guide/configuration.md)
+- [hermes doctor](../reference/cli-commands.md)

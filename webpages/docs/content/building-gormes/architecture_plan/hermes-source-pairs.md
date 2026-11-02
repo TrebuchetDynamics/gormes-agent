@@ -1,13 +1,12 @@
 # Hermes Source Pairs
 
-- Hermes SHA: `c9863772368720a892faaa6e1f3402dbea72f4bf`
-- Current checkout SHA: `c9863772368720a892faaa6e1f3402dbea72f4bf`
+- Hermes SHA: `d0288be5b3330d2442e3907185b8e9d0958297bb`
+- Current checkout SHA: `d0288be5b3330d2442e3907185b8e9d0958297bb`
 - Source pairs: `27`
 
 ## Status Counts
 
-- `covered`: 1
-- `partial`: 26
+- `partial`: 27
 
 ## Source Pair Table
 
@@ -25,7 +24,7 @@
 | `hermes_cli/auth_commands.py` | `partial` | `internal/platform/cli/gormescli/modules/providers/auth_runtime.go`<br>`internal/platform/cli/gormescli/providerauth.go`<br>`internal/config/credential_pool.go`<br>`internal/config/token_vault.go` | `go test ./cmd/gormes -run 'TestAuth' -count=1`<br>`go test ./internal/config -run 'TestCredential\|TestTokenVault\|TestOAuth' -count=1` | `Hermes auth command-tree manifest refresh`<br>`Gormes auth bare interactive credential-pool readout`<br>`Gormes auth status per-provider aggregator` | Hermes-compatible auth command tree, credential-pool status/readout, OAuth/API-key storage, and secret redaction behavior. |
 | `hermes_cli/commands.py` | `partial` | `internal/platform/cli/gormescli/hermescliparity.go`<br>`internal/platform/cli/gormescli/hermes_rowbacked_commands.go`<br>`cmd/gormes/main.go` | `go test ./cmd/gormes -run 'TestHermesCLIParity\|TestCommandAlias' -count=1` | `Hermes CLI command-tree parity manifest` | Hermes top-level command aliases, row-backed command surfaces, and user-visible command classification. |
 | `hermes_cli/config.py` | `partial` | `internal/config`<br>`internal/platform/cli/gormescli/config.go`<br>`internal/llm/default_soul.go` | `go test ./internal/config -count=1`<br>`go test ./cmd/gormes -run 'TestConfig' -count=1` | `Gormes config command surface`<br>`Default agent identity / SOUL.md loader`<br>`Gormes agent template reset command` | Hermes home/config defaults, config load/save behavior, secure default SOUL seeding, provider defaults, and user-visible config command behavior. |
-| `hermes_cli/default_soul.py` | `covered` | `internal/llm/default_soul.go`<br>`internal/core/agenttemplate/default_templates.go`<br>`internal/core/agenttemplate/parity_manifest.go` | `go test ./internal/llm -run 'TestDefaultSoul\|TestIdentityLoader' -count=1`<br>`go test ./internal/agenttemplate -count=1` | `Default agent identity / SOUL.md loader`<br>`Gormes agent template reset command` | Default SOUL.md seed text, built-in identity fallback, and fresh-install template classification, with only the intentional Gorm default-persona and gormes runtime substitution. |
+| `hermes_cli/default_soul.py` | `partial` | `internal/llm/default_soul.go`<br>`internal/core/agenttemplate/default_templates.go`<br>`internal/core/agenttemplate/parity_manifest.go` | `go test ./internal/llm -run 'TestDefaultSoul\|TestIdentityLoader' -count=1`<br>`go test ./internal/agenttemplate -count=1` | `Default agent identity / SOUL.md loader`<br>`Gormes agent template reset command` | Default SOUL.md seed text, built-in identity fallback, and fresh-install template classification, with only the intentional Gorm default-persona and gormes runtime substitution. |
 | `hermes_cli/main.py` | `partial` | `cmd/gormes/main.go`<br>`internal/platform/cli/gormescli/hermescliparity.go` | `go test ./cmd/gormes -run 'TestRootCommand\|TestHermesCLIParity\|TestCommandAlias' -count=1` | `Hermes CLI command-tree parity manifest` | Hermes CLI root parser, top-level command registration, help-visible command tree, and global flag compatibility. |
 | `hermes_cli/profiles.py` | `partial` | `cmd/gormes/main.go`<br>`internal/platform/cli/gormescli/profileapp/profile.go`<br>`internal/config/agents.go` | `go test ./cmd/gormes -run 'TestProfile' -count=1`<br>`go test ./internal/config -run 'TestAgent' -count=1` | `Gormes profile command binding`<br>`CLI active-profile store`<br>`CLI profile root resolver` | Profile creation/list/use behavior, profile root resolution, default SOUL seeding for profiles, and profile export/import-visible files. |
 | `run_agent.py` | `partial` | `internal/kernel/kernel.go`<br>`internal/llm/prompt_assembly.go`<br>`internal/core/subagent` | `go test ./internal/kernel -count=1`<br>`go test ./internal/llm -count=1`<br>`go test ./internal/core/subagent -count=1` | `Kernel tool loop`<br>`Background review fork` | Main Hermes agent turn loop, tool execution budget, background review hooks, subagent behavior, provider turn assembly, and session reset boundaries. |

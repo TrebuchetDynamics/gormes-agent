@@ -1,13 +1,13 @@
 ---
-title: "Dcf Model"
+title: "Dcf Model — Build discounted cash flow valuation workbooks in Excel"
 sidebar_label: "Dcf Model"
-description: "Build institutional-quality DCF valuation models in Excel — revenue projections, FCF build, WACC, terminal value, Bear/Base/Bull scenarios, 5x5 sensitivity t..."
+description: "Build discounted cash flow valuation workbooks in Excel"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/finance/finance-dcf-model.md
 ---
-
 
 # Dcf Model
 
-Build institutional-quality DCF valuation models in Excel — revenue projections, FCF build, WACC, terminal value, Bear/Base/Bull scenarios, 5x5 sensitivity tables. Pairs with excel-author. Use for intrinsic-value equity analysis.
+Build discounted cash flow valuation workbooks in Excel.
 
 ## Skill metadata
 
@@ -20,11 +20,10 @@ Build institutional-quality DCF valuation models in Excel — revenue projection
 | License | Apache-2.0 |
 | Platforms | linux, macos, windows |
 | Tags | `finance`, `valuation`, `dcf`, `excel`, `openpyxl`, `modeling`, `investment-banking` |
-| Related skills | [`excel-author`](../finance-excel-author/), [`pptx-author`](../finance-pptx-author/), [`comps-analysis`](../finance-comps-analysis/), [`lbo-model`](../finance-lbo-model/), [`3-statement-model`](../finance-3-statement-model/) |
+| Related skills | [`excel-author`](../../optional/finance/finance-excel-author.md), [`pptx-author`](../../optional/finance/finance-pptx-author.md), [`comps-analysis`](../../optional/finance/finance-comps-analysis.md), [`lbo-model`](../../optional/finance/finance-lbo-model.md), [`3-statement-model`](../../optional/finance/finance-3-statement-model.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
+> **info**
 The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 ## Environment

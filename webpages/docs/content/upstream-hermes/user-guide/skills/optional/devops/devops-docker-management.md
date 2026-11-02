@@ -1,15 +1,13 @@
 ---
-title: "Docker Management"
+title: "Docker Management — Manage Docker containers, images, volumes, and Compose"
 sidebar_label: "Docker Management"
-description: "Manage Docker containers, images, volumes, networks, and Compose stacks — lifecycle ops, debugging, cleanup, and Dockerfile optimization"
+description: "Manage Docker containers, images, volumes, and Compose"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/devops/devops-docker-management.md
 ---
-
-
-
 
 # Docker Management
 
-Manage Docker containers, images, volumes, networks, and Compose stacks — lifecycle ops, debugging, cleanup, and Dockerfile optimization.
+Manage Docker containers, images, volumes, and Compose.
 
 ## Skill metadata
 
@@ -20,13 +18,12 @@ Manage Docker containers, images, volumes, networks, and Compose stacks — life
 | Version | `1.0.0` |
 | Author | sprmn24 |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `docker`, `containers`, `devops`, `infrastructure`, `compose`, `images`, `volumes`, `networks`, `debugging` |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Docker Management
 
@@ -194,7 +191,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgres://user:pass@db:5432/mydb
+      # Password comes from the POSTGRES_PASSWORD secret, not the URL
+      - DATABASE_URL=postgres://mydb_user@db:5432/mydb
     depends_on:
       db:
         condition: service_healthy

@@ -74,14 +74,31 @@ func RunSetupBrowser(ctx context.Context, stdout io.Writer, opts acp.BrowserBoot
 	return nil
 }
 
+// ServeOptions carries the provider identity advertised by the ACP server.
+// Zero values keep the server available with the terminal setup auth method.
+type ServeOptions struct {
+	Provider            string
+	Model               string
+	CredentialAvailable *bool
+}
+
 func RunServe(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) error {
+	return RunServeWithOptions(ctx, stdin, stdout, stderr, ServeOptions{})
+}
+
+func RunServeWithOptions(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer, opts ServeOptions) error {
 	smap, err := session.OpenBolt(config.SessionDBPath())
 	if err != nil {
 		return ExitError{Code: 2, Err: fmt.Errorf("acp server session store unavailable: %w", err)}
 	}
 	defer smap.Close()
 
-	runtime := acp.NewSessionRuntime(acp.SessionRuntimeConfig{SessionMap: smap})
+	runtime := acp.NewSessionRuntime(acp.SessionRuntimeConfig{
+		SessionMap:          smap,
+		Provider:            opts.Provider,
+		Model:               opts.Model,
+		CredentialAvailable: opts.CredentialAvailable,
+	})
 	server := acp.NewJSONRPCServer(runtime)
 	server.Diagnostics = acp.NewStdioDiagnostics(stderr)
 	if err := server.Handle(ctx, stdin, stdout); err != nil {

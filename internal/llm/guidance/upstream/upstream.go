@@ -86,6 +86,113 @@ func ExtractPythonStringConstant(src, name string) (string, bool) {
 	return strings.Join(parts, ""), true
 }
 
+// ExtractPythonBuiltMemoryGuidance evaluates upstream
+// `MEMORY_GUIDANCE = build_memory_guidance(True, True)` by extracting the
+// memory_enabled=True frame, the skill_manage_available=True routing line, and
+// the shared tail from the builder body. Returns ok=false if the upstream shape
+// is unrecognized so callers can fall back to literal extraction.
+func ExtractPythonBuiltMemoryGuidance(src string) (string, bool) {
+	if !strings.Contains(src, "MEMORY_GUIDANCE = build_memory_guidance(True, True)") {
+		return "", false
+	}
+	start := strings.Index(src, "def build_memory_guidance(")
+	if start < 0 {
+		return "", false
+	}
+	body := src[start:]
+	frame, ok := extractParenthesizedStringAfter(body, "frame = (")
+	if !ok {
+		return "", false
+	}
+	routing, ok := extractParenthesizedStringAfter(body, "skill_routing = (")
+	if !ok {
+		return "", false
+	}
+	tail, ok := extractParenthesizedStringAfter(body, "return frame + skill_routing + (")
+	if !ok {
+		return "", false
+	}
+	return frame + routing + tail, true
+}
+
+// extractParenthesizedStringAfter finds anchor (which must end with the opening
+// paren) and returns the concatenated adjacent string literal value inside it.
+func extractParenthesizedStringAfter(src, anchor string) (string, bool) {
+	idx := strings.Index(src, anchor)
+	if idx < 0 {
+		return "", false
+	}
+	rest := src[idx+len(anchor)-1:]
+	if !strings.HasPrefix(rest, "(") {
+		return "", false
+	}
+	end := findMatchingParen(rest)
+	if end < 0 {
+		return "", false
+	}
+	parts, ok := parsePythonAdjacentStrings(truncateAtPythonConditional(rest[1:end]))
+	if !ok {
+		return "", false
+	}
+	return strings.Join(parts, ""), true
+}
+
+// truncateAtPythonConditional returns body up to the first top-level `if`
+// keyword, so conditional-expression branches ("a" if cond else "b") yield only
+// the leading, always-evaluated string literals.
+func truncateAtPythonConditional(body string) string {
+	var (
+		inStr bool
+		quote byte
+		esc   bool
+	)
+	for i := 0; i < len(body); i++ {
+		b := body[i]
+		if inStr {
+			if esc {
+				esc = false
+				continue
+			}
+			if b == '\\' {
+				esc = true
+				continue
+			}
+			if b == quote {
+				inStr = false
+			}
+			continue
+		}
+		switch {
+		case b == '"' || b == '\'':
+			inStr = true
+			quote = b
+		case b == '#':
+			nl := strings.IndexByte(body[i:], '\n')
+			if nl < 0 {
+				return body
+			}
+			i += nl
+		case b == 'i' && i+1 < len(body) && body[i+1] == 'f':
+			before := byte(' ')
+			if i > 0 {
+				before = body[i-1]
+			}
+			after := byte(' ')
+			if i+2 < len(body) {
+				after = body[i+2]
+			}
+			if !isPythonIdentByte(before) && !isPythonIdentByte(after) {
+				return body[:i]
+			}
+		}
+	}
+	return body
+}
+
+func isPythonIdentByte(b byte) bool {
+	return b == '_' || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
+}
+
 // ExtractPythonTupleOfStrings parses `NAME = ("a", "b", ...)` into a []string
 // preserving the upstream tuple order. Returns ok=false if NAME is missing or
 // not a tuple of string literals.

@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-07-20",
+    "last_updated": "2026-09-26",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -459,7 +459,7 @@
             "last_upstream_check": "2026-04-28T02:56:53Z",
             "origin_decision": "Phase 4 needed an explicit closure subphase for the full Go-native agent turn. Provider, context, retry, and prompt rows remain useful, but Gormes is not Hermes in Go until the e2e turn proves provider, tool, Goncho memory, final response, and audit/status evidence together."
           },
-          "item_count": 12
+          "item_count": 15
         },
         {
           "id": "4.J",
@@ -627,7 +627,7 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes b816fd4e2 keeps update as a substantial operator lifecycle command, with autostash, branch recovery, friendly git errors, hangup/log mirroring, gateway restart verification, stale-dashboard handling, and --yes behavior. Gormes has installer rerun-as-update helpers plus backup and service-restart helper rows, but the top-level `gormes update` command remains row-backed. The second 2026-05-05 sweep also found missing sessions CLI ergonomics: MRU continue by last_active, prefix-safe delete/prune confirmation, browse fallback, and multi-word session argument coalescing. Keep update and sessions as dedicated CLI slices instead of mixing them into broad diagnostics/status inventory."
           },
-          "item_count": 146,
+          "item_count": 147,
           "extra": {
             "rows": [
               {

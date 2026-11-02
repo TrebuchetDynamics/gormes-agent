@@ -1,13 +1,15 @@
 ---
-weight: 1
+sidebar_position: 1
 title: "Tips & Best Practices"
 description: "Practical advice to get the most out of Hermes Agent — prompt tips, CLI shortcuts, context files, memory, cost optimization, and security"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/guides/tips.md
 ---
-
 
 # Tips & Best Practices
 
 A quick-wins collection of practical tips that make you immediately more effective with Hermes Agent. Each section targets a different aspect — scan the headers and jump to what's relevant.
+> **tip Confused which model to pick?**
+Run `hermes setup --portal` — you get 300+ models including Claude, GPT-5, and Gemini under one subscription. See [Nous Portal](../integrations/nous-portal.md).
 
 ---
 
@@ -37,7 +39,7 @@ Before writing a long prompt explaining how to do something, check if there's al
 
 ### Multi-Line Input
 
-Press **Alt+Enter** (or **Ctrl+J**) to insert a newline without sending. This lets you compose multi-line prompts, paste code blocks, or structure complex requests before hitting Enter to send.
+Press **Alt+Enter**, **Ctrl+J**, or **Shift+Enter** to insert a newline without sending. `Shift+Enter` only works when the terminal sends it as a distinct keystroke (Kitty / foot / WezTerm / Ghostty by default; iTerm2 / Alacritty / VS Code terminal once the Kitty keyboard protocol is enabled). The other two work in every terminal.
 
 ### Paste Detection
 
@@ -58,10 +60,8 @@ Press **Ctrl+V** to paste an image from your clipboard directly into the chat. T
 ### Slash Command Autocomplete
 
 Type `/` and press **Tab** to see all available commands. This includes built-in commands (`/compress`, `/model`, `/title`) and every installed skill. You don't need to memorize anything — Tab completion has you covered.
-
-> **Tip**
-> Use `/verbose` to cycle through tool output display modes: **off → new → all → verbose**. The "all" mode is great for watching what the agent does; "off" is cleanest for simple Q&A.
-
+> **tip**
+Use `/verbose` to cycle through tool output display modes: **off → new → all → verbose**. The "all" mode is great for watching what the agent does; "off" is cleanest for simple Q&A.
 
 ## Context Files
 
@@ -81,7 +81,7 @@ Create an `AGENTS.md` in your project root with architecture decisions, coding c
 
 Want Hermes to have a stable default voice? Edit `~/.hermes/SOUL.md` (or `$HERMES_HOME/SOUL.md` if you use a custom Hermes home). Hermes now seeds a starter SOUL automatically and uses that global file as the instance-wide personality source.
 
-For a full walkthrough, see [Use SOUL.md with Hermes](../use-soul-with-hermes/).
+For a full walkthrough, see [Use SOUL.md with Hermes](./use-soul-with-hermes.md).
 
 ```markdown
 # Soul
@@ -99,10 +99,8 @@ Already have a `.cursorrules` or `.cursor/rules/*.mdc` file? Hermes reads those 
 ### Discovery
 
 Hermes loads the top-level `AGENTS.md` from the current working directory at session start. Subdirectory `AGENTS.md` files are discovered lazily during tool calls (via `subdirectory_hints.py`) and injected into tool results — they are not loaded upfront into the system prompt.
-
-> **Tip**
-> Keep context files focused and concise. Every character counts against your token budget since they're injected into every single message.
-
+> **tip**
+Keep context files focused and concise. Every character counts against your token budget since they're injected into every single message.
 
 ## Memory & Skills
 
@@ -121,16 +119,14 @@ Memory is intentionally bounded (~2,200 chars for MEMORY.md, ~1,375 chars for US
 ### Let the Agent Remember
 
 After a productive session, say "remember this for next time" and the agent will save the key takeaways. You can also be specific: "save to memory that our CI uses GitHub Actions with the `deploy.yml` workflow."
-
-> **Warning**
-> Memory is a frozen snapshot — changes made during a session don't appear in the system prompt until the next session starts. The agent writes to disk immediately, but the prompt cache isn't invalidated mid-session.
-
+> **warning**
+Memory is a frozen snapshot — changes made during a session don't appear in the system prompt until the next session starts. The agent writes to disk immediately, but the prompt cache isn't invalidated mid-session.
 
 ## Performance & Cost
 
 ### Don't Break the Prompt Cache
 
-Most LLM providers cache the system prompt prefix. If you keep your system prompt stable (same context files, same memory), subsequent messages in a session get **cache hits** that are significantly cheaper. Avoid changing the model or system prompt mid-session.
+Most LLM providers cache the conversation prefix (system prompt + history). If you keep your system prompt stable (same context files, same memory), subsequent messages in a session get **cache hits** that are significantly cheaper. The cache is keyed to the model and account — so an explicit `/model` switch, an [automatic provider fallback](../user-guide/features/fallback-providers.md), or a [credential-pool rotation](../user-guide/features/credential-pools.md) all force the next turn to re-read the entire conversation at full input price. Occasional switches are fine; frequent switching in a long session multiplies your cost.
 
 ### Use /compress Before Hitting Limits
 
@@ -146,11 +142,9 @@ Instead of running terminal commands one at a time, ask the agent to write a scr
 
 ### Choose the Right Model
 
-Use `/model` to switch models mid-session. Use a frontier model (Claude Sonnet/Opus, GPT-4o) for complex reasoning and architecture decisions. Switch to a faster model for simple tasks like formatting, renaming, or boilerplate generation.
-
-> **Tip**
-> Run `/usage` periodically to see your token consumption. Run `/insights` for a broader view of usage patterns over the last 30 days.
-
+Use `/model` to switch models mid-session. Use a frontier model (Claude Sonnet/Opus, GPT-4o) for complex reasoning and architecture decisions. Switch to a faster model for simple tasks like formatting, renaming, or boilerplate generation. Keep in mind each switch resets the prompt cache (see above), so on long sessions it's often cheaper to start a fresh session on the other model than to bounce back and forth.
+> **tip**
+Run `/usage` periodically to see your token consumption. Run `/insights` for a broader view of usage patterns over the last 30 days. To see what your *fixed* per-message cost is before any conversation — system prompt, skills index, memory, tool schemas — run [`hermes prompt-size`](../reference/cli-commands.md#hermes-prompt-size) (works offline).
 
 ## Messaging Tips
 
@@ -169,20 +163,18 @@ Instead of manually collecting user IDs for allowlists, enable DM pairing. When 
 ### Tool Progress Display Modes
 
 Use `/verbose` to control how much tool activity you see. In messaging platforms, less is usually more — keep it on "new" to see just new tool calls. In the CLI, "all" gives you a satisfying live view of everything the agent does.
-
-> **Tip**
-> On messaging platforms, sessions auto-reset after idle time (default: 24 hours) or daily at 4 AM. Adjust per-platform in `~/.hermes/config.yaml` if you need longer sessions.
-
+> **tip**
+Messaging sessions persist until an explicit `/new` or `/reset`. Context compression manages long conversations without an idle or daily reset.
 
 ## Security
 
 ### Use Docker for Untrusted Code
 
-When working with untrusted repositories or running unfamiliar code, use Docker or Daytona as your terminal backend. Set `TERMINAL_BACKEND=docker` in your `.env`. Destructive commands inside a container can't harm your host system.
+When working with untrusted repositories or running unfamiliar code, use Docker or Daytona as your terminal backend. Set `TERMINAL_ENV=docker` in your `.env`. Destructive commands inside a container can't harm your host system.
 
 ```bash
 # In your .env:
-TERMINAL_BACKEND=docker
+TERMINAL_ENV=docker
 TERMINAL_DOCKER_IMAGE=hermes-sandbox:latest
 ```
 
@@ -212,10 +204,8 @@ When the agent triggers a dangerous command approval (`rm -rf`, `DROP TABLE`, et
 ### Command Approval Is Your Safety Net
 
 Hermes checks every command against a curated list of dangerous patterns before execution. This includes recursive deletes, SQL drops, piping curl to shell, and more. Don't disable this in production — it exists for good reasons.
-
-> **Warning**
-> When running in a container backend (Docker, Singularity, Modal, Daytona), dangerous command checks are **skipped** because the container is the security boundary. Make sure your container images are properly locked down.
-
+> **warning**
+When running in a container backend (Docker, Singularity, Modal, Daytona), dangerous command checks are **skipped** because the container is the security boundary. Make sure your container images are properly locked down.
 
 ### Use Allowlists for Messaging Bots
 

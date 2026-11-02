@@ -2,10 +2,8 @@
 title: "Test Driven Development — TDD: enforce RED-GREEN-REFACTOR, tests before code"
 sidebar_label: "Test Driven Development"
 description: "TDD: enforce RED-GREEN-REFACTOR, tests before code"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/software-development/software-development-test-driven-development.md
 ---
-
-
-
 
 # Test Driven Development
 
@@ -20,14 +18,13 @@ TDD: enforce RED-GREEN-REFACTOR, tests before code.
 | Version | `1.1.0` |
 | Author | Hermes Agent (adapted from obra/superpowers) |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `testing`, `tdd`, `development`, `quality`, `red-green-refactor` |
-| Related skills | [`systematic-debugging`](../software-development-systematic-debugging/), [`writing-plans`](../software-development-writing-plans/), [`subagent-driven-development`](../software-development-subagent-driven-development/) |
+| Related skills | [`systematic-debugging`](../../bundled/software-development/software-development-systematic-debugging.md), [`subagent-driven-development`](../../optional/software-development/software-development-subagent-driven-development.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Test-Driven Development (TDD)
 
@@ -192,6 +189,25 @@ Keep tests green throughout. Don't add behavior.
 ### Repeat
 
 Next failing test for next behavior. One cycle at a time.
+
+## Avoid Horizontal Slices
+
+Do **not** write all tests first and then all implementation. That is horizontal slicing: RED becomes "write a pile of imagined tests" and GREEN becomes "make the pile pass." It produces brittle tests because the tests are designed before the implementation has taught you what behavior and interface actually matter.
+
+Use vertical tracer bullets instead:
+
+```text
+WRONG:
+  RED:   test1, test2, test3, test4
+  GREEN: impl1, impl2, impl3, impl4
+
+RIGHT:
+  RED→GREEN: test1→impl1
+  RED→GREEN: test2→impl2
+  RED→GREEN: test3→impl3
+```
+
+A tracer bullet is one end-to-end behavior slice. It proves the path works, teaches you about the interface, and keeps each next test grounded in what you just learned.
 
 ## Why Order Matters
 

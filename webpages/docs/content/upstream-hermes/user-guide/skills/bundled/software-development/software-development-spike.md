@@ -2,10 +2,8 @@
 title: "Spike — Throwaway experiments to validate an idea before build"
 sidebar_label: "Spike"
 description: "Throwaway experiments to validate an idea before build"
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/software-development/software-development-spike.md
 ---
-
-
-
 
 # Spike
 
@@ -20,14 +18,13 @@ Throwaway experiments to validate an idea before build.
 | Version | `1.0.0` |
 | Author | Hermes Agent (adapted from gsd-build/get-shit-done) |
 | License | MIT |
+| Platforms | linux, macos, windows |
 | Tags | `spike`, `prototype`, `experiment`, `feasibility`, `throwaway`, `exploration`, `research`, `planning`, `mvp`, `proof-of-concept` |
-| Related skills | [`sketch`](../../creative/creative-sketch/), [`writing-plans`](../software-development-writing-plans/), [`subagent-driven-development`](../software-development-subagent-driven-development/), [`plan`](../software-development-plan/) |
+| Related skills | [`sketch`](../../optional/creative/creative-sketch.md), [`subagent-driven-development`](../../optional/software-development/software-development-subagent-driven-development.md) |
 
 ## Reference: full SKILL.md
-
-> **Info**
-> The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
+> **info**
+The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Spike
 
@@ -38,7 +35,7 @@ Load this when the user says things like "let me try this", "I want to see if X 
 ## When NOT to use this
 
 - The answer is knowable from docs or reading code — just do research, don't build
-- The work is production path — use `writing-plans` / `plan` instead
+- The work is production path — use the `plan` skill instead
 - The idea is already validated — jump straight to implementation
 
 ## If the user has the full GSD system installed
@@ -138,7 +135,7 @@ spikes/
 terminal("mkdir -p spikes/001-websocket-streaming")
 write_file("spikes/001-websocket-streaming/README.md", "# 001: websocket-streaming\n\n...")
 write_file("spikes/001-websocket-streaming/main.py", "...")
-terminal("cd spikes/001-websocket-streaming && python3 main.py")
+terminal("cd spikes/001-websocket-streaming && python main.py")
 # Observe output, iterate.
 ```
 
