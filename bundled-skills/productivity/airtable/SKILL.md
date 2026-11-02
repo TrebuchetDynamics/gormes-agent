@@ -1,29 +1,18 @@
 ---
-title: "Airtable — Airtable REST API via curl"
-sidebar_label: "Airtable"
-description: "Airtable REST API via curl"
-editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/productivity/productivity-airtable.md
+name: airtable
+description: Airtable REST API via curl. Records CRUD, filters, upserts.
+version: 1.1.0
+author: community
+license: MIT
+platforms: [linux, macos, windows]
+prerequisites:
+  env_vars: [AIRTABLE_API_KEY]
+  commands: [curl]
+metadata:
+  hermes:
+    tags: [Airtable, Productivity, Database, API]
+    homepage: https://airtable.com/developers/web/api/introduction
 ---
-
-# Airtable
-
-Airtable REST API via curl. Records CRUD, filters, upserts.
-
-## Skill metadata
-
-| | |
-|---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/productivity/airtable` |
-| Version | `1.1.0` |
-| Author | community |
-| License | MIT |
-| Platforms | linux, macos, windows |
-| Tags | `Airtable`, `Productivity`, `Database`, `API` |
-
-## Reference: full SKILL.md
-> **info**
-The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 
 # Airtable — Bases, Tables & Records
 
@@ -232,7 +221,7 @@ done
 
 ## Important Notes for Hermes
 
-- **Always use the `terminal` tool with `curl`.** Do NOT use `web_extract` (it can't send auth headers) or `browser_navigate` (needs UI auth and is slow).
+- **Always use the `terminal` tool with `curl`.** Do NOT use `web_extract` (it can't send auth headers) or `browser_exec` (needs UI auth and is slow).
 - **`AIRTABLE_API_KEY` flows from `${HERMES_HOME:-~/.hermes}/.env` into the subprocess automatically** when this skill is loaded — no need to re-export it before each `curl` call.
 - **Escape curly braces in formulas carefully.** In a heredoc body, `{Status}` is literal. In a shell argument, `{Status}` is safe outside `{...}` brace-expansion context — but pass dynamic strings through `python urllib.parse.quote` before splicing into a URL.
 - **Pretty-print with `python -m json.tool`** (always present) rather than `jq` (optional). Only reach for `jq` when you need filtering/projection.

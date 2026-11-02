@@ -2,7 +2,7 @@
 title: "Opencode — Delegate coding to OpenCode CLI (features, PR review)"
 sidebar_label: "Opencode"
 description: "Delegate coding to OpenCode CLI (features, PR review)"
-editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/autonomous-ai-agents/autonomous-ai-agents-opencode.md
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/autonomous-ai-agents/autonomous-ai-agents-opencode.md
 ---
 
 # Opencode
@@ -13,8 +13,8 @@ Delegate coding to OpenCode CLI (features, PR review).
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/autonomous-ai-agents/opencode` |
+| Source | Optional — install with `hermes skills install official/autonomous-ai-agents/opencode` |
+| Path | `optional-skills/autonomous-ai-agents/opencode` |
 | Version | `1.2.0` |
 | Author | Hermes Agent |
 | License | MIT |

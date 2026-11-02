@@ -2,7 +2,7 @@
 title: "Llm Wiki — Karpathy's LLM Wiki: build/query interlinked markdown KB"
 sidebar_label: "Llm Wiki"
 description: "Karpathy's LLM Wiki: build/query interlinked markdown KB"
-editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/research/research-llm-wiki.md
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/research/research-llm-wiki.md
 ---
 
 # Llm Wiki
@@ -13,8 +13,8 @@ Karpathy's LLM Wiki: build/query interlinked markdown KB.
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/research/llm-wiki` |
+| Source | Optional — install with `hermes skills install official/research/llm-wiki` |
+| Path | `optional-skills/research/llm-wiki` |
 | Version | `2.1.0` |
 | Author | Hermes Agent |
 | License | MIT |

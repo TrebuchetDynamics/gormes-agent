@@ -2,7 +2,7 @@
 title: "Python Debugpy — Debug Python: pdb REPL + debugpy remote (DAP)"
 sidebar_label: "Python Debugpy"
 description: "Debug Python: pdb REPL + debugpy remote (DAP)"
-editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/software-development/software-development-python-debugpy.md
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/software-development/software-development-python-debugpy.md
 ---
 
 # Python Debugpy
@@ -13,14 +13,14 @@ Debug Python: pdb REPL + debugpy remote (DAP).
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/software-development/python-debugpy` |
+| Source | Optional — install with `hermes skills install official/software-development/python-debugpy` |
+| Path | `optional-skills/software-development/python-debugpy` |
 | Version | `1.0.0` |
 | Author | Hermes Agent |
 | License | MIT |
 | Platforms | linux, macos |
 | Tags | `debugging`, `python`, `pdb`, `debugpy`, `breakpoints`, `dap`, `post-mortem` |
-| Related skills | [`systematic-debugging`](../../bundled/software-development/software-development-systematic-debugging.md), [`node-inspect-debugger`](../../bundled/software-development/software-development-node-inspect-debugger.md) |
+| Related skills | [`systematic-debugging`](../../bundled/software-development/software-development-systematic-debugging.md), [`node-inspect-debugger`](../../optional/software-development/software-development-node-inspect-debugger.md) |
 
 ## Reference: full SKILL.md
 > **info**

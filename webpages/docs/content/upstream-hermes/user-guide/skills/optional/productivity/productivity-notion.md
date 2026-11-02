@@ -2,7 +2,7 @@
 title: "Notion — Notion API + ntn CLI: pages, databases, markdown, Workers"
 sidebar_label: "Notion"
 description: "Notion API + ntn CLI: pages, databases, markdown, Workers"
-editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/productivity/productivity-notion.md
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/productivity/productivity-notion.md
 ---
 
 # Notion
@@ -13,8 +13,8 @@ Notion API + ntn CLI: pages, databases, markdown, Workers.
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/productivity/notion` |
+| Source | Optional — install with `hermes skills install official/productivity/notion` |
+| Path | `optional-skills/productivity/notion` |
 | Version | `2.0.0` |
 | Author | community |
 | License | MIT |

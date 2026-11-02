@@ -2,7 +2,7 @@
 title: "Songsee — Audio spectrograms/features (mel, chroma, MFCC) via CLI"
 sidebar_label: "Songsee"
 description: "Audio spectrograms/features (mel, chroma, MFCC) via CLI"
-editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/media/media-songsee.md
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/media/media-songsee.md
 ---
 
 # Songsee
@@ -13,8 +13,8 @@ Audio spectrograms/features (mel, chroma, MFCC) via CLI.
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/media/songsee` |
+| Source | Optional — install with `hermes skills install official/media/songsee` |
+| Path | `optional-skills/media/songsee` |
 | Version | `1.0.0` |
 | Author | community |
 | License | MIT |

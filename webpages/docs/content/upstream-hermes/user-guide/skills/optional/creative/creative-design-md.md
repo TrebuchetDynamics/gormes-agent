@@ -2,7 +2,7 @@
 title: "Design Md — Author/validate/export Google's DESIGN.md token spec files"
 sidebar_label: "Design Md"
 description: "Author/validate/export Google's DESIGN.md token spec files"
-editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/creative/creative-design-md.md
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/creative/creative-design-md.md
 ---
 
 # Design Md
@@ -13,8 +13,8 @@ Author/validate/export Google's DESIGN.md token spec files.
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/creative/design-md` |
+| Source | Optional — install with `hermes skills install official/creative/design-md` |
+| Path | `optional-skills/creative/design-md` |
 | Version | `1.1.0` |
 | Author | Hermes Agent |
 | License | MIT |

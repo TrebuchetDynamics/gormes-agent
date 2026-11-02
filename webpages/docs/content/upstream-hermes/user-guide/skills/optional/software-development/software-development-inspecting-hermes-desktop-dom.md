@@ -2,7 +2,7 @@
 title: "Inspecting Hermes Desktop Dom — Read the live Hermes desktop DOM/CSS over CDP"
 sidebar_label: "Inspecting Hermes Desktop Dom"
 description: "Read the live Hermes desktop DOM/CSS over CDP"
-editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/software-development/software-development-inspecting-hermes-desktop-dom.md
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/software-development/software-development-inspecting-hermes-desktop-dom.md
 ---
 
 # Inspecting Hermes Desktop Dom
@@ -13,14 +13,14 @@ Read the live Hermes desktop DOM/CSS over CDP.
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/software-development/inspecting-hermes-desktop-dom` |
+| Source | Optional — install with `hermes skills install official/software-development/inspecting-hermes-desktop-dom` |
+| Path | `optional-skills/software-development/inspecting-hermes-desktop-dom` |
 | Version | `1.0.0` |
 | Author | Hermes Agent |
 | License | MIT |
 | Platforms | linux, macos, windows |
 | Tags | `desktop`, `electron`, `cdp`, `dom`, `ui-verification`, `self-inspection` |
-| Related skills | [`node-inspect-debugger`](../../bundled/software-development/software-development-node-inspect-debugger.md), [`systematic-debugging`](../../bundled/software-development/software-development-systematic-debugging.md), [`dogfood`](../../bundled/software-development/software-development-dogfood.md) |
+| Related skills | [`node-inspect-debugger`](../../optional/software-development/software-development-node-inspect-debugger.md), [`systematic-debugging`](../../bundled/software-development/software-development-systematic-debugging.md), [`dogfood`](../../bundled/software-development/software-development-dogfood.md) |
 
 ## Reference: full SKILL.md
 > **info**

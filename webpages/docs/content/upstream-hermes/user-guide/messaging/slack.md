@@ -657,7 +657,7 @@ Set this to `true` when the bot follows busy threads (via thread auto-engagement
 When the bot answers a human message with only a [silence token](index.md#intentional-silence-tokens), Hermes normally posts a short notice instead so a question never goes unanswered. On Slack the token is allowed to stand when the message opened by @mentioning someone else, or was an unmentioned top-level message in a `free_response_channels` channel that starts its own thread (the default `reply_in_thread: true`). A 1:1 DM, a mention of the bot, a command, a reaction trigger, or a plain follow-up in a conversation the bot is part of (a thread, or a `reply_in_thread: false` channel) still gets the notice.
 
 > **info**
-Slack supports both patterns: `@mention` required to start a conversation by default, but you can opt specific channels out via `SLACK_FREE_RESPONSE_CHANNELS` (comma-separated channel IDs) or `slack.free_response_channels` in `config.yaml`. Once the bot has an active session in a thread, subsequent thread replies do not require a mention. In **1:1 DMs** the bot always responds without needing a mention.
+Slack supports both patterns: `@mention` required to start a conversation by default, but you can opt specific channels out via `SLACK_FREE_RESPONSE_CHANNELS` (comma-separated channel IDs) or `slack.free_response_channels` in `config.yaml`. Once the bot has an active session in a thread, subsequent thread replies do not require a mention. In **1:1 DMs** the bot always responds without needing a mention. These gating keys can be set in the top-level `slack:` block or under `platforms.slack.extra`; within user YAML, when the same key is set in both, `platforms.slack.extra` wins and the gateway logs a warning. Administrator-managed pins remain authoritative, and explicit environment settings retain their existing precedence.
 
 > **caution Group DMs (MPIMs) are shared surfaces, not 1:1 DMs**
 A **1:1 direct message** is a private conversation with one person, so it is mention-exempt. A **group DM (MPIM / multi-person DM)** is a *shared surface* — multiple people can see and trigger the bot — so it obeys the same operator controls as a channel: `require_mention`, `strict_mention`, `free_response_channels`, and `allowed_channels` all apply, and the bot only adds `:eyes:`/`:white_check_mark:` reactions when it is actually `@mentioned`. To let the bot respond freely in a specific group DM, add its channel ID (starts with `G`) to `free_response_channels`.
@@ -998,7 +998,7 @@ slack:
       performance implications.
 ```
 
-Keys are Slack channel IDs (find them via channel details → "About" → scroll to bottom). All messages in the matching channel get the prompt injected as an ephemeral system instruction.
+Keys are Slack channel IDs (find them via channel details → "About" → scroll to bottom). All messages in the matching channel, including slash-command turns (`/hermes <question>` and native `/<command>`), get the prompt injected as an ephemeral system instruction.
 
 ## Per-Channel Skill Bindings
 
@@ -1024,7 +1024,7 @@ slack:
 ```
 
 Notes:
-- The binding matches by channel ID. For threaded messages in a bound channel, the thread inherits the parent channel's binding.
+- The binding matches by channel ID. For threaded messages in a bound channel, the thread inherits the parent channel's binding. A session started by a slash command (`/hermes <question>`) loads the binding too.
 - The skill is loaded only at session start (new session). If you change the binding, run `/new` for it to take effect.
 - Combine with `channel_prompts` for per-channel tone/constraints on top of the skill's instructions.
 

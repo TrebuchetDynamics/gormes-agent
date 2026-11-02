@@ -20,6 +20,42 @@ const supplements = new Set([
   'user-stories.md',
 ]);
 
+const gormesNotes = new Map([
+  [
+    'user-guide/profiles.md',
+    '> **Upstream Hermes reference**\n> This page mirrors upstream Hermes behavior. For the current Gormes command\n> surface, use [gormes profile](../../../cli/setup/profile/) and\n> [Switch profiles for client work](../../../recipes/profiles/).',
+  ],
+  [
+    'reference/profile-commands.md',
+    '> **Upstream Hermes reference**\n> This page mirrors upstream Hermes behavior. For the current Gormes command\n> surface, use [gormes profile](../../../cli/setup/profile/).',
+  ],
+]);
+
+function withGormesIndex(body) {
+  return body
+    .replace(/^slug: \/\n/m, '')
+    .replace(/^displayed_sidebar: docs\n/m, '')
+    .replace(/^title: "Hermes Agent Documentation"\n/m, 'title: "Upstream Hermes Archive"\n')
+    .replace(
+      /^description: .*\n/m,
+      'description: "Mirrored upstream Hermes documentation used for Gormes compatibility research. Not Gormes setup instructions."\n',
+    )
+    .replace(
+      /^(# Hermes Agent\n)/m,
+      '$1\n> **Upstream Hermes archive**\n> These are mirrored upstream Hermes docs used for compatibility research. They are not Gormes setup instructions. To run Gormes, start with [Quickstart](../start-here/).\n',
+    );
+}
+
+function withGormesNote(targetRel, body) {
+  const note = gormesNotes.get(targetRel);
+  if (!note) return body;
+  const lines = body.split('\n');
+  const h1 = lines.findIndex((line) => line.startsWith('# '));
+  if (h1 < 0) return `${note}\n\n${body}`;
+  lines.splice(h1 + 1, 0, '', note);
+  return lines.join('\n');
+}
+
 const featureGroups = new Map([
   ['tools', ['acp', 'browser', 'code-execution', 'computer-use', 'delegation', 'image-generation', 'lsp', 'mcp', 'spotify', 'tool-gateway', 'tools', 'tts', 'vision', 'web-search', 'x-search']],
   ['providers', ['credential-pools', 'fallback-providers', 'provider-routing', 'subscription-proxy']],
@@ -95,7 +131,9 @@ for (const sourceFile of await walkFiles(sourceDir)) {
     continue;
   }
   const raw = await fs.readFile(sourceFile, 'utf8');
-  await fs.writeFile(targetFile, sanitizeMarkdown(transformMarkdown(raw, `upstream-hermes/${rel}`)), 'utf8');
+  let body = sanitizeMarkdown(transformMarkdown(raw, `upstream-hermes/${rel}`));
+  if (targetRel === '_index.md') body = withGormesIndex(body);
+  await fs.writeFile(targetFile, withGormesNote(targetRel, body), 'utf8');
 }
 
 for (const file of await walkFiles(targetDir)) {

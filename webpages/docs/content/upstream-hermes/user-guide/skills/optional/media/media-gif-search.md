@@ -2,7 +2,7 @@
 title: "Gif Search — Search/download GIFs from Tenor via curl + jq"
 sidebar_label: "Gif Search"
 description: "Search/download GIFs from Tenor via curl + jq"
-editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/bundled/media/media-gif-search.md
+editUrl: https://github.com/TrebuchetDynamics/gormes-agent/edit/main/webpages/docs/content/upstream-hermes/user-guide/skills/optional/media/media-gif-search.md
 ---
 
 # Gif Search
@@ -13,8 +13,8 @@ Search/download GIFs from Tenor via curl + jq.
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/media/gif-search` |
+| Source | Optional — install with `hermes skills install official/media/gif-search` |
+| Path | `optional-skills/media/gif-search` |
 | Version | `1.1.0` |
 | Author | Hermes Agent |
 | License | MIT |
@@ -100,4 +100,4 @@ Each result has multiple formats under `.media_formats`:
 
 - URL-encode the query: spaces as `+`, special chars as `%XX`
 - For sending in chat, `tinygif` URLs are lighter weight
-- GIF URLs can be used directly in markdown: `![alt](https://github.com/NousResearch/hermes-agent/blob/main/skills/media/gif-search/url)`
+- GIF URLs can be used directly in markdown: `![alt](https://github.com/NousResearch/hermes-agent/blob/main/optional-skills/media/gif-search/url)`

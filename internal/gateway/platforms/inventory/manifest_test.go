@@ -71,7 +71,13 @@ func TestHermesGatewayPlatformManifestCoversUpstream(t *testing.T) {
 				}
 				continue
 			}
-			t.Fatalf("manifest extra %q must be source-backed by plugins/platforms or gateway/platforms, got %q", id, entry.HermesSource)
+			if strings.HasPrefix(entry.HermesSource, "plugin-catalog/") {
+				if err := assertHermesSourceFileExists(entry.HermesSource); err != nil {
+					t.Fatalf("manifest extra %q has invalid catalog source %q: %v", id, entry.HermesSource, err)
+				}
+				continue
+			}
+			t.Fatalf("manifest extra %q must be source-backed by plugins/platforms, gateway/platforms, or plugin-catalog, got %q", id, entry.HermesSource)
 		}
 	}
 
@@ -291,40 +297,49 @@ func readHermesGatewayConnectorIDs() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	platformIDs, err := readHermesPlatformEnumIDs()
+	if err != nil {
+		return nil, err
+	}
+	platformSet := make(map[string]bool, len(platformIDs))
+	for _, id := range platformIDs {
+		platformSet[id] = true
+	}
 	root := filepath.Join(workspace, "hermes-agent", "gateway", "platforms")
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return nil, err
 	}
 	ignore := map[string]bool{
-		"__init__":                    true,
-		"access_policy_mixin":         true,
-		"api_server_memory_sessions":  true,
-		"api_server_openai_routes":    true,
-		"api_server_room_dispatch":    true,
-		"api_server_room_grants":      true,
-		"api_server_run_idempotency":  true,
-		"api_server_runs":             true,
-		"api_server_turn_boundary":    true,
-		"base":                        true,
-		"base_exec_approval":          true,
-		"event":                       true,
-		"helpers":                     true,
-		"media_cache":                 true,
+		"__init__":                   true,
+		"access_policy_mixin":        true,
+		"api_server_memory_sessions": true,
+		"api_server_openai_routes":   true,
+		"api_server_room_dispatch":   true,
+		"api_server_room_grants":     true,
+		"api_server_run_idempotency": true,
+		"api_server_authority_runs":  true,
+		"api_server_runs":            true,
+		"api_server_turn_boundary":   true,
+		"base":                       true,
+		"base_exec_approval":         true,
+		"event":                      true,
+		"helpers":                    true,
+		"media_cache":                true,
 		"shared_ingress":             true,
 		"tcp_site":                   true,
-		"telegram_network":            true,
+		"telegram_network":           true,
 		"webhook_coalesce":           true,
-		"webhook_filters":             true,
-		"signal_format":               true,
-		"signal_rate_limit":           true,
-		"wecom_crypto":                true,
-		"feishu_comment":              true,
-		"feishu_comment_rules":        true,
-		"yuanbao_media":               true,
-		"yuanbao_proto":               true,
-		"yuanbao_sticker":             true,
-		"whatsapp_common":             true,
+		"webhook_filters":            true,
+		"signal_format":              true,
+		"signal_rate_limit":          true,
+		"wecom_crypto":               true,
+		"feishu_comment":             true,
+		"feishu_comment_rules":       true,
+		"yuanbao_media":              true,
+		"yuanbao_proto":              true,
+		"yuanbao_sticker":            true,
+		"whatsapp_common":            true,
 	}
 	var ids []string
 	for _, entry := range entries {
@@ -342,7 +357,7 @@ func readHermesGatewayConnectorIDs() ([]string, error) {
 		if strings.HasPrefix(id, "_") {
 			continue
 		}
-		if ignore[id] {
+		if ignore[id] || !platformSet[id] {
 			continue
 		}
 		ids = append(ids, id)
