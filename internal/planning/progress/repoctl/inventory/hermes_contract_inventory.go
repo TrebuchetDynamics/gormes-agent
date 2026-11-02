@@ -28,7 +28,10 @@ type HermesContractInventoryOptions struct {
 	MarkdownPath     string
 	CurrentHermesSHA string
 	Strict           bool
+	RequireLatest    bool
 	Now              func() time.Time
+	OriginRevision   func(context.Context, string) (string, error)
+	BaselineDelta    func(context.Context, string, string, string) (fidelity.BaselineDelta, error)
 }
 
 type HermesContractInventoryResult struct {
@@ -100,7 +103,10 @@ func BuildHermesContractInventory(opts HermesContractInventoryOptions) (fidelity
 		SourcePairsPath: opts.SourcePairsPath,
 		HermesSHA:       opts.CurrentHermesSHA,
 		Strict:          opts.Strict,
+		RequireLatest:   opts.RequireLatest,
 		Now:             opts.Now,
+		OriginRevision:  opts.OriginRevision,
+		BaselineDelta:   opts.BaselineDelta,
 	})
 }
 
