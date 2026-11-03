@@ -458,3 +458,51 @@ func sentTextContains(ch *fakeChannel, needle string) bool {
 	}
 	return false
 }
+
+func TestGatewayGoalSubgoalCommandAddRemoveListClear(t *testing.T) {
+	tg, fk, _, smap, _, stop := newGoalLoopHarness(t, nil, 5)
+	defer stop()
+
+	tg.pushInbound(goalEvent("/goal ship it", "m1"))
+	waitFor(t, 200*time.Millisecond, func() bool { return sentTextContains(tg, "Goal set") })
+
+	submits := fk.submitsSnapshot()
+	if len(submits) != 1 || strings.TrimSpace(submits[0].SessionID) == "" {
+		t.Fatalf("initial submits = %+v, want one with session id", submits)
+	}
+	sessionID := submits[0].SessionID
+
+	tg.pushInbound(goalEvent("/goal subgoal add tests pass", "m2"))
+	waitFor(t, 200*time.Millisecond, func() bool { return sentTextContains(tg, "Added subgoal 1") })
+	tg.pushInbound(goalEvent("/goal subgoal add docs pass", "m3"))
+	waitFor(t, 200*time.Millisecond, func() bool { return sentTextContains(tg, "Added subgoal 2") })
+	tg.pushInbound(goalEvent("/goal subgoal list", "m4"))
+	waitFor(t, 200*time.Millisecond, func() bool { return sentTextContains(tg, "2. docs pass") })
+	tg.pushInbound(goalEvent("/goal subgoal remove 1", "m5"))
+	waitFor(t, 200*time.Millisecond, func() bool { return sentTextContains(tg, "Removed subgoal 1.") })
+
+	goal, ok, err := session.LoadGoal(context.Background(), smap, sessionID)
+	if err != nil || !ok {
+		t.Fatalf("LoadGoal = %+v, %v, %v", goal, ok, err)
+	}
+	if len(goal.Subgoals) != 1 || goal.Subgoals[0] != "docs pass" {
+		t.Fatalf("subgoals = %#v, want docs pass", goal.Subgoals)
+	}
+
+	tg.pushInbound(goalEvent("/goal subgoal clear", "m6"))
+	waitFor(t, 200*time.Millisecond, func() bool { return sentTextContains(tg, "Cleared subgoals.") })
+	goal, ok, err = session.LoadGoal(context.Background(), smap, sessionID)
+	if err != nil || !ok {
+		t.Fatalf("LoadGoal after clear = %+v, %v, %v", goal, ok, err)
+	}
+	if len(goal.Subgoals) != 0 {
+		t.Fatalf("subgoals after clear = %#v", goal.Subgoals)
+	}
+}
+
+func TestGatewayGoalSubgoalCommandWithoutGoal(t *testing.T) {
+	tg, _, _, _, _, stop := newGoalLoopHarness(t, nil, 5)
+	defer stop()
+	tg.pushInbound(goalEvent("/goal subgoal list", "m1"))
+	waitFor(t, 200*time.Millisecond, func() bool { return sentTextContains(tg, "No goal set.") })
+}

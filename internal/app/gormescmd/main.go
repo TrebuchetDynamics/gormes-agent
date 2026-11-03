@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 
 	appgateway "github.com/TrebuchetDynamics/gormes-agent/internal/app/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/app/goalwiring"
 	appgoncho "github.com/TrebuchetDynamics/gormes-agent/internal/app/goncho"
 	navivoxapp "github.com/TrebuchetDynamics/gormes-agent/internal/app/navivox"
 	apptelegram "github.com/TrebuchetDynamics/gormes-agent/internal/app/telegram"
@@ -1826,6 +1827,8 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			return fetcher.Fetch(ctx, llm.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
 		MaxToolIterations: gormescli.ConfiguredMaxToolIterations(cfg),
+		GoalJudge:         goalwiring.BuildGoalJudgeFunc(hc, cfg.Hermes.Model),
+		GoalMaxTurns:      session.DefaultGoalMaxTurns,
 		VoiceModeStore:    voicemode.NewFileStore(voicemode.DefaultPath(config.GormesHome())),
 	}
 }
