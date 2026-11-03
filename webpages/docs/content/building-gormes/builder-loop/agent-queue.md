@@ -27,7 +27,27 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Terminal background process registry
+## 1. Retire Navivox CLI command tree
+
+- Phase: 9 / 9.I
+- Owner: `gateway`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Remove the `gormes navivox` command tree. Unregister it from internal/app/gormescmd/main.go, delete internal/app/navivox, and make `gormes navivox` exit with a stable not-supported message that points at the CLI, the native TUI, and supported chat gateways. Keep unrelated CLI help tests intact.
+- Trust class: operator
+- Ready when: The deprecation notices shipped so operators saw the warning first., The command has no callers outside the gormes CLI tree.
+- Not ready when: Gateway registration or config loading still imports internal/app/navivox., A removal would break a documented quickstart or installer path that has not been updated.
+- Degraded mode: An unknown command exits non-zero with guidance and performs no filesystem or network work.
+- Fixture: `internal/app/gormescmd/fresh_install_e2e_test.go; cmd-level help tests`
+- Write scope: `internal/app/gormescmd/`, `internal/app/navivox/`
+- Test commands: `go test ./internal/app/gormescmd -count=1`, `go test ./internal/app/navivox -count=1`
+- Done signal: The CLI tree no longer exposes Navivox, tests pin the guidance, and no build imports the removed package.
+- Acceptance: `gormes navivox pair` exits non-zero with not-supported guidance., `gormes --help` lists no navivox command., No package under internal/app/navivox remains.
+- Source refs: internal/app/gormescmd/main.go:navivox command registration, internal/app/navivox/command.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 2. Terminal background process registry
 
 - Phase: 5 / 5.L
 - Owner: `tools`
@@ -47,7 +67,7 @@ selection.
 - Source refs: ./hermes-agent/tools/code_execution_tool.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee, ./hermes-agent/tools/process_registry_ownership.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee, ./hermes-agent/tools/process_registry_termination.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee, ./hermes-agent/tools/process_registry_output_log.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee, ./hermes-agent/tools/process_registry_wait_policy.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee, internal/tools/terminal_tool.go, internal/tools/terminal_tool_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. TUI goal auto-continuation and judge
+## 3. TUI goal auto-continuation and judge
 
 - Phase: 5 / 5.Q
 - Owner: `tui`

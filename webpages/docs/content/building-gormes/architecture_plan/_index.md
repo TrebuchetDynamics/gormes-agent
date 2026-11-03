@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 105/112 subphases shipped · 7 in progress · 0 planned
+**Overall:** 105/113 subphases shipped · 8 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -103,7 +103,7 @@ classification and row-backed implementation queue.
 | Phase 6 — The Learning Loop (Soul) | ✅ | 12/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 4/7 subphases |
-| Phase 9 — Design & Security Hardening | ✅ | 8/8 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 8/9 subphases |
 
 ---
 
@@ -1636,7 +1636,7 @@ classification and row-backed implementation queue.
 - [x] `docs` Built-with-Gormes page scaffold
 - [x] `docs` Upstream Hermes user-stories static mirror
 
-## Phase 9 — Design & Security Hardening ✅
+## Phase 9 — Design & Security Hardening 🔨
 
 *Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
 
@@ -1700,6 +1700,17 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gateway channel registration degraded-status helper
 - [x] `channels` Telegram batch debouncer shared state helper
 - [x] `channels` Telegram render-send MarkdownV2 contract fixture
+
+### 9.I — Navivox Retirement 🔨
+
+- [x] `navivox` Navivox deprecation notices in CLI, setup guidance, and gateway logs
+- [x] `navivox` Navivox removed from README, landing, docs nav, and install prompt
+- [ ] `navivox` Retire Navivox CLI command tree
+- [ ] `navivox` Retire Navivox channel registration and setup plan
+- [ ] `navivox` Retire Navivox config schema with tolerant parsing
+- [ ] `navivox` Remove Navivox adapter, pairing, and setup packages
+- [ ] `navivox` Remove Navivox docs, landing mirrors, install residue, and CI jobs
+- [ ] `navivox` Retire Navivox progress module and navivox-telegram-ui skill
 
 <!-- PROGRESS:END -->
 

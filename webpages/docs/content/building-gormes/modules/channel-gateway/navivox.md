@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Channel Gateway
 **Module:** `navivox`
-**Rows:** 28
-**Status counts:** `complete`: 28 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 3 · `P1`: 19 · `unset`: 6
+**Rows:** 36
+**Status counts:** `complete`: 30 · `in_progress`: 0 · `planned`: 6
+**Priority counts:** `P0`: 3 · `P1`: 22 · `P2`: 3 · `P3`: 2 · `unset`: 6
 
 ## Phase 2 — The Gateway
 
@@ -72,3 +72,16 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `navivox` | Navivox voice run records Flutter inspection UI |
 | `complete` | `P1` | `navivox` | Navivox per-profile BYO voice profiles backend API |
 | `complete` | `P1` | `navivox` | Navivox per-profile BYO voice profiles Flutter UI |
+
+### 9.I — Navivox Retirement
+
+| Status | Priority | Module | Row |
+|---|---|---|---|
+| `complete` | `P1` | `navivox` | Navivox deprecation notices in CLI, setup guidance, and gateway logs |
+| `complete` | `P1` | `navivox` | Navivox removed from README, landing, docs nav, and install prompt |
+| `planned` | `P1` | `navivox` | Retire Navivox CLI command tree |
+| `planned` | `P2` | `navivox` | Retire Navivox channel registration and setup plan |
+| `planned` | `P2` | `navivox` | Retire Navivox config schema with tolerant parsing |
+| `planned` | `P2` | `navivox` | Remove Navivox adapter, pairing, and setup packages |
+| `planned` | `P3` | `navivox` | Remove Navivox docs, landing mirrors, install residue, and CI jobs |
+| `planned` | `P3` | `navivox` | Retire Navivox progress module and navivox-telegram-ui skill |

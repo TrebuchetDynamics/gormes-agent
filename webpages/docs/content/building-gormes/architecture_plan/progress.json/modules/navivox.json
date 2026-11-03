@@ -2157,5 +2157,454 @@
         "Navivox Flutter lets operators inspect and edit per-profile voice settings through the backend contract; secrets stay write-only and degraded voice states remain explicit."
       ]
     }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.I",
+    "pos": 0,
+    "item": {
+      "name": "Navivox deprecation notices in CLI, setup guidance, and gateway logs",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Mark the Navivox channel as deprecated at every operator entry point without changing runtime behavior. `gormes navivox` prints a cobra deprecation notice and keeps its subcommands invocable; channel setup guidance labels Navivox deprecated and names the supported surfaces; gateway registration logs a warning when the channel starts. Pairing, tokens, endpoints, and existing paired installs keep working.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "system"
+      ],
+      "degraded_mode": "A deprecation notice never blocks startup. Missing or failed log plumbing leaves registration behavior unchanged.",
+      "fixture": "internal/app/navivox/deprecation_test.go; internal/gateway/channelsetup/channel_setup_test.go; internal/app/gateway/navivox_registration_test.go",
+      "source_refs": [
+        "internal/app/navivox/command.go:NavivoxDeprecationNotice",
+        "internal/gateway/channelsetup/channel_setup.go:buildNavivoxSetupEntry",
+        "internal/app/gateway/channels.go:RegisterConfiguredGatewayChannels"
+      ],
+      "ready_when": [
+        "The owner declared Navivox a deprecated concept.",
+        "The command tree, setup plan, and gateway registration still compile and keep existing behavior."
+      ],
+      "acceptance": [
+        "TestNavivoxCommandPrintsDeprecationNotice proves the command tree prints one deprecation notice.",
+        "TestNavivoxPairHelpStaysInvocableWhileDeprecated proves the pair subcommand still renders its help.",
+        "TestChannelSetupNavivoxCarriesDeprecationWarning proves setup guidance labels Navivox deprecated.",
+        "TestGatewayNavivoxRegistrationLogsDeprecationWarning proves an enabled channel logs the warning."
+      ],
+      "note": "Ships after the owner declared Navivox a deprecated concept.",
+      "write_scope": [
+        "internal/app/navivox/command.go",
+        "internal/app/navivox/deprecation_test.go",
+        "internal/gateway/channelsetup/channel_setup.go",
+        "internal/gateway/channelsetup/channel_setup_test.go",
+        "internal/app/gateway/channels.go",
+        "internal/app/gateway/navivox_registration_test.go"
+      ],
+      "test_commands": [
+        "go test ./internal/app/navivox -run 'Deprecat' -count=1",
+        "go test ./internal/gateway/channelsetup -run 'Navivox' -count=1",
+        "go test ./internal/app/gateway -run 'Navivox' -count=1"
+      ],
+      "done_signal": [
+        "CLI, setup plan, and gateway log all carry the deprecation notice, and focused tests prove it."
+      ]
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.I",
+    "pos": 1,
+    "item": {
+      "name": "Navivox removed from README, landing, docs nav, and install prompt",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Stop presenting Navivox as a Gormes product concept. Remove Navivox from the README positioning, capability, quickstart, docs-link, and security bullets; remove it from the landing description and llms.txt capability list while marking it deprecated there; recommend CLI setup first in install.sh; add deprecation banners to the Navivox docs pages and remove their navigation entries. Existing pages stay reachable by URL.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "navivox",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Missing or unreadable marketing surfaces keep the previous copy. The docs pages remain reachable even when unlinked from navigation.",
+      "fixture": "webpages/docs/navivox_fdroid_docs_test.go; webpages/landing/legacy/go-renderer/internal/site/install_unix_test.go; webpages/landing/tests/home.spec.mjs",
+      "source_refs": [
+        "README.md",
+        "install.sh:print_setup_path_recommendation",
+        "webpages/landing/src/data/landing.js",
+        "webpages/landing/public/llms.txt",
+        "webpages/docs/content/operate/navivox-fdroid.md",
+        "webpages/docs/content/cli/channels/navivox.md"
+      ],
+      "ready_when": [
+        "The deprecation notices shipped so the CLI and docs agree.",
+        "Landing mirrors can be regenerated from the root install.sh."
+      ],
+      "acceptance": [
+        "README and landing copy no longer offer Navivox as a supported path.",
+        "llms.txt lists Navivox as deprecated instead of as a capability.",
+        "install.sh recommends CLI setup and labels Navivox deprecated.",
+        "Both Navivox docs pages carry a deprecation banner and are absent from the operate and CLI navigation tables."
+      ],
+      "note": "Landing mirrors are regenerated with node webpages/landing/scripts/sync-assets.mjs.",
+      "write_scope": [
+        "README.md",
+        "install.sh",
+        "webpages/landing/src/data/landing.js",
+        "webpages/landing/public/llms.txt",
+        "webpages/landing/public/install.sh",
+        "webpages/landing/tests/home.spec.mjs",
+        "webpages/landing/legacy/go-renderer/internal/site/install_unix_test.go",
+        "webpages/docs/content/operate/navivox-fdroid.md",
+        "webpages/docs/content/operate/_index.md",
+        "webpages/docs/content/cli/channels/navivox.md",
+        "webpages/docs/content/cli/_index.md"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs -run 'TestNavivoxFDroid|TestLandingPageDocs' -count=1",
+        "cd webpages/landing/legacy/go-renderer && go test ./internal/site -run 'InstallSH' -count=1",
+        "cd webpages/landing && npm run test:data && npm run test:sync-assets"
+      ],
+      "done_signal": [
+        "Public surfaces stop advertising Navivox, now say it is deprecated, and the docs, landing, and install tests pass."
+      ]
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.I",
+    "pos": 2,
+    "item": {
+      "name": "Retire Navivox CLI command tree",
+      "priority": "P1",
+      "status": "planned",
+      "contract": "Remove the `gormes navivox` command tree. Unregister it from internal/app/gormescmd/main.go, delete internal/app/navivox, and make `gormes navivox` exit with a stable not-supported message that points at the CLI, the native TUI, and supported chat gateways. Keep unrelated CLI help tests intact.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "An unknown command exits non-zero with guidance and performs no filesystem or network work.",
+      "fixture": "internal/app/gormescmd/fresh_install_e2e_test.go; cmd-level help tests",
+      "source_refs": [
+        "internal/app/gormescmd/main.go:navivox command registration",
+        "internal/app/navivox/command.go"
+      ],
+      "ready_when": [
+        "The deprecation notices shipped so operators saw the warning first.",
+        "The command has no callers outside the gormes CLI tree."
+      ],
+      "not_ready_when": [
+        "Gateway registration or config loading still imports internal/app/navivox.",
+        "A removal would break a documented quickstart or installer path that has not been updated."
+      ],
+      "blocked_by": [
+        "Navivox deprecation notices in CLI, setup guidance, and gateway logs"
+      ],
+      "acceptance": [
+        "`gormes navivox pair` exits non-zero with not-supported guidance.",
+        "`gormes --help` lists no navivox command.",
+        "No package under internal/app/navivox remains."
+      ],
+      "write_scope": [
+        "internal/app/gormescmd/",
+        "internal/app/navivox/"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gormescmd -count=1",
+        "go test ./internal/app/navivox -count=1"
+      ],
+      "done_signal": [
+        "The CLI tree no longer exposes Navivox, tests pin the guidance, and no build imports the removed package."
+      ]
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.I",
+    "pos": 3,
+    "item": {
+      "name": "Retire Navivox channel registration and setup plan",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Remove Navivox from gateway channel registration and setup planning: drop the Navivox factory from ChannelFactories, the registration branch and logs, the channelsetup entry, ProfileSetupChannelIDs membership, and gateway allowed-user synthesis. Gateway startup must not fail when a profile still lists navivox config.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "A config that still enables navivox starts without that channel and reports one deprecation warning instead of failing.",
+      "fixture": "internal/app/gateway/navivox_registration_test.go; internal/gateway/channelsetup/channel_setup_test.go",
+      "source_refs": [
+        "internal/app/gateway/channels.go",
+        "internal/gateway/channelsetup/channel_setup.go",
+        "internal/app/gormescmd/main.go:gatewayAllowedUsers"
+      ],
+      "ready_when": [
+        "The CLI tree no longer references Navivox.",
+        "The tolerant config path from the config retirement row is designed."
+      ],
+      "not_ready_when": [
+        "Removing registration would make an existing paired install fail to start instead of degrading.",
+        "Setup guidance still requires a Navivox entry for stable channel IDs."
+      ],
+      "blocked_by": [
+        "Retire Navivox CLI command tree"
+      ],
+      "acceptance": [
+        "No ChannelFactories.Navivox field or registration branch remains.",
+        "ProfileSetupChannelIDs excludes navivox.",
+        "A config with [channels.navivox] enabled starts and logs one deprecation warning."
+      ],
+      "write_scope": [
+        "internal/app/gateway/",
+        "internal/gateway/channelsetup/",
+        "internal/app/gormescmd/"
+      ],
+      "test_commands": [
+        "go test ./internal/app/gateway -count=1",
+        "go test ./internal/gateway/channelsetup -count=1"
+      ],
+      "done_signal": [
+        "Gateway and setup code no longer knows Navivox, and a legacy config still starts with warning evidence."
+      ]
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.I",
+    "pos": 4,
+    "item": {
+      "name": "Retire Navivox config schema with tolerant parsing",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Retire the Navivox config schema. Remove config.NavivoxCfg, the config/channels/navivox package, normalization and VPN bind validation, and profile config materialization. Keep config loading tolerant: `[channels.navivox]` and `[navivox]` keys are accepted-and-ignored with one deprecation warning so existing config.toml files do not fail to load.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator"
+      ],
+      "degraded_mode": "Unknown Navivox keys never fail config load; the loader reports one typed warning and continues with defaults.",
+      "fixture": "internal/config load tests with legacy navivox keys",
+      "source_refs": [
+        "internal/config/channels/navivox_config.go",
+        "internal/config/channels/navivox/",
+        "internal/config/config.go"
+      ],
+      "ready_when": [
+        "Gateway registration no longer reads Navivox config.",
+        "A documented tolerant-parse policy protects existing config.toml files."
+      ],
+      "not_ready_when": [
+        "Legacy navivox keys would abort config load or reset unrelated settings.",
+        "Profile config writers still emit navivox defaults."
+      ],
+      "blocked_by": [
+        "Retire Navivox channel registration and setup plan"
+      ],
+      "acceptance": [
+        "No config.NavivoxCfg type or navivox package remains.",
+        "A config.toml with [channels.navivox] loads, warns once, and keeps other settings.",
+        "Profile config output contains no navivox keys."
+      ],
+      "write_scope": [
+        "internal/config/"
+      ],
+      "test_commands": [
+        "go test ./internal/config/... -run 'Navivox|Legacy|Unknown' -count=1",
+        "go test ./internal/config -count=1"
+      ],
+      "done_signal": [
+        "Navivox leaves the config schema, legacy keys stay safe, and config tests prove the tolerant path."
+      ]
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.I",
+    "pos": 5,
+    "item": {
+      "name": "Remove Navivox adapter, pairing, and setup packages",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Delete the remaining Navivox runtime packages: internal/adapters/channels/navivox (HTTP/WebSocket channel, pairing, device credentials, profile admin, voice profiles), internal/config/channels/navivox, and internal/app/setupnavivox. Remove the factory wiring in DefaultChannelFactories and any session credential persistence that only serves paired Navivox devices, keeping unrelated channel and session behavior intact.",
+      "contract_status": "fixture_ready",
+      "slice_size": "large",
+      "execution_owner": "gateway",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "gateway"
+      ],
+      "degraded_mode": "Stored Navivox device credentials and pairing artifacts are ignored, not deleted, so an interrupted removal cannot destroy unrelated session state.",
+      "fixture": "internal/adapters/channels/ tests; internal/persistence/session tests",
+      "source_refs": [
+        "internal/adapters/channels/navivox/",
+        "internal/config/channels/navivox/",
+        "internal/app/setupnavivox/",
+        "internal/app/gateway/channels.go:DefaultChannelFactories"
+      ],
+      "ready_when": [
+        "No config or gateway code references Navivox packages.",
+        "A session-credential inventory proves no non-Navivox flow depends on the removed persistence."
+      ],
+      "not_ready_when": [
+        "The session credential store cannot separate Navivox-owned records from shared records.",
+        "Removal would change unrelated channel registration or session behavior."
+      ],
+      "blocked_by": [
+        "Retire Navivox config schema with tolerant parsing"
+      ],
+      "acceptance": [
+        "The three Navivox packages are gone and the repository builds.",
+        "No non-Navivox channel or session test changes meaning.",
+        "Stored Navivox artifacts are ignored without deletion."
+      ],
+      "write_scope": [
+        "internal/adapters/channels/",
+        "internal/config/channels/",
+        "internal/app/setupnavivox/",
+        "internal/app/gateway/",
+        "internal/persistence/session/"
+      ],
+      "test_commands": [
+        "go test ./internal/adapters/channels/... -count=1",
+        "go test ./internal/persistence/session -count=1",
+        "go build ./..."
+      ],
+      "done_signal": [
+        "Navivox runtime packages are deleted, the build is green, and unrelated channel and session tests still pass."
+      ]
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.I",
+    "pos": 6,
+    "item": {
+      "name": "Remove Navivox docs, landing mirrors, install residue, and CI jobs",
+      "priority": "P3",
+      "status": "planned",
+      "contract": "Remove the remaining Navivox surfaces: delete the Navivox docs pages and test file, drop Navivox rows and mentions from README, llms.txt, landing data and tests, remove the mirrored install.sh residue, delete the dedicated navivox CI job plus its -race package reference in ci.yml, release.yml, and release-prep.yml, and drop the Makefile Navivox test pattern.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "docs",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "A docs build with a stale internal link fails loudly; no redirect is invented.",
+      "fixture": "webpages/docs tests; webpages/landing tests; .github/workflows/ci.yml",
+      "source_refs": [
+        "webpages/docs/content/operate/navivox-fdroid.md",
+        "webpages/docs/navivox_fdroid_docs_test.go",
+        "webpages/landing/src/data/landing.js",
+        "webpages/landing/public/llms.txt",
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        ".github/workflows/release-prep.yml",
+        "Makefile"
+      ],
+      "ready_when": [
+        "No Go package or config surface remains to document.",
+        "Landing mirrors are regenerated from the root install.sh."
+      ],
+      "not_ready_when": [
+        "Docs or landing tests still assert the deprecated Navivox copy.",
+        "CI removal would drop coverage for a still-present package."
+      ],
+      "blocked_by": [
+        "Remove Navivox adapter, pairing, and setup packages"
+      ],
+      "acceptance": [
+        "No Navivox docs page, landing claim, or CI job remains.",
+        "Docs and landing builds pass without Navivox references.",
+        "The Makefile no longer names a Navivox test pattern."
+      ],
+      "write_scope": [
+        "webpages/docs/",
+        "webpages/landing/",
+        ".github/workflows/",
+        "Makefile",
+        "README.md",
+        "install.sh"
+      ],
+      "test_commands": [
+        "go test ./webpages/docs -count=1",
+        "cd webpages/landing/legacy/go-renderer && go test ./... -count=1",
+        "cd webpages/landing && npm run test:data && npm run test:sync-assets && npm run build"
+      ],
+      "done_signal": [
+        "Navivox is absent from docs, landing, install mirrors, and CI, and the public-surface gates pass."
+      ]
+    }
+  },
+  {
+    "phase": "9",
+    "subphase": "9.I",
+    "pos": 7,
+    "item": {
+      "name": "Retire Navivox progress module and navivox-telegram-ui skill",
+      "priority": "P3",
+      "status": "planned",
+      "contract": "Retire the Navivox backlog and skill surface. Remove the navivox progress module rows or mark them superseded through the typed backlog, delete development-skills/navivox-telegram-ui with its .agents, .claude, and .codex symlink views, and update skill indexes and validation lists so no loader advertises it.",
+      "contract_status": "fixture_ready",
+      "slice_size": "small",
+      "execution_owner": "docs",
+      "module": "navivox",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "A stale symlink is removed with the skill directory; a missing index entry is repaired from the canonical development-skills listing.",
+      "fixture": "go test ./internal/planning/progress -count=1; skill validation script",
+      "source_refs": [
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json/modules/navivox.json",
+        "development-skills/navivox-telegram-ui/SKILL.md",
+        "AGENTS.md skill routing table"
+      ],
+      "ready_when": [
+        "No runtime, docs, or CI surface remains for the Navivox lanes.",
+        "The typed backlog loader can drop the module without orphaning aliases."
+      ],
+      "not_ready_when": [
+        "Removing the module would break progress docs regeneration or alias pages.",
+        "Symlink loader views cannot be recreated safely from development-skills."
+      ],
+      "blocked_by": [
+        "Remove Navivox docs, landing mirrors, install residue, and CI jobs"
+      ],
+      "acceptance": [
+        "The navivox module has no active rows.",
+        "development-skills/navivox-telegram-ui and its three loader symlinks are gone.",
+        "Progress validation and docs regeneration pass."
+      ],
+      "write_scope": [
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "development-skills/",
+        ".agents/skills/",
+        ".claude/skills/",
+        ".codex/skills/",
+        "AGENTS.md"
+      ],
+      "test_commands": [
+        "go run ./cmd/progress validate",
+        "go run ./cmd/progress write",
+        "go test ./internal/planning/progress -count=1"
+      ],
+      "done_signal": [
+        "Navivox leaves the backlog and skill inventory, and progress validation plus docs regeneration pass."
+      ]
+    }
   }
 ]
