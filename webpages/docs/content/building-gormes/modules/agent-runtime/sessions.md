@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Agent Runtime
 **Module:** `sessions`
-**Rows:** 29
-**Status counts:** `complete`: 29 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P1`: 9 · `P2`: 5 · `P3`: 1 · `unset`: 14
+**Rows:** 30
+**Status counts:** `complete`: 30 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P1`: 9 · `P2`: 6 · `P3`: 1 · `unset`: 14
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -68,6 +68,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `sessions` | Kernel compression-boundary callback binding |
 | `complete` | `P1` | `sessions` | ContextEngine session-end hook on reset |
 | `complete` | `P1` | `sessions` | Gormes-owned session tree navigator over lineage and labels |
+| `complete` | `P2` | `sessions` | Context compression Skill Safety Rule handoff |
 
 ### 4.F — Title Generation
 

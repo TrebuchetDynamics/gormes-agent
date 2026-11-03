@@ -12,7 +12,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 **Module:** `tui`
 **Rows:** 74
 **Status counts:** `complete`: 73 · `in_progress`: 0 · `planned`: 1
-**Priority counts:** `P0`: 3 · `P1`: 17 · `P2`: 43 · `P3`: 1 · `unset`: 10
+**Priority counts:** `P0`: 3 · `P1`: 16 · `P2`: 43 · `P3`: 1 · `P4`: 1 · `unset`: 10
 
 ## Phase 1 — The Dashboard
 
@@ -102,7 +102,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P2` | `tui` | Native TUI /skin get-set binding |
 | `complete` | `P1` | `tui` | Native TUI voice record key uses voice toggle adapter |
 | `complete` | `P1` | `tui` | Native TUI live voice capture and playback parity |
-| `planned` | `P1` | `tui` | TUI goal auto-continuation and judge |
+| `planned` | `P4` | `tui` | TUI goal auto-continuation and judge |
 
 ## Phase 8 — Reputation & Publication
 

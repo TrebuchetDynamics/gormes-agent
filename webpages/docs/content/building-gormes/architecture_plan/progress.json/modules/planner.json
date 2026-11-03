@@ -723,7 +723,7 @@
         "TestCompletionPlanCurrentFinishLedgerMatchesProgress passes after the new rows are saved.",
         "Every new feature-bearing family in the delta report maps to a saved row or a source-backed exclusion."
       ],
-      "note": "Plan round 1 of a rolling always-upstream chain. Round 2 starts only after the baseline, delta report, and gate are green; stop the chain by moving this row out of planned when the owner pauses upstream tracking.",
+      "note": "Plan round 1 of a rolling always-upstream chain. Round 2 starts only after the baseline, delta report, and gate are green; stop the chain by moving this row out of planned when the owner pauses upstream tracking. Owner scope 2026-11-02: app/UI families (apps, ui-tui, web, assets) are deferred. Round 2 covers runtime, CLI, gateway, provider, tools, memory, and security families only until UI focus is re-enabled.",
       "write_scope": [
         "webpages/docs/parity-evidence/",
         "webpages/docs/content/building-gormes/architecture_plan/"

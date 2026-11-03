@@ -4993,7 +4993,7 @@
     "pos": 84,
     "item": {
       "name": "TUI goal auto-continuation and judge",
-      "priority": "P1",
+      "priority": "P4",
       "status": "planned",
       "contract": "Finish the in-flight native TUI goal slice. On each idle frame after a goal turn, increment the turn count once, evaluate an injected goal judge, pause at the budget, and submit the continuation prompt exactly once. Paused, done, cleared, cancelled, queued, and failed turns must not continue. The judge fails open on missing or malformed output.",
       "contract_status": "fixture_ready",
@@ -5032,6 +5032,7 @@
         "TestGoalAfterIdleJudgeDone proves a done verdict marks the goal done and submits nothing.",
         "TestGoalAfterIdleSkipsPausedQueuedCancelled proves paused, queued, cancelled, and failed turns do not continue."
       ],
+      "note": "Owner deferred app/UI focus on 2026-11-02. The gateway goal judge and subgoal control are complete; TUI auto-continuation and the TUI judge presentation wait until the owner re-enables UI work. Keep the row planned and do not select it for the active queue.",
       "write_scope": [
         "internal/tui/goal/",
         "internal/tui/",

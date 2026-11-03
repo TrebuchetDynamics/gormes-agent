@@ -1062,6 +1062,64 @@
   },
   {
     "phase": "4",
+    "subphase": "4.B",
+    "pos": 17,
+    "item": {
+      "name": "Context compression Skill Safety Rule handoff",
+      "priority": "P2",
+      "status": "complete",
+      "contract": "Pruned skill_view results carry the upstream [SKILL_PRUNED:...] reload marker. The compaction summary carries a ## Pruned Skills block with each marker and the Skill Safety Rule exactly once. Fresh guidance no longer carries the rule. Repeated compaction removes an existing rule copy and re-adds one.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "module": "sessions",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "Without a skill prune marker the rule is absent. If the summary cannot be generated, the pure pruning fallback still carries markers and the rule once.",
+      "fixture": "internal/llm/context_compressor_skill_safety_test.go",
+      "source_refs": [
+        "./hermes-agent/agent/context_compressor.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee:SKILL_PRUNED_MARKER_PREFIX,_skill_pruned_marker",
+        "./hermes-agent/agent/context_compressor_tail.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee:SKILL_SAFETY_RULE,with_skill_safety_rule",
+        "./hermes-agent/tests/agent/test_compression_skill_safety_single_copy.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee",
+        "internal/llm/context_compressor_pruning.go",
+        "internal/llm/context_compressor_skill_safety_test.go"
+      ],
+      "ready_when": [
+        "The pure pruning helper can identify skill_view tool calls and their skill name arguments.",
+        "The summary is normalized before the rule is appended.",
+        "The rule and marker constants are available in the pruning package."
+      ],
+      "not_ready_when": [
+        "The rule is injected into fresh sessions without a prune marker.",
+        "More than one rule copy survives one compaction.",
+        "A pruned skill result lacks the reload pointer."
+      ],
+      "acceptance": [
+        "TestSummarizePrunedSkillViewAddsReloadMarker proves a pruned skill_view result carries the canonical marker and reload pointer.",
+        "TestPruneContextMessagesAddsSkillSafetyRuleOnce proves the summary gains a Pruned Skills block and exactly one rule copy when a marker exists.",
+        "TestPruneContextMessagesOmitsSkillSafetyRuleWithoutMarker proves fresh/no-marker transcripts do not gain the rule.",
+        "TestWithoutSkillSafetyRuleRemovesExistingCopy proves an older rule copy is removed before re-adding one."
+      ],
+      "note": "Complete 2026-11-02 against upstream 197f16a12b. Added the upstream Skill Safety Rule to the pure pruning handoff, including the Pruned Skills summary block, reload markers, one-copy enforcement, and fresh-guidance exclusion.",
+      "write_scope": [
+        "internal/llm/context_compressor_pruning.go",
+        "internal/llm/context_compressor_skill_safety_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/llm -run 'Skill|PruneContextMessages' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Pruned skill results carry a reload marker, the compaction handoff carries the Skill Safety Rule exactly once, and fresh guidance stays rule-free."
+      ]
+    }
+  },
+  {
+    "phase": "4",
     "subphase": "4.F",
     "pos": 0,
     "item": {

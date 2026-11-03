@@ -91,12 +91,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 104/112 subphases shipped · 8 in progress · 0 planned
+**Overall:** 105/112 subphases shipped · 7 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
+| Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 20/23 subphases |
@@ -164,7 +164,7 @@ classification and row-backed implementation queue.
 - [x] `install` Termux real-device smoke evidence
 - [x] `install` Termux remote execution guidance
 
-## Phase 2 — The Gateway 🔨
+## Phase 2 — The Gateway ✅
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -412,7 +412,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Mirror + sticker cache surfaces
 - [x] `gateway` Gateway delivery evidence in operator run report
 
-### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy 🔨
+### 2.F.5 — Gateway Mid-Run Steering + Active-Turn Policy ✅
 
 - [x] `gateway` Steer slash command parser + preview helper
 - [x] `gateway` Steer slash command registry + queue fallback
@@ -420,7 +420,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Gateway-handled slash commands bypass active-session guard
 - [x] `gateway` Gateway persistent goal loop + continuation judge
 - [x] `gateway` Gateway/TUI /queue explicit FIFO slash parity
-- [ ] `gateway` Gateway goal judge and subgoal command
+- [x] `gateway` Gateway goal judge and subgoal command
 
 ### 2.G — OS-AI Spine: Skills Runtime ✅
 
@@ -635,6 +635,7 @@ classification and row-backed implementation queue.
 - [x] `sessions` Kernel compression-boundary callback binding
 - [x] `sessions` ContextEngine session-end hook on reset
 - [x] `sessions` Gormes-owned session tree navigator over lineage and labels
+- [x] `sessions` Context compression Skill Safety Rule handoff
 
 ### 4.C — Native Prompt Builder ✅
 
@@ -957,7 +958,7 @@ classification and row-backed implementation queue.
 
 - [x] `tools` Sandboxed exec
 
-### 5.L — File Ops + Patches ✅
+### 5.L — File Ops + Patches 🔨
 
 - [x] `tools` Atomic file write helper with temp+rename pattern
 - [x] `tools` File tool atomic checkpoint integration
@@ -986,6 +987,7 @@ classification and row-backed implementation queue.
 - [x] `tools` Patch replace post-write verification
 - [x] `tools` Hermes LSP write-time semantic diagnostics
 - [x] `tools` Per-file mutation queue for native write edit and patch tools
+- [ ] `tools` Terminal background process registry
 
 ### 5.M — Mixture of Agents ✅
 
@@ -1094,7 +1096,7 @@ classification and row-backed implementation queue.
 - [x] `tools` OSV malware advisory check for MCP package launch
 - [x] `tools` Hermes toolset distribution manifest and deterministic sampler
 
-### 5.O — Hermes CLI Parity 🔨
+### 5.O — Hermes CLI Parity ✅
 
 - [x] `cli` 49-file CLI tree port
 - [x] `cli` Hermes CLI command-tree parity manifest
@@ -1242,7 +1244,7 @@ classification and row-backed implementation queue.
 - [x] `providers` Bitwarden secrets setup wizard
 - [x] `providers` Bitwarden disk cache parity
 - [x] `providers` Credential-pool borrowed-source disk boundary
-- [ ] `providers` Hermes auth priority credential reordering
+- [x] `providers` Hermes auth priority credential reordering
 
 ### 5.P — Docker / Packaging ✅
 

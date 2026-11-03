@@ -11,7 +11,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 **Module group:** Provider Models
 **Module:** `providers`
 **Rows:** 132
-**Status counts:** `complete`: 131 · `in_progress`: 0 · `planned`: 1
+**Status counts:** `complete`: 132 · `in_progress`: 0 · `planned`: 0
 **Priority counts:** `P0`: 9 · `P1`: 61 · `P2`: 24 · `P3`: 3 · `unset`: 35
 
 ## Phase 3 — The Black Box (Memory)
@@ -226,7 +226,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `providers` | Bitwarden secrets setup wizard |
 | `complete` | `P1` | `providers` | Bitwarden disk cache parity |
 | `complete` | `P1` | `providers` | Credential-pool borrowed-source disk boundary |
-| `planned` | `P1` | `providers` | Hermes auth priority credential reordering |
+| `complete` | `P1` | `providers` | Hermes auth priority credential reordering |
 
 ## Phase 6 — The Learning Loop (Soul)
 

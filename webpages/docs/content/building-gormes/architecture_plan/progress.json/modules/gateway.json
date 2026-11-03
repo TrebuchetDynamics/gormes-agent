@@ -5909,9 +5909,9 @@
     "item": {
       "name": "Gateway goal judge and subgoal command",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Wire a production goal judge into the gateway manager and add the missing /goal subgoal add|remove|list|clear command. The judge uses the auxiliary model slot, fails open to continue on transport or parse errors, and marks done only on an explicit done verdict. Subgoals persist in GoalState.Subgoals and appear in /goal status and the continuation prompt.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "gateway",
       "module": "gateway",
@@ -5947,18 +5947,20 @@
         "TestGatewayGoalContinuationUsesSubgoals proves the continuation prompt includes all stored subgoals.",
         "TestGatewayGoalSubgoalCommandAddRemoveList proves add, remove, and list persist in GoalState.Subgoals and appear in status."
       ],
+      "note": "Complete 2026-11-02. Wired goalwiring.BuildGoalJudgeFunc into gatewayManagerConfig using the provider client and main model. The judge asks for a strict one-line JSON done/continue verdict, bounds the response snippet to 4,000 characters and output to 64 KiB, and fails open on client or parse errors. Added gateway /goal subgoal add|remove|list|clear with GoalState.Subgoals persistence, status/continuation inclusion, and gateway tests. The goal loop marks done only on an explicit done verdict, continues otherwise, pauses at budget, and includes subgoals in the continuation prompt. TUI auto-continuation remains the separate TUI goal row.",
       "write_scope": [
         "internal/gateway/",
         "internal/app/gateway/",
         "internal/app/gormescmd/",
         "internal/persistence/session/",
         "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
-        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/app/goalwiring/"
       ],
       "test_commands": [
-        "go test ./internal/gateway -run 'Goal' -count=1",
+        "go test ./internal/app/goalwiring ./internal/gateway -run 'Goal' -count=1",
         "go test ./internal/persistence/session -run 'Goal' -count=1",
-        "go test ./internal/app/gateway -count=1",
+        "go test ./internal/app/gormescmd -count=1",
         "go run ./cmd/progress validate"
       ],
       "done_signal": [

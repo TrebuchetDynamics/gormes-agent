@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Agent Runtime
 **Module:** `tools`
-**Rows:** 162
-**Status counts:** `complete`: 161 · `in_progress`: 0 · `planned`: 1
-**Priority counts:** `P0`: 23 · `P1`: 67 · `P2`: 36 · `P3`: 8 · `P4`: 2 · `unset`: 26
+**Rows:** 163
+**Status counts:** `complete`: 161 · `in_progress`: 0 · `planned`: 2
+**Priority counts:** `P0`: 23 · `P1`: 67 · `P2`: 37 · `P3`: 8 · `P4`: 2 · `unset`: 26
 
 ## Phase 3 — The Black Box (Memory)
 
@@ -189,6 +189,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P1` | `tools` | Patch replace post-write verification |
 | `complete` | `P1` | `tools` | Hermes LSP write-time semantic diagnostics |
 | `complete` | `P1` | `tools` | Per-file mutation queue for native write edit and patch tools |
+| `planned` | `P2` | `tools` | Terminal background process registry |
 
 ### 5.N — Misc Operator Tools
 

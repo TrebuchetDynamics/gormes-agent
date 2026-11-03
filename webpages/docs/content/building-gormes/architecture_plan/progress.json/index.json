@@ -393,7 +393,7 @@
             "last_upstream_check": "2026-05-09T12:28:42-07:00",
             "origin_decision": "Hermes e90aa7f28 is current after sync. Prior context-engine compression, budget, and boundary rows remain complete or row-backed. New Hermes #22764 fixes commit_memory_session so context_compressor.on_session_end fires when a session id rotates; Gormes has ContextEngine.OnSessionEnd but reset/session-rotation only called OnSessionReset after clearing state. Track the bounded P1 row `ContextEngine session-end hook on reset` rather than reopening compression, memory extraction, or gateway reset umbrella rows."
           },
-          "item_count": 17
+          "item_count": 18
         },
         {
           "id": "4.C",
@@ -602,7 +602,7 @@
             "last_upstream_check": "2026-05-10T00:00:00Z",
             "origin_decision": "Hermes ce374bc1b plus recent file-operation rows show the remaining File Ops + Patches weakness is full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, structured JSON/YAML/TOML lint-delta evidence, Python syntax lint-delta evidence, shell-linter lint-delta evidence, replace-mode no-match did-you-mean hints, core fuzzy replace strategies, unicode-normalized replace strategies, block-anchor fuzzy replace, V4A fuzzy hunk matching, V4A apply rollback, context-aware fuzzy replacement, and replace-mode post-write verification validated. The 2026-05-10 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned item rows were 15 before adding the post-write verification row, below the 90 cap; higher-priority P1 rows remained operator-blocked or broad, so the sweep selected and completed `Patch replace post-write verification` as the next small builder-ready runtime slice."
           },
-          "item_count": 27
+          "item_count": 28
         },
         {
           "id": "5.M",
