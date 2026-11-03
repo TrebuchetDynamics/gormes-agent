@@ -337,6 +337,7 @@ func RegisterConfiguredGatewayChannels(
 			return registered, fmt.Errorf("register navivox: %w", err)
 		}
 		registered++
+		log.Warn("gateway: navivox channel is deprecated and will be removed; prefer the CLI, the native TUI, or a supported chat gateway")
 		log.Info("gateway: navivox channel enabled",
 			"bind_host", cfg.Navivox.BindHost,
 			"port", cfg.Navivox.Port,

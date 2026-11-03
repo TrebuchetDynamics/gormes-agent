@@ -627,3 +627,12 @@ func findChannelSetupEntry(t *testing.T, plan ChannelSetupPlan, id string) Chann
 	t.Fatalf("missing channel setup entry %q in %+v", id, plan.Channels)
 	return ChannelSetupEntry{}
 }
+
+func TestChannelSetupNavivoxCarriesDeprecationWarning(t *testing.T) {
+	plan := BuildChannelSetupPlan(config.Config{})
+	entry := findChannelSetupEntry(t, plan, "navivox")
+	warnings := strings.Join(entry.Warnings, "\n")
+	if !strings.Contains(warnings, "Navivox is deprecated and will be removed") {
+		t.Fatalf("navivox warnings = %v, want deprecation warning", entry.Warnings)
+	}
+}

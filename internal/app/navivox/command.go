@@ -58,10 +58,17 @@ func NewCommand(opts CommandOptions) *cobra.Command {
 	return newNavivoxCommand()
 }
 
+// NavivoxDeprecationNotice is the single user-facing deprecation sentence for
+// the Navivox channel. Navivox is a retired product concept: the command tree
+// stays invocable for paired operators until the removal slices land.
+const NavivoxDeprecationNotice = "Navivox is deprecated and will be removed; use the CLI, the native TUI, or a supported chat gateway."
+
 func newNavivoxCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "navivox",
-		Short: "Navivox HTTP channel utilities",
+		Use:        "navivox",
+		Short:      "Navivox HTTP channel utilities (deprecated)",
+		Long:       "Navivox HTTP channel utilities.\n\nDeprecated: " + NavivoxDeprecationNotice,
+		Deprecated: NavivoxDeprecationNotice,
 	}
 	cmd.AddCommand(newNavivoxPairCommand())
 	return cmd

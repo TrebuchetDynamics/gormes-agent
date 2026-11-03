@@ -353,6 +353,7 @@ func buildNavivoxSetupEntry(cfg config.NavivoxCfg) ChannelSetupEntry {
 		ID:             "navivox",
 		DisplayName:    "Navivox",
 		RequiredFields: []string{"profiles.<id>.channels.navivox.credential", "credentials.<id>.secret_ref when token auth is enabled", "navivox.enabled", "navivox.bind_host", "navivox.auth_mode"},
+		Warnings:       []string{"Navivox is deprecated and will be removed; prefer the CLI, the native TUI, or a supported chat gateway."},
 		NextCommand:    "gormes setup gateway",
 	}
 	if cfg.Enabled {
