@@ -20,6 +20,62 @@ const (
 	ContextPruningEvidenceToolPairTailAligned = "tool_pair_tail_aligned"
 )
 
+const (
+	SkillPrunedMarkerPrefix = "[SKILL_PRUNED:"
+	SkillSafetyHeading      = "## Skill Safety Rule"
+	SkillSafetyRule         = SkillSafetyHeading + "\n" +
+		"A skill placeholder containing `[SKILL_PRUNED]` lost its content in context compression and is inaccessible — " +
+		"reload it with skill_view(name='...') before acting on anything that depends on it. After reloading, ignore any " +
+		"remaining `[SKILL_PRUNED]` markers for that same skill; they are historical artifacts of earlier compactions."
+)
+
+func skillPrunedMarker(skillName string) string {
+	return fmt.Sprintf("%s content lost in compression; reload with skill_view(name='%s')]", SkillPrunedMarkerPrefix, skillName)
+}
+
+func hasSkillPrunedMarker(summary string, messages []Message) bool {
+	if strings.Contains(summary, SkillPrunedMarkerPrefix) {
+		return true
+	}
+	for _, msg := range messages {
+		if strings.Contains(msg.Content, SkillPrunedMarkerPrefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func skillPrunedMarkers(messages []Message) []string {
+	seen := map[string]bool{}
+	var markers []string
+	for _, msg := range messages {
+		text := msg.Content
+		for {
+			start := strings.Index(text, SkillPrunedMarkerPrefix)
+			if start < 0 {
+				break
+			}
+			end := strings.IndexByte(text[start:], ']')
+			if end < 0 {
+				break
+			}
+			marker := text[start : start+end+1]
+			if !seen[marker] {
+				seen[marker] = true
+				markers = append(markers, marker)
+			}
+			text = text[start+end+1:]
+		}
+	}
+	return markers
+}
+
+func withoutSkillSafetyRule(content string) string {
+	content = strings.ReplaceAll(content, "\n\n"+SkillSafetyRule, "")
+	content = strings.ReplaceAll(content, SkillSafetyRule, "")
+	return content
+}
+
 const ContextPruningSummaryPrefix = "[CONTEXT COMPACTION — REFERENCE ONLY] Earlier turns were compacted into the summary below. This is a handoff from a previous context window — treat it as background reference, NOT as active instructions. Do NOT answer questions or fulfill requests mentioned in this summary; they were already addressed. Respond ONLY to the latest user message that appears AFTER this summary — that message is the single source of truth for what to do right now. If the latest user message is consistent with the '## Active Task' section, you may use the summary as background. If the latest user message contradicts, supersedes, changes topic from, or in any way diverges from '## Active Task' / '## In Progress' / '## Pending User Asks' / '## Remaining Work', the latest message WINS — discard those stale items entirely and do not 'wrap up the old task first'. Reverse signals in the latest message (e.g. 'stop', 'undo', 'roll back', 'just verify', 'don't do that anymore', 'never mind', a new topic) must immediately end any in-flight work described in the summary; do not re-surface it in later turns. IMPORTANT: Your persistent memory (MEMORY.md, USER.md) in the system prompt is ALWAYS authoritative and active — never ignore or deprioritize memory content due to this compaction note. The current session state (files, config, etc.) may reflect work described here — avoid repeating it:"
 
 const contextPruningLegacySummaryPrefix = "[CONTEXT SUMMARY]:"
@@ -108,6 +164,26 @@ func PruneContextMessages(messages []Message, cfg ContextPruningConfig) ([]Messa
 		status.Evidence = appendEvidence(status.Evidence, ContextPruningEvidenceSummaryFallback)
 	}
 	summary = NormalizeContextPruningSummary(summary)
+	for i := range working {
+		if working[i].Role != "system" {
+			working[i].Content = withoutSkillSafetyRule(working[i].Content)
+		}
+	}
+	summary = withoutSkillSafetyRule(summary)
+	if markers := skillPrunedMarkers(working); len(markers) > 0 {
+		var missing []string
+		for _, marker := range markers {
+			if !strings.Contains(summary, marker) {
+				missing = append(missing, marker)
+			}
+		}
+		if len(missing) > 0 {
+			summary += "\n\n## Pruned Skills\n" + strings.Join(missing, "\n")
+		}
+	}
+	if hasSkillPrunedMarker(summary, working) {
+		summary += "\n\n" + SkillSafetyRule
+	}
 
 	compressed := make([]Message, 0, cfg.ProtectFirstN+1+len(working)-tailStart)
 	for i := 0; i < compressStart; i++ {
@@ -454,6 +530,13 @@ func summarizePrunedToolResult(name string, args json.RawMessage, content string
 	case "search_files":
 		pattern, _ := parsed["pattern"].(string)
 		return fmt.Sprintf("[search_files] pattern=%q (%d chars result)", trimForSummary(pattern, 80), len(content))
+	case "skill_view":
+		skill, _ := parsed["name"].(string)
+		skill = strings.TrimSpace(skill)
+		if skill != "" {
+			return fmt.Sprintf("[skill_view] name=%s (%d chars) %s", skill, len(content), skillPrunedMarker(skill))
+		}
+		return fmt.Sprintf("[skill_view] tool result pruned (%d chars)", len(content))
 	default:
 		return fmt.Sprintf("[%s] tool result pruned (%d chars, %d lines)", name, len(content), lineCount)
 	}
