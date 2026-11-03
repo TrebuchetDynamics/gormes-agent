@@ -1848,13 +1848,13 @@ setup_already_configured() {
 print_setup_path_recommendation() {
   log ""
   log_section "⚙ Setup"
-  log "  1. Navivox (recommended)"
-  log "     Pair your Android app and continue setup there."
-  log "  2. CLI setup"
+  log "  1. CLI setup (recommended)"
   log "     Continue fully in terminal."
+  log "  2. Navivox app (deprecated)"
+  log "     Pair your Android app; this path will be removed."
   log ""
-  log_info "Recommended: gormes navivox pair"
-  log_info "CLI setup:   gormes setup"
+  log_info "Recommended: gormes setup"
+  log_info "Deprecated:  gormes navivox pair"
 }
 
 run_setup_wizard() {
@@ -2267,7 +2267,6 @@ print_summary() {
     log "  2. gormes"
   else
     log "  2. gormes setup"
-    log "     or: gormes navivox pair"
   fi
   log "  3. gormes gateway status"
 
@@ -2601,7 +2600,7 @@ print_setup_wizard_plan() {
   elif setup_already_configured; then
     log "  setup      skip (existing config)"
   else
-    log "  setup      recommended (Navivox pairing available)"
+    log "  setup      recommended"
   fi
 }
 

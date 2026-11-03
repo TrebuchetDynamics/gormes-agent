@@ -2,7 +2,7 @@
 
 Gormes is a local-first Go AI agent runtime for running local or server-side
 agents from one static binary with offline diagnostics, SQLite memory, provider
-chat, trusted gateways, and optional Navivox mobile pairing.
+chat, and trusted gateways.
 
 ## Core Positioning
 
@@ -25,7 +25,10 @@ chat, trusted gateways, and optional Navivox mobile pairing.
 - Dashboard
 - Hermes-style skills and tools in the Go runtime
 - Telegram, Discord, and Slack gateways
-- Experimental Navivox mobile control app for local or remote Gormes runtimes
+
+## Deprecated
+
+- Navivox mobile app channel: deprecated and will be removed; kept for existing paired installs only
 
 ## Install
 

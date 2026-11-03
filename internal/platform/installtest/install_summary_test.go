@@ -39,11 +39,13 @@ func TestInstall_PrintSummaryHermesStyleChromeAndNextSteps(t *testing.T) {
 		"gormes setup",
 		"Next steps",
 		"gormes doctor --offline",
-		"gormes navivox pair",
 		"Web",
 	} {
 		if !strings.Contains(summary, want) {
 			t.Fatalf("summary missing %q\nsummary:\n%s", want, summary)
 		}
+	}
+	if strings.Contains(summary, "navivox") {
+		t.Fatalf("install summary still advertises the deprecated Navivox path:\n%s", summary)
 	}
 }

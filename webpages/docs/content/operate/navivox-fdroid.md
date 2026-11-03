@@ -5,6 +5,8 @@ description: "Why Navivox should treat F-Droid as its natural Android distributi
 
 # Navivox and F-Droid
 
+> **Deprecated:** Navivox is a retired product concept. This page stays for existing paired installs and will be removed. Use the CLI, the native TUI, or a supported chat gateway instead.
+
 F-Droid is the open-source Android app store: closer to a Linux package manager
 for Android than a commercial app mall. That makes it culturally aligned with
 Navivox users who already live in Termux, self-hosting, privacy tooling, local

@@ -52,7 +52,6 @@ gormes <command> --help
 | [`gormes memory`](runtime/memory/) | Inspect persisted memory and extractor state |
 | [`gormes migrate`](extensions/migrate/) | Migrate state from upstream agents into Gormes (dry-run only in this slice) |
 | [`gormes model`](setup/model/) | Interactively select the active model/provider |
-| [`gormes navivox`](channels/navivox/) | Navivox HTTP channel utilities |
 | [`gormes plugins`](extensions/plugins/) | Manage Hermes-compatible plugins |
 | [`gormes providers`](setup/providers/) | Show provider setup commands |
 | [`gormes profile`](setup/profile/) | Inspect and switch the active Gormes profile |

@@ -26,7 +26,7 @@ test('homepage sells the short buyer-focused landing', async ({ page }) => {
 
   await expect(page.locator('meta[name="description"]')).toHaveAttribute(
     'content',
-    'Gormes is a Go-native AI agent runtime for local or server-side agents with offline diagnostics, SQLite memory, provider chat, dashboards, trusted gateways, and experimental Navivox phone pairing.',
+    'Gormes is a Go-native AI agent runtime for local or server-side agents with offline diagnostics, SQLite memory, provider chat, dashboards, and trusted gateways.',
   );
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://gormes.ai/');
   await expect(page.locator('link[rel="sitemap"]')).toHaveAttribute('href', '/sitemap.xml');
@@ -150,7 +150,8 @@ test('static SEO helper files are shipped', async ({ page }) => {
   expect(llmsText).toContain('Hermes agent alternative');
   expect(llmsText).toContain('Local AI agent runtime');
   expect(llmsText).toContain('AI gateway runtime');
-  expect(llmsText).toContain('Experimental Navivox mobile control app');
+  expect(llmsText).toContain('Navivox mobile app channel: deprecated');
+  expect(llmsText).not.toContain('Experimental Navivox mobile control app');
 
   const redirects = readFileSync(new URL('../public/_redirects', import.meta.url), 'utf8');
   expect(redirects).toContain('/install https://docs.gormes.ai/install/ 302');

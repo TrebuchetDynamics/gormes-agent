@@ -820,10 +820,11 @@ func TestInstallSH_DefaultInstallNarratesHermesStyleExperience(t *testing.T) {
 		"✓ gormes command ready",
 		"→ Setup wizard skipped (no terminal available).",
 		"Gormes installed",
-		"1. Navivox (recommended)",
-		"Pair your Android app and continue setup there.",
-		"→ Recommended: gormes navivox pair",
-		"→ CLI setup:   gormes setup",
+		"1. CLI setup (recommended)",
+		"Continue fully in terminal.",
+		"2. Navivox app (deprecated)",
+		"→ Recommended: gormes setup",
+		"Deprecated:  gormes navivox pair",
 	} {
 		if !strings.Contains(cleanOut, want) {
 			t.Fatalf("install output missing %q\n%s", want, out)
@@ -844,7 +845,7 @@ func TestInstallSH_DefaultInstallNarratesHermesStyleExperience(t *testing.T) {
 	}
 }
 
-func TestInstallSH_DefaultInstallRecommendsNavivoxFirstSetupPath(t *testing.T) {
+func TestInstallSH_DefaultInstallRecommendsCLIFirstSetupPath(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
 	fakebin, logPath := writeFakeUnixToolchain(t, root)
@@ -863,11 +864,11 @@ func TestInstallSH_DefaultInstallRecommendsNavivoxFirstSetupPath(t *testing.T) {
 
 	for _, want := range []string{
 		"Gormes installed",
-		"1. Navivox (recommended)",
-		"Pair your Android app and continue setup there.",
-		"2. CLI setup",
+		"1. CLI setup (recommended)",
 		"Continue fully in terminal.",
-		"→ Recommended: gormes navivox pair",
+		"2. Navivox app (deprecated)",
+		"Pair your Android app; this path will be removed.",
+		"→ Recommended: gormes setup",
 	} {
 		if !strings.Contains(cleanOut, want) {
 			t.Fatalf("install output missing %q:\n%s", want, out)
@@ -880,7 +881,7 @@ func TestInstallSH_DefaultInstallRecommendsNavivoxFirstSetupPath(t *testing.T) {
 	}
 	log := readTextFile(t, logPath)
 	if strings.Contains(log, "built-gormes setup") {
-		t.Fatalf("default install invoked terminal setup instead of recommending navivox pair:\n%s", log)
+		t.Fatalf("default install invoked terminal setup instead of recommending setup paths:\n%s", log)
 	}
 }
 
@@ -920,7 +921,7 @@ func TestInstallSH_LocalInstallSkipsSetupRecommendationWhenConfigAlreadyExists(t
 			t.Fatalf("local install output missing %q:\n%s", want, out)
 		}
 	}
-	for _, reject := range []string{"1. Navivox (recommended)", "→ Recommended: gormes navivox pair", "→ CLI setup:   gormes setup"} {
+	for _, reject := range []string{"1. CLI setup (recommended)", "→ Recommended: gormes setup", "2. Navivox app (deprecated)"} {
 		if strings.Contains(cleanOut, reject) {
 			t.Fatalf("local install with existing setup should not show setup recommendation %q:\n%s", reject, out)
 		}

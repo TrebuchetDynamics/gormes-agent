@@ -5,6 +5,8 @@ description: "Navivox HTTP channel utilities"
 
 # gormes navivox
 
+> **Deprecated:** Navivox is a retired product concept. The command stays usable for existing paired installs and will be removed. Use the CLI, the native TUI, or a supported chat gateway instead.
+
 Navivox HTTP/WebSocket channel utilities.
 
 ## Synopsis

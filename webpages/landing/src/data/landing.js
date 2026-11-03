@@ -17,7 +17,7 @@ export const page = {
   siteUrl: site.url,
   title: 'Gormes — Run AI Agents Anywhere from One Go Binary',
   description:
-    'Gormes is a Go-native AI agent runtime for local or server-side agents with offline diagnostics, SQLite memory, provider chat, dashboards, trusted gateways, and experimental Navivox phone pairing.',
+    'Gormes is a Go-native AI agent runtime for local or server-side agents with offline diagnostics, SQLite memory, provider chat, dashboards, and trusted gateways.',
   nav: [
     { label: 'Install', href: '#install' },
     { label: 'Docs', href: '/docs' },
