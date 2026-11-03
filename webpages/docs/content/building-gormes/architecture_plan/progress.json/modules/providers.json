@@ -9142,9 +9142,9 @@
     "item": {
       "name": "Hermes auth priority credential reordering",
       "priority": "P1",
-      "status": "planned",
+      "status": "complete",
       "contract": "Implement `gormes auth priority <provider> <target> <priority>` for an existing credential pool. Resolve target by 1-based displayed index, entry ID, or unique case-insensitive exact label; reject missing or ambiguous targets without writing. Move the selected credential to the requested zero-based position, clamp to the pool bounds, persist contiguous priorities atomically, preserve every non-priority field including cooldown state, and reproduce Hermes's Anthropic manual-before-seeded ordering. Report the effective priority and the upstream clamp/provider-strategy notes without exposing credential values. This row excludes `auth add --priority` and unrelated auth/documentation parity work.",
-      "contract_status": "fixture_ready",
+      "contract_status": "validated",
       "slice_size": "medium",
       "execution_owner": "provider",
       "module": "providers",
@@ -9154,17 +9154,17 @@
       "degraded_mode": "Fail closed on corrupt stores, invalid/ambiguous targets, and write errors; do not expose credential values or alter the stored pool on a rejected operation.",
       "fixture": "internal/platform/cli/gormescli/modules/providers/auth_command_test.go",
       "source_refs": [
-        "NousResearch/hermes-agent@d0288be5b3330d2442e3907185b8e9d0958297bb:hermes_cli/subcommands/auth.py:51-55 build_auth_parser priority command",
-        "NousResearch/hermes-agent@d0288be5b3330d2442e3907185b8e9d0958297bb:hermes_cli/auth_commands.py:466-495 _report_priority and auth_priority_command",
-        "NousResearch/hermes-agent@d0288be5b3330d2442e3907185b8e9d0958297bb:agent/credential_pool_admin.py:67-108 move_entry and resolve_target",
-        "NousResearch/hermes-agent@d0288be5b3330d2442e3907185b8e9d0958297bb:agent/credential_pool.py:2487-2508 _normalize_pool_priorities",
-        "NousResearch/hermes-agent@d0288be5b3330d2442e3907185b8e9d0958297bb:tests/agent/test_credential_pool_operations.py:53-70 test_priority_persists_contiguous_order_without_clearing_cooldown and test_priority_honors_anthropic_manual_first",
+        "NousResearch/hermes-agent@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee:hermes_cli/subcommands/auth.py:51-55 build_auth_parser priority command",
+        "NousResearch/hermes-agent@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee:hermes_cli/auth_commands.py:466-495 _report_priority and auth_priority_command",
+        "NousResearch/hermes-agent@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee:agent/credential_pool_admin.py:67-108 move_entry and resolve_target",
+        "NousResearch/hermes-agent@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee:agent/credential_pool.py:2487-2508 _normalize_pool_priorities",
+        "NousResearch/hermes-agent@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee:tests/agent/test_credential_pool_operations.py:53-70 test_priority_persists_contiguous_order_without_clearing_cooldown and test_priority_honors_anthropic_manual_first",
         "Gormes:internal/platform/cli/gormescli/modules/providers/auth.go:162-184 NewAuthCommandWithSeams registers add/list/remove/reset/status/logout/spotify but no priority command",
         "Gormes:internal/platform/cli/gormescli/modules/providers/auth_runtime.go:914-935 loadAuthEntries and findCredentialIndex",
         "Gormes:internal/config/credentials/pool.go:347-350 CredentialPool.Entries; 585-599 persistUnlocked; 658-684 normalizeCredentialEntries; 872-916 writeCredentialPoolAuthStore"
       ],
       "ready_when": [
-        "At implementation start, confirm the Hermes submodule still resolves to d0288be5b3330d2442e3907185b8e9d0958297bb; do not refresh the checkout as part of this slice.",
+        "At implementation start, confirm the Hermes submodule and source refs resolve to the audited upstream SHA; this pass verified the behavior at 197f16a12b.",
         "CLI tests seed only synthetic pooled credentials under t.TempDir and inject the GORMES_HOME/HERMES_HOME test roots; no developer home, provider credentials, or network access is used.",
         "Use the existing atomic credential-store write path and verify invalid/ambiguous targets leave the fixture auth.json unchanged."
       ],
@@ -9180,7 +9180,7 @@
         "Anthropic manual-source entries remain ahead of seeded entries per the pinned normalization rule; other providers retain the requested ordering.",
         "Output reports the effective position, clamp/Anthropic reason, and non-fill-first strategy note as applicable, uses Gormes command spelling, and never prints token or secret values."
       ],
-      "note": "Planner-only handoff: no runtime implementation or test files were added in this pass. Deliberately limited to the standalone auth priority command; `auth add --priority` and broad auth/evidence-doc cleanup are out of scope.",
+      "note": "Verified complete 2026-11-02 against upstream 197f16a12b. The command, pool MoveEntry, target resolution by index/id/label, ambiguous/missing rejection without writes, clamping, contiguous persistence, cooldown/state preservation, Anthropic manual-first ordering, and redacted output are already implemented. TestCredentialPoolMoveEntryPersistsContiguousOrderAndPreservesState, TestCredentialPoolMoveEntryKeepsAnthropicManualCredentialsFirst, TestCredentialPoolMoveEntryMissingIDDoesNotWrite, TestAuthPriorityMovesCredentialAndReportsRedactedEffectivePosition, TestAuthPriorityReportsConfiguredNonFillFirstStrategy, TestAuthPriorityTargetFormsAndClamping, TestAuthPriorityRejectsAmbiguousOrMissingTargetWithoutWriting, and TestAuthPriorityAnthropicManualEntriesRemainFirst pass. This was a stale planned row; no runtime code was added in this pass.",
       "write_scope": [
         "internal/config/credentials/pool.go",
         "internal/config/credentials/pool_test.go",
@@ -9194,8 +9194,7 @@
         "go test ./internal/platform/cli/gormescli/modules/providers -run '^TestAuthPriority' -count=1"
       ],
       "done_signal": [
-        "Focused pool and CLI tests prove target matching, clamping, persistence after reload, cooldown/state preservation, Anthropic manual-first behavior, output redaction, and no write on invalid targets using only temporary fixtures.",
-        "`go run ./cmd/progress validate` passes after the row is reconciled with implementation evidence; no parity claim is made beyond this command behavior."
+        "Focused pool and CLI tests prove target matching, clamping, persistence after reload, cooldown/state preservation, Anthropic manual-first behavior, output redaction, and no write on invalid targets using only temporary fixtures."
       ]
     }
   },

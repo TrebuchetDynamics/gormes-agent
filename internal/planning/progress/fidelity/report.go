@@ -41,6 +41,22 @@ type Options struct {
 	Strict          bool
 	Now             func() time.Time
 	GitRevision     func(context.Context, string) (string, error)
+	RequireLatest   bool
+	OriginRevision  func(context.Context, string) (string, error)
+	BaselineDelta   func(context.Context, string, string, string) (BaselineDelta, error)
+}
+
+type BaselineFreshness struct {
+	RecordedSHA string `json:"recorded_sha,omitempty"`
+	LatestSHA   string `json:"latest_sha,omitempty"`
+	State       string `json:"state"`
+	Error       string `json:"error,omitempty"`
+}
+
+type BaselineDelta struct {
+	Added    []string `json:"added,omitempty"`
+	Modified []string `json:"modified,omitempty"`
+	Deleted  []string `json:"deleted,omitempty"`
 }
 
 type Report struct {
@@ -66,6 +82,8 @@ type Report struct {
 	Summary                Summary                   `json:"summary"`
 	UnmappedSurfaces       []string                  `json:"unmapped_surfaces,omitempty"`
 	Surfaces               []SurfaceReport           `json:"surfaces"`
+	BaselineFreshness      *BaselineFreshness        `json:"baseline_freshness,omitempty"`
+	BaselineDelta          *BaselineDelta            `json:"baseline_delta,omitempty"`
 }
 
 type InventoryCounts struct {
@@ -311,6 +329,14 @@ func GenerateHermesReport(ctx context.Context, opts Options) (Report, error) {
 	report.Summary.UnmappedUpstreamFiles = report.UnmappedUpstream.total()
 	report.Summary.StrictFailures = report.Summary.SurfaceStrictFailures + report.Summary.UnmappedUpstreamFiles
 	report.OK = !opts.Strict || report.Summary.StrictFailures == 0
+	if opts.RequireLatest {
+		freshness, delta := evaluateBaselineFreshness(ctx, hermesPath, sourcePairs.HermesSHA, opts)
+		report.BaselineFreshness = &freshness
+		report.BaselineDelta = &delta
+		if freshness.State != "match" {
+			report.OK = false
+		}
+	}
 	return report, nil
 }
 
@@ -956,6 +982,95 @@ func gitRevision(ctx context.Context, dir string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(string(out)), nil
+}
+
+func gitOriginRevision(ctx context.Context, dir string) (string, error) {
+	if strings.TrimSpace(dir) == "" {
+		return "", errors.New("hermes path is empty")
+	}
+	cmd := exec.CommandContext(ctx, "git", "-C", dir, "rev-parse", "origin/main")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func gitBaselineDelta(ctx context.Context, dir, recorded, latest string) (BaselineDelta, error) {
+	if strings.TrimSpace(dir) == "" {
+		return BaselineDelta{}, errors.New("hermes path is empty")
+	}
+	cmd := exec.CommandContext(ctx, "git", "-C", dir, "diff", "--name-status", "--find-renames", recorded+".."+latest, "--")
+	out, err := cmd.Output()
+	if err != nil {
+		return BaselineDelta{}, err
+	}
+	var delta BaselineDelta
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		fields := strings.Split(line, "\t")
+		if len(fields) < 2 {
+			continue
+		}
+		status := fields[0]
+		switch {
+		case strings.HasPrefix(status, "R"), strings.HasPrefix(status, "C"):
+			if len(fields) >= 3 {
+				delta.Deleted = append(delta.Deleted, filepath.ToSlash(fields[1]))
+				delta.Added = append(delta.Added, filepath.ToSlash(fields[2]))
+			}
+		case strings.HasPrefix(status, "A"):
+			delta.Added = append(delta.Added, filepath.ToSlash(fields[1]))
+		case strings.HasPrefix(status, "D"):
+			delta.Deleted = append(delta.Deleted, filepath.ToSlash(fields[1]))
+		case strings.HasPrefix(status, "M"), strings.HasPrefix(status, "T"):
+			delta.Modified = append(delta.Modified, filepath.ToSlash(fields[1]))
+		}
+	}
+	sort.Strings(delta.Added)
+	sort.Strings(delta.Modified)
+	sort.Strings(delta.Deleted)
+	return delta, nil
+}
+
+func evaluateBaselineFreshness(ctx context.Context, dir, recorded string, opts Options) (BaselineFreshness, BaselineDelta) {
+	freshness := BaselineFreshness{RecordedSHA: strings.TrimSpace(recorded), State: "unverified"}
+	if freshness.RecordedSHA == "" {
+		freshness.Error = "recorded baseline sha missing"
+		return freshness, BaselineDelta{}
+	}
+	resolver := opts.OriginRevision
+	if resolver == nil {
+		resolver = gitOriginRevision
+	}
+	latest, err := resolver(ctx, dir)
+	if err != nil {
+		freshness.Error = err.Error()
+		return freshness, BaselineDelta{}
+	}
+	freshness.LatestSHA = strings.TrimSpace(latest)
+	if freshness.LatestSHA == "" {
+		freshness.Error = "latest origin/main sha missing"
+		return freshness, BaselineDelta{}
+	}
+	if freshness.LatestSHA == freshness.RecordedSHA {
+		freshness.State = "match"
+		return freshness, BaselineDelta{}
+	}
+	freshness.State = "stale"
+	deltaFn := opts.BaselineDelta
+	if deltaFn == nil {
+		deltaFn = gitBaselineDelta
+	}
+	delta, err := deltaFn(ctx, dir, freshness.RecordedSHA, freshness.LatestSHA)
+	if err != nil {
+		freshness.Error = err.Error()
+		return freshness, BaselineDelta{}
+	}
+	return freshness, delta
 }
 
 func (u UpstreamUnmappedInventory) total() int {

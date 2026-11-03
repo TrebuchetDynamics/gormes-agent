@@ -134,6 +134,12 @@ those rows.
 | `hermes_platform/**` | Platform declaration and resolver helpers | `internal/platform`, `internal/config` | Phase 5.O | planned |
 | `hermes_startup_watchdog.py` | Gateway startup-liveness watchdog | `internal/gateway`, `internal/doctor` | Phase 2.F | planned |
 | `hermes_constants_scratch.py` | Scratch-directory retention and reaping | `internal/tools`, `internal/doctor` | Phase 4.E | planned |
+| `hermes_constants_scratch_*.py` 2026-11 detach/stuck variants | Scratch-directory retention, detach, and stuck-process reaping | `internal/tools`, `internal/doctor` | Phase 4.E, 4.I | planned |
+| `hermes_dir_acl.py` | Directory ACL and permission policy | `internal/tools`, `internal/platform/security` | Phase 4.I, 5.J | planned |
+| `agent/transports/hermes_tools_mcp_server.py` | Hermes MCP server transport after core `mcp_serve.py` moved to the official `mcp-serve` plugin | `internal/tools/mcp`, `internal/adapters/apiserver` | Phase 4.I, 5.G | planned |
+| `plugin-catalog/mcp-serve.yaml`, `plugin-catalog/honcho.yaml`, `plugin-catalog/agent-importers.yaml` | Official plugin-catalog moves for MCP serve, Honcho memory, and agent importers | `internal/extensibility/plugins`, `internal/adapters/goncho`, `internal/app/migrate` | Phase 4.I, 5.G, 5.O | planned |
+| `hermes_cli/migrate.py`, `hermes_cli/setup_migration.py` | OpenClaw and agent-import migration CLI after `hermes_cli/claw.py` left core | `internal/app/migrate`, `cmd/gormes` | Phase 4.I, 5.O | planned |
+| `hermes_state_*.py` 2026-11 split modules: `api_content`, `compaction_display`, `coverage`, `detached_results`, `identity`, `keys`, `local`, `local_lineage`, `local_migration`, `media`, `mutation_*`, `mutations`, `pidns`, `prompt_refresh`, `prune_rewrite`, `reconcile`, `runtime`, `runtime_workers`, `session_list`, `sessions_model_config`, `terminal`, `todo`, `worker_*` | Session persistence, local lineage/migration, mutation guards, detached results, worker lifecycle, terminal/todo state, and media identity | `internal/persistence/session`, `internal/persistence/transcript`, `internal/gateway`, `internal/tools` | Phase 4.I, 4.E | planned |
 | `registration_lifecycle.py` | Replaceable-registration ownership leases | `internal/plugins`, `internal/config` | Phase 5.I | planned |
 | `native/**`, `native/fts5_cjk` | Native FTS5 CJK tokenizer extension | `internal/persistence/session` | Phase 3.C | planned |
 | `plugin-catalog/**` | Plugin and MCP catalog manifests | `internal/tools/mcp/catalog`, `internal/plugins` | Phase 5.G | planned |

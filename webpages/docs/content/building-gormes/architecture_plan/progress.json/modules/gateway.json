@@ -5904,6 +5904,72 @@
   },
   {
     "phase": "2",
+    "subphase": "2.F.5",
+    "pos": 6,
+    "item": {
+      "name": "Gateway goal judge and subgoal command",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Wire a production goal judge into the gateway manager and add the missing /goal subgoal add|remove|list|clear command. The judge uses the auxiliary model slot, fails open to continue on transport or parse errors, and marks done only on an explicit done verdict. Subgoals persist in GoalState.Subgoals and appear in /goal status and the continuation prompt.",
+      "contract_status": "validated",
+      "slice_size": "medium",
+      "execution_owner": "gateway",
+      "module": "gateway",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "A missing auxiliary client, malformed judge output, or transport error continues the goal and records typed evidence. A missing goal store reports goal_metadata_unavailable. A subgoal command with no goal reports No goal set.",
+      "fixture": "internal/gateway/goal_loop_test.go; internal/persistence/session/goal_state_test.go; internal/app/gateway/service_test.go",
+      "source_refs": [
+        "./hermes-agent/hermes_cli/goals.py@fbf6c6c91d:JUDGE_SYSTEM_PROMPT",
+        "./hermes-agent/hermes_cli/goals.py@fbf6c6c91d:make_goal_judge_callback",
+        "./hermes-agent/hermes_cli/goals.py@fbf6c6c91d:cmd_subgoal",
+        "./hermes-agent/tests/hermes_cli/test_goals.py@fbf6c6c91d",
+        "internal/gateway/goal_loop.go",
+        "internal/gateway/goalloop/goal.go",
+        "internal/persistence/session/goal_state.go",
+        "internal/app/gateway/service.go"
+      ],
+      "ready_when": [
+        "The goal loop accepts an injected GoalJudge and the manager config carries it.",
+        "The auxiliary model slot can be resolved without live credentials in tests.",
+        "The gateway goal command parser exposes a subgoal branch."
+      ],
+      "not_ready_when": [
+        "The judge marks done on missing or malformed output.",
+        "Subgoals are stored outside GoalState.Subgoals.",
+        "A judge error stops the loop instead of failing open."
+      ],
+      "acceptance": [
+        "TestGatewayGoalJudgeDoneMarksDone proves an explicit done verdict sets GoalStatusDone and sends no continuation.",
+        "TestGatewayGoalJudgeFailsOpen proves missing, malformed, and transport-error judge output returns continue evidence.",
+        "TestGatewayGoalContinuationUsesSubgoals proves the continuation prompt includes all stored subgoals.",
+        "TestGatewayGoalSubgoalCommandAddRemoveList proves add, remove, and list persist in GoalState.Subgoals and appear in status."
+      ],
+      "note": "Complete 2026-11-02. Wired goalwiring.BuildGoalJudgeFunc into gatewayManagerConfig using the provider client and main model. The judge asks for a strict one-line JSON done/continue verdict, bounds the response snippet to 4,000 characters and output to 64 KiB, and fails open on client or parse errors. Added gateway /goal subgoal add|remove|list|clear with GoalState.Subgoals persistence, status/continuation inclusion, and gateway tests. The goal loop marks done only on an explicit done verdict, continues otherwise, pauses at budget, and includes subgoals in the continuation prompt. TUI auto-continuation remains the separate TUI goal row.",
+      "write_scope": [
+        "internal/gateway/",
+        "internal/app/gateway/",
+        "internal/app/gormescmd/",
+        "internal/persistence/session/",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json",
+        "internal/app/goalwiring/"
+      ],
+      "test_commands": [
+        "go test ./internal/app/goalwiring ./internal/gateway -run 'Goal' -count=1",
+        "go test ./internal/persistence/session -run 'Goal' -count=1",
+        "go test ./internal/app/gormescmd -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "The gateway judge marks only explicit done results, fails open otherwise, and subgoals round-trip through status and continuation."
+      ]
+    }
+  },
+  {
+    "phase": "2",
     "subphase": "2.G",
     "pos": 0,
     "item": {

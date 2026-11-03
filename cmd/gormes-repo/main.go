@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/fidelity"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/planning/progress/repoctl"
 )
 
@@ -97,6 +98,22 @@ func run(stdout, stderr io.Writer, args []string) error {
 			result.JSONPath, result.MarkdownPath, result.Report.HermesSHA, result.Report.Summary.StrictFailures)
 		if err != nil {
 			return err
+		}
+		if opts.RequireLatest {
+			freshness := result.Report.BaselineFreshness
+			if freshness == nil || freshness.State != "match" {
+				state := "unverified"
+				detail := "missing baseline freshness evidence"
+				if freshness != nil {
+					state = freshness.State
+					detail = freshness.Error
+					if detail == "" {
+						detail = "recorded baseline differs from origin/main"
+					}
+				}
+				return fmt.Errorf("gormes-repo: hermes-contract-inventory baseline_%s recorded=%s latest=%s: %s",
+					state, baselineSHA(result.Report.BaselineFreshness, true), baselineSHA(result.Report.BaselineFreshness, false), detail)
+			}
 		}
 		if opts.Strict && !result.Report.OK {
 			return fmt.Errorf("gormes-repo: hermes-contract-inventory strict failed strict_failures=%d", result.Report.Summary.StrictFailures)
@@ -189,11 +206,29 @@ func parseHermesContractInventoryOptions(root string, args []string) (repoctl.He
 			i++
 		case "--strict":
 			opts.Strict = true
+		case "--require-latest":
+			opts.RequireLatest = true
 		default:
 			return opts, fmt.Errorf("%w: unknown hermes-contract-inventory option %s\n%s", errParse, args[i], usage)
 		}
 	}
 	return opts, nil
+}
+
+func baselineSHA(freshness *fidelity.BaselineFreshness, recorded bool) string {
+	if freshness == nil {
+		return "unknown"
+	}
+	if recorded {
+		if freshness.RecordedSHA == "" {
+			return "unknown"
+		}
+		return freshness.RecordedSHA
+	}
+	if freshness.LatestSHA == "" {
+		return "unknown"
+	}
+	return freshness.LatestSHA
 }
 
 func resolveRepoRoot(args []string) ([]string, string, error) {

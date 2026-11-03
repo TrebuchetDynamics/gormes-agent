@@ -50,9 +50,10 @@ func TestProfileDocsDisambiguateGormesRuntimeAndUpstreamHermes(t *testing.T) {
 	upstreamGuide := readDoc(t, "content/upstream-hermes/user-guide/profiles.md")
 	assertContainsAll(t, "content/upstream-hermes/user-guide/profiles.md", upstreamGuide, []string{
 		"Upstream Hermes reference",
-		"`HERMES_HOME/home/`",
-		"Local terminal subprocesses use\nthat directory as `HOME`",
-		"## Sharing profiles as distributions",
+		"`HERMES_HOME` is the profile boundary.",
+		"`terminal.home_mode: profile`",
+		"`HOME={HERMES_HOME}/home`",
+		"## Sharing a profile",
 		"hermes profile install github.com/you/research-bot --alias",
 		"hermes profile update research-bot",
 	})

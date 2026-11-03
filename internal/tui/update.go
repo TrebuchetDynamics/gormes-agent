@@ -231,6 +231,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case frameMsg:
 		m.frame = kernel.RenderFrame(msg)
+		m.refreshGoalLine()
 		m.maybePlayVoiceTTS()
 		// Authoritative inFlight reset: the kernel reports PhaseIdle on
 		// success and PhaseFailed on terminal failure.

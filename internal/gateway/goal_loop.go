@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway/goalloop"
@@ -38,7 +39,10 @@ func (m *Manager) handleGoalCommand(ctx context.Context, ch Channel, ev InboundE
 	}
 
 	args := goalCommandArgs(ev.Text)
-	subcmd := strings.ToLower(strings.TrimSpace(args))
+	subcmd := ""
+	if fields := strings.Fields(args); len(fields) > 0 {
+		subcmd = strings.ToLower(strings.TrimSpace(fields[0]))
+	}
 	switch subcmd {
 	case "", "status":
 		m.sendGoalStatus(ctx, ch, ev)
@@ -54,6 +58,9 @@ func (m *Manager) handleGoalCommand(ctx context.Context, ch Channel, ev InboundE
 		return
 	case "done":
 		m.doneGoal(ctx, ch, ev)
+		return
+	case "subgoal", "subgoals":
+		m.handleGoalSubgoalCommand(ctx, ch, ev)
 		return
 	}
 
@@ -106,6 +113,80 @@ func (m *Manager) handleGoalCommand(ctx context.Context, ch Channel, ev InboundE
 }
 
 func goalCommandArgs(text string) string { return goalloop.CommandArgs(text) }
+
+const goalSubgoalUsage = "Usage: /goal subgoal [list|add <criterion>|remove <number>|clear]"
+
+func (m *Manager) handleGoalSubgoalCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	sessionID, ok := m.goalSessionIDForInbound(ctx, ev)
+	if !ok {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "No goal set.")
+		return
+	}
+	store, ok := m.goalStore()
+	if !ok {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "No goal set.")
+		return
+	}
+	state, found, err := session.LoadGoal(ctx, store, sessionID)
+	if err != nil || !found || state == nil || state.Status == session.GoalStatusCleared || strings.TrimSpace(state.Goal) == "" {
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "No goal set.")
+		return
+	}
+	args := strings.Fields(goalCommandArgs(ev.Text))
+	action := "list"
+	if len(args) > 1 {
+		action = strings.ToLower(strings.TrimSpace(args[1]))
+	}
+	switch action {
+	case "", "list":
+		if len(state.Subgoals) == 0 {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "No subgoals.")
+			return
+		}
+		lines := []string{fmt.Sprintf("Subgoals (%d):", len(state.Subgoals))}
+		for i, subgoal := range state.Subgoals {
+			lines = append(lines, fmt.Sprintf("  %d. %s", i+1, goalDisplayText(subgoal)))
+		}
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, strings.Join(lines, "\n"))
+	case "add":
+		text := strings.TrimSpace(strings.Join(args[2:], " "))
+		if text == "" {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, goalSubgoalUsage)
+			return
+		}
+		state.Subgoals = append(state.Subgoals, text)
+		if err := session.SaveGoal(ctx, store, sessionID, state, m.now()); err != nil {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "goal_metadata_unavailable: "+goalCommandErrorText(err))
+			return
+		}
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("Added subgoal %d: %s", len(state.Subgoals), goalDisplayText(text)))
+	case "remove", "rm", "delete":
+		if len(args) < 3 {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, goalSubgoalUsage)
+			return
+		}
+		index, err := strconv.Atoi(strings.TrimSpace(args[2]))
+		if err != nil || index < 1 || index > len(state.Subgoals) {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("Subgoal number must be between 1 and %d.", len(state.Subgoals)))
+			return
+		}
+		state.Subgoals = append(state.Subgoals[:index-1], state.Subgoals[index:]...)
+		if err := session.SaveGoal(ctx, store, sessionID, state, m.now()); err != nil {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "goal_metadata_unavailable: "+goalCommandErrorText(err))
+			return
+		}
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf("Removed subgoal %d.", index))
+	case "clear":
+		state.Subgoals = nil
+		if err := session.SaveGoal(ctx, store, sessionID, state, m.now()); err != nil {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "goal_metadata_unavailable: "+goalCommandErrorText(err))
+			return
+		}
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Cleared subgoals.")
+	default:
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, goalSubgoalUsage)
+	}
+}
 
 func (m *Manager) sendGoalStatus(ctx context.Context, ch Channel, ev InboundEvent) {
 	state, ok := m.loadGoalForInbound(ctx, ev)

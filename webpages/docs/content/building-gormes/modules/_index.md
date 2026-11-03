@@ -17,9 +17,9 @@ Core agent execution, local state, tools, and terminal/browser interaction surfa
 | [Learning Loop](agent-runtime/learning-loop/) | 6 | 6 | 0 | 0 | `P1`: 3 · `P2`: 2 · `P3`: 1 |
 | [Memory](agent-runtime/memory/) | 29 | 29 | 0 | 0 | `P1`: 1 · `P2`: 3 · `P3`: 1 · `unset`: 24 |
 | [Runtime](agent-runtime/runtime/) | 18 | 18 | 0 | 0 | `P0`: 2 · `P1`: 10 · `P2`: 6 |
-| [Sessions](agent-runtime/sessions/) | 29 | 29 | 0 | 0 | `P1`: 9 · `P2`: 5 · `P3`: 1 · `unset`: 14 |
-| [Tools](agent-runtime/tools/) | 162 | 161 | 0 | 1 | `P0`: 23 · `P1`: 67 · `P2`: 36 · `P3`: 8 · `P4`: 2 · `unset`: 26 |
-| [TUI](agent-runtime/tui/) | 73 | 73 | 0 | 0 | `P0`: 3 · `P1`: 16 · `P2`: 43 · `P3`: 1 · `unset`: 10 |
+| [Sessions](agent-runtime/sessions/) | 30 | 30 | 0 | 0 | `P1`: 9 · `P2`: 6 · `P3`: 1 · `unset`: 14 |
+| [Tools](agent-runtime/tools/) | 163 | 161 | 0 | 2 | `P0`: 23 · `P1`: 67 · `P2`: 37 · `P3`: 8 · `P4`: 2 · `unset`: 26 |
+| [TUI](agent-runtime/tui/) | 74 | 73 | 0 | 1 | `P0`: 3 · `P1`: 16 · `P2`: 43 · `P3`: 1 · `P4`: 1 · `unset`: 10 |
 
 ## Channel Gateway
 
@@ -29,7 +29,7 @@ External channel adapters, gateway orchestration, fleet operation, and Navivox i
 |---|---:|---:|---:|---:|---|
 | [Channels](channel-gateway/channels/) | 139 | 139 | 0 | 0 | `P0`: 7 · `P1`: 50 · `P2`: 29 · `P3`: 4 · `P4`: 2 · `unset`: 47 |
 | [Fleet](channel-gateway/fleet/) | 23 | 23 | 0 | 0 | `P0`: 2 · `P1`: 7 · `P2`: 6 · `P3`: 3 · `unset`: 5 |
-| [Gateway](channel-gateway/gateway/) | 163 | 163 | 0 | 0 | `P0`: 15 · `P1`: 53 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
+| [Gateway](channel-gateway/gateway/) | 164 | 164 | 0 | 0 | `P0`: 15 · `P1`: 54 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54 |
 | [Navivox](channel-gateway/navivox/) | 28 | 28 | 0 | 0 | `P0`: 3 · `P1`: 19 · `unset`: 6 |
 
 ## Delivery Control Plane
@@ -40,9 +40,9 @@ Planner, builder, skill, documentation, kanban, and progress-control surfaces th
 |---|---:|---:|---:|---:|---|
 | [Builder](delivery-control-plane/builder/) | 12 | 12 | 0 | 0 | `P0`: 1 · `P1`: 6 · `P2`: 3 · `unset`: 2 |
 | [Cross Cutting](delivery-control-plane/cross-cutting/) | 0 | 0 | 0 | 0 | - |
-| [Docs](delivery-control-plane/docs/) | 22 | 19 | 0 | 3 | `P1`: 13 · `P2`: 7 · `P3`: 2 |
+| [Docs](delivery-control-plane/docs/) | 24 | 21 | 0 | 3 | `P0`: 2 · `P1`: 13 · `P2`: 7 · `P3`: 2 |
 | [Kanban](delivery-control-plane/kanban/) | 33 | 33 | 0 | 0 | `P1`: 14 · `P2`: 19 |
-| [Planner](delivery-control-plane/planner/) | 13 | 12 | 0 | 1 | `P0`: 4 · `P1`: 4 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
+| [Planner](delivery-control-plane/planner/) | 15 | 13 | 0 | 2 | `P0`: 5 · `P1`: 5 · `P2`: 1 · `P3`: 1 · `unset`: 3 |
 | [Progress](delivery-control-plane/progress/) | 26 | 26 | 0 | 0 | `P1`: 11 · `P2`: 15 |
 | [Skills](delivery-control-plane/skills/) | 52 | 52 | 0 | 0 | `P0`: 6 · `P1`: 14 · `P2`: 16 · `P3`: 6 · `P4`: 1 · `unset`: 9 |
 
@@ -66,7 +66,7 @@ Model-provider contracts plus Goncho/Honcho memory parity surfaces.
 | Module | Rows | Complete | In progress | Planned | Priorities |
 |---|---:|---:|---:|---:|---|
 | [Goncho](provider-models/goncho/) | 45 | 45 | 0 | 0 | `P0`: 7 · `P1`: 12 · `P2`: 11 · `P3`: 12 · `P4`: 2 · `unset`: 1 |
-| [Providers](provider-models/providers/) | 132 | 131 | 0 | 1 | `P0`: 9 · `P1`: 61 · `P2`: 24 · `P3`: 3 · `unset`: 35 |
+| [Providers](provider-models/providers/) | 132 | 132 | 0 | 0 | `P0`: 9 · `P1`: 61 · `P2`: 24 · `P3`: 3 · `unset`: 35 |
 
 ## Voice And Web
 

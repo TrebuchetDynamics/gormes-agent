@@ -1,30 +1,30 @@
 # Hermes Contract Inventory
 
-- Hermes SHA: `d0288be5b3330d2442e3907185b8e9d0958297bb`
-- Generated: `2026-09-26T19:46:49Z`
-- Source pairs: `current` (`d0288be5b3330d2442e3907185b8e9d0958297bb`)
-- Report mode: `strict`
+- Hermes SHA: `197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee`
+- Generated: `2026-11-02T16:16:44Z`
+- Source pairs: `current` (`197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee`)
+- Report mode: `report-only`
 - Progress source: `webpages/docs/content/building-gormes/architecture_plan/progress.json`
 - Backlog policy: `progress.json` remains the only backlog; this report classifies evidence and does not create work rows.
 - Claim boundary: Gormes may claim all Hermes features and architecture are paired only when every current-SHA inventory gap is classified as `covered`, `partial`, `planned`, `excluded`, or `owned_divergence`; strict mode additionally requires every critical surface to be `covered`, `excluded`, or `owned_divergence` and every upstream source/doc/test file to be mapped or explicitly excluded.
 
 ## Headline Counts
 
-- Source files: `11629`
-- Docs files: `1631`
-- Test files: `7090`
-- Unmapped upstream source files: `4297`
-- Unmapped upstream docs files: `1617`
-- Unmapped upstream test files: `6968`
+- Source files: `15958`
+- Docs files: `1569`
+- Test files: `9995`
+- Unmapped upstream source files: `5772`
+- Unmapped upstream docs files: `1554`
+- Unmapped upstream test files: `9873`
 - Release checkpoints: `3`
 - Critical surfaces: `10`
 - Surface strict failures: `10`
-- Strict failures: `12892`
+- Strict failures: `17209`
 - `partial`: `10`
 
 ## Critical Surface Blockers
 
-No critical surface blockers in the current classification. `12882` unmapped upstream source/doc/test files still block strict mode.
+No critical surface blockers in the current classification. `17199` unmapped upstream source/doc/test files still block strict mode.
 
 ## Release Checkpoints
 
@@ -61,7 +61,7 @@ No critical surface blockers in the current classification. `12882` unmapped ups
 | `audit_trail` | `partial` | `warning` | `sessions`, `tool_runtime`, `learning_loop` | `../agent-zero@7c71185f/agent.py:prepare_prompt,read_prompt,parse_prompt`, `../agent-zero@7c71185f/helpers/files.py:read_prompt_file,process_includes,_get_dirs_after`, `../agent-zero@7c71185f/prompts/ (72 fragment files)`, `../agent-zero@7c71185f/skills/a0-development/SKILL.md:Prompt System`, `+948 more` | Mapped through surfaces: sessions, tool_runtime, learning_loop; worst status is sessions=partial. |
 | `mutation_safety` | `partial` | `warning` | `tool_runtime`, `learning_loop`, `goncho_memory` | `../agent-zero@7c71185f/agent.py:prepare_prompt,read_prompt,parse_prompt`, `../agent-zero@7c71185f/helpers/files.py:read_prompt_file,process_includes,_get_dirs_after`, `../agent-zero@7c71185f/prompts/ (72 fragment files)`, `../agent-zero@7c71185f/skills/a0-development/SKILL.md:Prompt System`, `+1078 more` | Mapped through surfaces: tool_runtime, learning_loop, goncho_memory; worst status is tool_runtime=partial. |
 | `prompt_context_memory_skill_insertion_ordering` | `partial` | `warning` | `prompt_assembly`, `goncho_memory`, `sessions`, `learning_loop` | `../agent-zero/agent.py@7c71185f:agent_init,monologue_start,message_loop_start,before_main_llm_call,response_stream_chunk,reasoning_stream_chunk,message_loop_end,monologue_end`, `../agent-zero/helpers/extension.py@7c71185f:extensible,call_extensions_async,call_extensions_sync`, `../hermes-agent/acp_adapter/`, `../hermes-agent/agent/`, `+600 more` | Mapped through surfaces: prompt_assembly, goncho_memory, sessions, learning_loop; worst status is prompt_assembly=partial. |
-| `profile_scoped_isolation` | `partial` | `warning` | `profiles`, `sessions`, `gateway_channels` | `../hermes-agent/agent/account_usage.py:render_account_usage_lines,fetch_account_usage`, `../hermes-agent/agent/bedrock_adapter.py:651:normalize_converse_stream_events`, `../hermes-agent/agent/bedrock_adapter.py:673:stream_converse_with_callbacks`, `../hermes-agent/agent/context_compressor.py@5401a008`, `+1405 more` | Mapped through surfaces: profiles, sessions, gateway_channels; worst status is profiles=partial. |
+| `profile_scoped_isolation` | `partial` | `warning` | `profiles`, `sessions`, `gateway_channels` | `../hermes-agent/agent/account_usage.py:render_account_usage_lines,fetch_account_usage`, `../hermes-agent/agent/bedrock_adapter.py:651:normalize_converse_stream_events`, `../hermes-agent/agent/bedrock_adapter.py:673:stream_converse_with_callbacks`, `../hermes-agent/agent/context_compressor.py@5401a008`, `+1408 more` | Mapped through surfaces: profiles, sessions, gateway_channels; worst status is profiles=partial. |
 
 ## Unmapped Upstream Evidence
 
@@ -69,20 +69,21 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 
 | Family | Count | Examples |
 |---|---:|---|
-| Source | `4297` | `acp_adapter/__init__.py`, `acp_adapter/__main__.py`, `acp_adapter/auth.py`, `acp_adapter/commands.py`, `acp_adapter/content.py`, `acp_adapter/edit_approval.py`, `acp_adapter/events.py`, `acp_adapter/model_catalog.py`, `acp_adapter/permissions.py`, `acp_adapter/provenance.py`, `+4287 more` |
-| Docs | `1617` | `.github/PULL_REQUEST_TEMPLATE.md`, `.github/actions/save-pm-cache/README.md`, `.github/actions/setup-pm/README.md`, `COMPAT_MANIFEST.md`, `CONTRIBUTING.es.md`, `CONTRIBUTING.md`, `README.es.md`, `README.ur-pk.md`, `README.zh-CN.md`, `SECURITY.es.md`, `+1607 more` |
-| Tests | `6968` | `apps/desktop/e2e/at-rest-connection-token.spec.ts`, `apps/desktop/e2e/batch-clarify.spec.ts`, `apps/desktop/e2e/boot-failure.spec.ts`, `apps/desktop/e2e/boot.spec.ts`, `apps/desktop/e2e/bot-screen-stale-status-reply.spec.ts`, `apps/desktop/e2e/chat.spec.ts`, `apps/desktop/e2e/completed-reply-refresh.spec.ts`, `apps/desktop/e2e/core/boot-lifecycle.spec.ts`, `apps/desktop/e2e/core/interactive-prompts.spec.ts`, `apps/desktop/e2e/core/lineage-compaction-prompt.spec.ts`, `+6958 more` |
+| Source | `5772` | `acp_adapter/__init__.py`, `acp_adapter/__main__.py`, `acp_adapter/auth.py`, `acp_adapter/catalog.py`, `acp_adapter/commands.py`, `acp_adapter/content.py`, `acp_adapter/edit_approval.py`, `acp_adapter/elicitation.py`, `acp_adapter/events.py`, `acp_adapter/gateway_commands.py`, `+5762 more` |
+| Docs | `1554` | `.github/PULL_REQUEST_TEMPLATE.md`, `.github/actions/setup-pm/README.md`, `CONTRIBUTING.es.md`, `CONTRIBUTING.md`, `README.es.md`, `README.ur-pk.md`, `README.zh-CN.md`, `SECURITY.es.md`, `SECURITY.md`, `SOUL.md`, `+1544 more` |
+| Tests | `9873` | `apps/desktop/e2e/at-rest-connection-token.spec.ts`, `apps/desktop/e2e/batch-clarify.spec.ts`, `apps/desktop/e2e/boot-failure.spec.ts`, `apps/desktop/e2e/boot.spec.ts`, `apps/desktop/e2e/bot-screen-stale-status-reply.spec.ts`, `apps/desktop/e2e/chat.spec.ts`, `apps/desktop/e2e/completed-reply-refresh.spec.ts`, `apps/desktop/e2e/connection-version-label.spec.ts`, `apps/desktop/e2e/core/behind-window-send.spec.ts`, `apps/desktop/e2e/core/boot-lifecycle.spec.ts`, `+9863 more` |
 
 ## Unmapped Test Suite Classification
 
 | Suite | Count | Source under test | Progress rows | Examples |
 |---|---:|---|---|---|
+| `AGENTS.md` | `1` | `AGENTS.md` | - | `tests/AGENTS.md` |
 | `__init__.py` | `1` | `__init__.py` | - | `tests/__init__.py` |
-| `_fixtures` | `4` | `_fixtures` | - | `tests/_fixtures/__init__.py`, `tests/_fixtures/env_filter.py`, `tests/_fixtures/live_system_guard.py`, `tests/_fixtures/platform_gating.py` |
-| `acp_adapter` | `29` | `acp_adapter` | `ACP session CWD propagation into prompt runners`, `ACP stdio benign ping/probe suppression` | `tests/acp_adapter/__init__.py`, `tests/acp_adapter/conftest.py`, `tests/acp_adapter/test_acp_commands.py`, `tests/acp_adapter/test_acp_dashboard_model_switch_validation.py`, `tests/acp_adapter/test_acp_images.py` |
+| `_fixtures` | `5` | `_fixtures` | - | `tests/_fixtures/__init__.py`, `tests/_fixtures/env_filter.py`, `tests/_fixtures/live_system_guard.py`, `tests/_fixtures/model_peer.py`, `tests/_fixtures/platform_gating.py` |
+| `acp_adapter` | `92` | `acp_adapter` | `ACP session CWD propagation into prompt runners`, `ACP stdio benign ping/probe suppression` | `tests/acp_adapter/__init__.py`, `tests/acp_adapter/conftest.py`, `tests/acp_adapter/test_acp_commands.py`, `tests/acp_adapter/test_acp_dashboard_model_switch_validation.py`, `tests/acp_adapter/test_acp_discard_review.py` |
 | `agent/__init__.py` | `1` | `agent/__init__.py` | - | `tests/agent/__init__.py` |
 | `agent/conftest.py` | `1` | `agent/conftest.py` | - | `tests/agent/conftest.py` |
-| `agent/lsp` | `25` | `agent/lsp` | `Hermes agent runtime strict-fidelity source-pair expansion` | `tests/agent/lsp/__init__.py`, `tests/agent/lsp/_mock_lsp_server.py`, `tests/agent/lsp/test_backend_gate.py`, `tests/agent/lsp/test_broken_set.py`, `tests/agent/lsp/test_client_e2e.py` |
+| `agent/lsp` | `28` | `agent/lsp` | `Hermes agent runtime strict-fidelity source-pair expansion` | `tests/agent/lsp/__init__.py`, `tests/agent/lsp/_mock_lsp_server.py`, `tests/agent/lsp/test_backend_gate.py`, `tests/agent/lsp/test_broken_set.py`, `tests/agent/lsp/test_client_e2e.py` |
 | `agent/metadata_transport.py` | `1` | `agent/metadata_transport.py` | - | `tests/agent/metadata_transport.py` |
 | `agent/repro_image_shrink_brick.py` | `1` | `agent/repro_image_shrink_brick.py` | - | `tests/agent/repro_image_shrink_brick.py` |
 | `agent/test_413_compression.py` | `1` | `agent/test_413_compression.py` | - | `tests/agent/test_413_compression.py` |
@@ -91,9 +92,14 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_account_policy_block.py` | `1` | `agent/test_account_policy_block.py` | - | `tests/agent/test_account_policy_block.py` |
 | `agent/test_account_usage.py` | `1` | `agent/test_account_usage.py` | - | `tests/agent/test_account_usage.py` |
 | `agent/test_account_usage_fetch.py` | `1` | `agent/test_account_usage_fetch.py` | - | `tests/agent/test_account_usage_fetch.py` |
+| `agent/test_account_usage_pool_fetch.py` | `1` | `agent/test_account_usage_pool_fetch.py` | - | `tests/agent/test_account_usage_pool_fetch.py` |
+| `agent/test_acp_client.py` | `1` | `agent/test_acp_client.py` | - | `tests/agent/test_acp_client.py` |
+| `agent/test_acp_client_invariants.py` | `1` | `agent/test_acp_client_invariants.py` | - | `tests/agent/test_acp_client_invariants.py` |
 | `agent/test_acp_openai_bridge.py` | `1` | `agent/test_acp_openai_bridge.py` | - | `tests/agent/test_acp_openai_bridge.py` |
 | `agent/test_acp_provider_rails.py` | `1` | `agent/test_acp_provider_rails.py` | - | `tests/agent/test_acp_provider_rails.py` |
+| `agent/test_activity_persist_off_relay_loop.py` | `1` | `agent/test_activity_persist_off_relay_loop.py` | - | `tests/agent/test_activity_persist_off_relay_loop.py` |
 | `agent/test_actual_auxiliary_routing.py` | `1` | `agent/test_actual_auxiliary_routing.py` | - | `tests/agent/test_actual_auxiliary_routing.py` |
+| `agent/test_affordable_402_main_loop.py` | `1` | `agent/test_affordable_402_main_loop.py` | - | `tests/agent/test_affordable_402_main_loop.py` |
 | `agent/test_agent_guardrails.py` | `1` | `agent/test_agent_guardrails.py` | - | `tests/agent/test_agent_guardrails.py` |
 | `agent/test_anthropic_adapter.py` | `1` | `agent/test_anthropic_adapter.py` | - | `tests/agent/test_anthropic_adapter.py` |
 | `agent/test_anthropic_adapter_extra_headers.py` | `1` | `agent/test_anthropic_adapter_extra_headers.py` | - | `tests/agent/test_anthropic_adapter_extra_headers.py` |
@@ -115,10 +121,12 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_anthropic_oauth_ua_prefix.py` | `1` | `agent/test_anthropic_oauth_ua_prefix.py` | - | `tests/agent/test_anthropic_oauth_ua_prefix.py` |
 | `agent/test_anthropic_output_field_leak.py` | `1` | `agent/test_anthropic_output_field_leak.py` | - | `tests/agent/test_anthropic_output_field_leak.py` |
 | `agent/test_anthropic_owned_routing.py` | `1` | `agent/test_anthropic_owned_routing.py` | - | `tests/agent/test_anthropic_owned_routing.py` |
+| `agent/test_anthropic_preserved_thinking_replay.py` | `1` | `agent/test_anthropic_preserved_thinking_replay.py` | - | `tests/agent/test_anthropic_preserved_thinking_replay.py` |
 | `agent/test_anthropic_prompt_cache_policy.py` | `1` | `agent/test_anthropic_prompt_cache_policy.py` | - | `tests/agent/test_anthropic_prompt_cache_policy.py` |
 | `agent/test_anthropic_request_blank_block_guard.py` | `1` | `agent/test_anthropic_request_blank_block_guard.py` | - | `tests/agent/test_anthropic_request_blank_block_guard.py` |
 | `agent/test_anthropic_request_client_reuse.py` | `1` | `agent/test_anthropic_request_client_reuse.py` | - | `tests/agent/test_anthropic_request_client_reuse.py` |
 | `agent/test_anthropic_route_oauth_identity.py` | `1` | `agent/test_anthropic_route_oauth_identity.py` | - | `tests/agent/test_anthropic_route_oauth_identity.py` |
+| `agent/test_anthropic_signed_platform_replay.py` | `1` | `agent/test_anthropic_signed_platform_replay.py` | - | `tests/agent/test_anthropic_signed_platform_replay.py` |
 | `agent/test_anthropic_spent_rotation_verdict.py` | `1` | `agent/test_anthropic_spent_rotation_verdict.py` | - | `tests/agent/test_anthropic_spent_rotation_verdict.py` |
 | `agent/test_anthropic_stream_fallbacks.py` | `1` | `agent/test_anthropic_stream_fallbacks.py` | - | `tests/agent/test_anthropic_stream_fallbacks.py` |
 | `agent/test_anthropic_structured_output.py` | `1` | `agent/test_anthropic_structured_output.py` | - | `tests/agent/test_anthropic_structured_output.py` |
@@ -131,6 +139,7 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_api_content_row_addressed_backfill.py` | `1` | `agent/test_api_content_row_addressed_backfill.py` | - | `tests/agent/test_api_content_row_addressed_backfill.py` |
 | `agent/test_api_content_sidecar.py` | `1` | `agent/test_api_content_sidecar.py` | - | `tests/agent/test_api_content_sidecar.py` |
 | `agent/test_api_max_retries_config.py` | `1` | `agent/test_api_max_retries_config.py` | - | `tests/agent/test_api_max_retries_config.py` |
+| `agent/test_approval_display_sanitize.py` | `1` | `agent/test_approval_display_sanitize.py` | - | `tests/agent/test_approval_display_sanitize.py` |
 | `agent/test_arcee_trinity_overrides.py` | `1` | `agent/test_arcee_trinity_overrides.py` | - | `tests/agent/test_arcee_trinity_overrides.py` |
 | `agent/test_astra_baseline_runtime.py` | `1` | `agent/test_astra_baseline_runtime.py` | - | `tests/agent/test_astra_baseline_runtime.py` |
 | `agent/test_astra_oauth_native_compaction.py` | `1` | `agent/test_astra_oauth_native_compaction.py` | - | `tests/agent/test_astra_oauth_native_compaction.py` |
@@ -140,11 +149,15 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_auth_provider_failover.py` | `1` | `agent/test_auth_provider_failover.py` | - | `tests/agent/test_auth_provider_failover.py` |
 | `agent/test_authorization_gate.py` | `1` | `agent/test_authorization_gate.py` | - | `tests/agent/test_authorization_gate.py` |
 | `agent/test_aux_affordable_402_retry.py` | `1` | `agent/test_aux_affordable_402_retry.py` | - | `tests/agent/test_aux_affordable_402_retry.py` |
+| `agent/test_aux_alias_home_scope.py` | `1` | `agent/test_aux_alias_home_scope.py` | - | `tests/agent/test_aux_alias_home_scope.py` |
+| `agent/test_aux_custom_endpoint_headers.py` | `1` | `agent/test_aux_custom_endpoint_headers.py` | - | `tests/agent/test_aux_custom_endpoint_headers.py` |
 | `agent/test_aux_progress_streaming.py` | `1` | `agent/test_aux_progress_streaming.py` | - | `tests/agent/test_aux_progress_streaming.py` |
 | `agent/test_aux_relay_progress_seam.py` | `1` | `agent/test_aux_relay_progress_seam.py` | - | `tests/agent/test_aux_relay_progress_seam.py` |
+| `agent/test_aux_runtime_main_context_only.py` | `1` | `agent/test_aux_runtime_main_context_only.py` | - | `tests/agent/test_aux_runtime_main_context_only.py` |
 | `agent/test_aux_session_endpoint_affinity.py` | `1` | `agent/test_aux_session_endpoint_affinity.py` | - | `tests/agent/test_aux_session_endpoint_affinity.py` |
 | `agent/test_aux_stream_host_deadline.py` | `1` | `agent/test_aux_stream_host_deadline.py` | - | `tests/agent/test_aux_stream_host_deadline.py` |
 | `agent/test_aux_stream_host_deadline_sibling_wires.py` | `1` | `agent/test_aux_stream_host_deadline_sibling_wires.py` | - | `tests/agent/test_aux_stream_host_deadline_sibling_wires.py` |
+| `agent/test_aux_summary_stream_hard_cancel.py` | `1` | `agent/test_aux_summary_stream_hard_cancel.py` | - | `tests/agent/test_aux_summary_stream_hard_cancel.py` |
 | `agent/test_auxiliary_anthropic_pool_fallback_regression.py` | `1` | `agent/test_auxiliary_anthropic_pool_fallback_regression.py` | - | `tests/agent/test_auxiliary_anthropic_pool_fallback_regression.py` |
 | `agent/test_auxiliary_auth_rung_fallthrough.py` | `1` | `agent/test_auxiliary_auth_rung_fallthrough.py` | - | `tests/agent/test_auxiliary_auth_rung_fallthrough.py` |
 | `agent/test_auxiliary_auto_never_guesses_provider.py` | `1` | `agent/test_auxiliary_auto_never_guesses_provider.py` | - | `tests/agent/test_auxiliary_auto_never_guesses_provider.py` |
@@ -156,11 +169,13 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_auxiliary_client_bootstrap_skew.py` | `1` | `agent/test_auxiliary_client_bootstrap_skew.py` | - | `tests/agent/test_auxiliary_client_bootstrap_skew.py` |
 | `agent/test_auxiliary_client_cache_eviction.py` | `1` | `agent/test_auxiliary_client_cache_eviction.py` | - | `tests/agent/test_auxiliary_client_cache_eviction.py` |
 | `agent/test_auxiliary_client_cache_follows_credential.py` | `1` | `agent/test_auxiliary_client_cache_follows_credential.py` | - | `tests/agent/test_auxiliary_client_cache_follows_credential.py` |
+| `agent/test_auxiliary_client_minimax_oauth.py` | `1` | `agent/test_auxiliary_client_minimax_oauth.py` | - | `tests/agent/test_auxiliary_client_minimax_oauth.py` |
 | `agent/test_auxiliary_client_nous_401_cache_key.py` | `1` | `agent/test_auxiliary_client_nous_401_cache_key.py` | - | `tests/agent/test_auxiliary_client_nous_401_cache_key.py` |
 | `agent/test_auxiliary_client_proxy_env.py` | `1` | `agent/test_auxiliary_client_proxy_env.py` | - | `tests/agent/test_auxiliary_client_proxy_env.py` |
 | `agent/test_auxiliary_client_resolve_dedup.py` | `1` | `agent/test_auxiliary_client_resolve_dedup.py` | - | `tests/agent/test_auxiliary_client_resolve_dedup.py` |
 | `agent/test_auxiliary_client_ssl_verify.py` | `1` | `agent/test_auxiliary_client_ssl_verify.py` | - | `tests/agent/test_auxiliary_client_ssl_verify.py` |
 | `agent/test_auxiliary_client_xai_oauth_recovery.py` | `1` | `agent/test_auxiliary_client_xai_oauth_recovery.py` | - | `tests/agent/test_auxiliary_client_xai_oauth_recovery.py` |
+| `agent/test_auxiliary_codex_completion_status.py` | `1` | `agent/test_auxiliary_codex_completion_status.py` | - | `tests/agent/test_auxiliary_codex_completion_status.py` |
 | `agent/test_auxiliary_compression_timeout_floor.py` | `1` | `agent/test_auxiliary_compression_timeout_floor.py` | - | `tests/agent/test_auxiliary_compression_timeout_floor.py` |
 | `agent/test_auxiliary_concurrency.py` | `1` | `agent/test_auxiliary_concurrency.py` | - | `tests/agent/test_auxiliary_concurrency.py` |
 | `agent/test_auxiliary_error_classification.py` | `1` | `agent/test_auxiliary_error_classification.py` | - | `tests/agent/test_auxiliary_error_classification.py` |
@@ -203,11 +218,16 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_battery.py` | `1` | `agent/test_battery.py` | - | `tests/agent/test_battery.py` |
 | `agent/test_bedrock_1m_context.py` | `1` | `agent/test_bedrock_1m_context.py` | - | `tests/agent/test_bedrock_1m_context.py` |
 | `agent/test_bedrock_adapter.py` | `1` | `agent/test_bedrock_adapter.py` | - | `tests/agent/test_bedrock_adapter.py` |
+| `agent/test_bedrock_anthropic_foreign_reasoning.py` | `1` | `agent/test_bedrock_anthropic_foreign_reasoning.py` | - | `tests/agent/test_bedrock_anthropic_foreign_reasoning.py` |
 | `agent/test_bedrock_context_cache.py` | `1` | `agent/test_bedrock_context_cache.py` | - | `tests/agent/test_bedrock_context_cache.py` |
+| `agent/test_bedrock_converse_reasoning_replay.py` | `1` | `agent/test_bedrock_converse_reasoning_replay.py` | - | `tests/agent/test_bedrock_converse_reasoning_replay.py` |
+| `agent/test_bedrock_credential_probe.py` | `1` | `agent/test_bedrock_credential_probe.py` | - | `tests/agent/test_bedrock_credential_probe.py` |
 | `agent/test_bedrock_empty_text_blocks.py` | `1` | `agent/test_bedrock_empty_text_blocks.py` | - | `tests/agent/test_bedrock_empty_text_blocks.py` |
 | `agent/test_bedrock_guardrail_claude_route.py` | `1` | `agent/test_bedrock_guardrail_claude_route.py` | - | `tests/agent/test_bedrock_guardrail_claude_route.py` |
 | `agent/test_bedrock_integration.py` | `1` | `agent/test_bedrock_integration.py` | - | `tests/agent/test_bedrock_integration.py` |
 | `agent/test_bedrock_interrupt_post_worker.py` | `1` | `agent/test_bedrock_interrupt_post_worker.py` | - | `tests/agent/test_bedrock_interrupt_post_worker.py` |
+| `agent/test_bedrock_no_sdk_retry.py` | `1` | `agent/test_bedrock_no_sdk_retry.py` | - | `tests/agent/test_bedrock_no_sdk_retry.py` |
+| `agent/test_bedrock_request_timeout.py` | `1` | `agent/test_bedrock_request_timeout.py` | - | `tests/agent/test_bedrock_request_timeout.py` |
 | `agent/test_bedrock_stream_completion.py` | `1` | `agent/test_bedrock_stream_completion.py` | - | `tests/agent/test_bedrock_stream_completion.py` |
 | `agent/test_bedrock_transport_replay.py` | `1` | `agent/test_bedrock_transport_replay.py` | - | `tests/agent/test_bedrock_transport_replay.py` |
 | `agent/test_billing_links.py` | `1` | `agent/test_billing_links.py` | - | `tests/agent/test_billing_links.py` |
@@ -215,6 +235,7 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_billing_usage.py` | `1` | `agent/test_billing_usage.py` | - | `tests/agent/test_billing_usage.py` |
 | `agent/test_billing_view.py` | `1` | `agent/test_billing_view.py` | - | `tests/agent/test_billing_view.py` |
 | `agent/test_bitwarden_secrets.py` | `1` | `agent/test_bitwarden_secrets.py` | - | `tests/agent/test_bitwarden_secrets.py` |
+| `agent/test_bot_chat_toolset_refresh.py` | `1` | `agent/test_bot_chat_toolset_refresh.py` | - | `tests/agent/test_bot_chat_toolset_refresh.py` |
 | `agent/test_bot_profile_prompt_isolation.py` | `1` | `agent/test_bot_profile_prompt_isolation.py` | - | `tests/agent/test_bot_profile_prompt_isolation.py` |
 | `agent/test_bounded_response.py` | `1` | `agent/test_bounded_response.py` | - | `tests/agent/test_bounded_response.py` |
 | `agent/test_budget_reasoning_details_exclusion.py` | `1` | `agent/test_budget_reasoning_details_exclusion.py` | - | `tests/agent/test_budget_reasoning_details_exclusion.py` |
@@ -225,16 +246,20 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_capability_probe_credentials.py` | `1` | `agent/test_capability_probe_credentials.py` | - | `tests/agent/test_capability_probe_credentials.py` |
 | `agent/test_cascading_interrupt.py` | `1` | `agent/test_cascading_interrupt.py` | - | `tests/agent/test_cascading_interrupt.py` |
 | `agent/test_chat_completion_helpers_provider_sort.py` | `1` | `agent/test_chat_completion_helpers_provider_sort.py` | - | `tests/agent/test_chat_completion_helpers_provider_sort.py` |
+| `agent/test_chat_completion_helpers_tool_calls.py` | `1` | `agent/test_chat_completion_helpers_tool_calls.py` | - | `tests/agent/test_chat_completion_helpers_tool_calls.py` |
 | `agent/test_chat_sdk_transform_bypass.py` | `1` | `agent/test_chat_sdk_transform_bypass.py` | - | `tests/agent/test_chat_sdk_transform_bypass.py` |
 | `agent/test_cjk_token_estimation.py` | `1` | `agent/test_cjk_token_estimation.py` | - | `tests/agent/test_cjk_token_estimation.py` |
 | `agent/test_claude_code_version_path.py` | `1` | `agent/test_claude_code_version_path.py` | - | `tests/agent/test_claude_code_version_path.py` |
+| `agent/test_cleanup_task_resources_headed.py` | `1` | `agent/test_cleanup_task_resources_headed.py` | - | `tests/agent/test_cleanup_task_resources_headed.py` |
 | `agent/test_close_interrupted_tool_sequence.py` | `1` | `agent/test_close_interrupted_tool_sequence.py` | - | `tests/agent/test_close_interrupted_tool_sequence.py` |
+| `agent/test_close_memory_trim.py` | `1` | `agent/test_close_memory_trim.py` | - | `tests/agent/test_close_memory_trim.py` |
 | `agent/test_codex_app_server_compaction.py` | `1` | `agent/test_codex_app_server_compaction.py` | - | `tests/agent/test_codex_app_server_compaction.py` |
 | `agent/test_codex_app_server_event_bridge.py` | `1` | `agent/test_codex_app_server_event_bridge.py` | - | `tests/agent/test_codex_app_server_event_bridge.py` |
 | `agent/test_codex_app_server_integration.py` | `1` | `agent/test_codex_app_server_integration.py` | - | `tests/agent/test_codex_app_server_integration.py` |
 | `agent/test_codex_app_server_lifecycle.py` | `1` | `agent/test_codex_app_server_lifecycle.py` | - | `tests/agent/test_codex_app_server_lifecycle.py` |
 | `agent/test_codex_app_server_persist.py` | `1` | `agent/test_codex_app_server_persist.py` | - | `tests/agent/test_codex_app_server_persist.py` |
 | `agent/test_codex_app_server_thread_resume.py` | `1` | `agent/test_codex_app_server_thread_resume.py` | - | `tests/agent/test_codex_app_server_thread_resume.py` |
+| `agent/test_codex_app_server_transform.py` | `1` | `agent/test_codex_app_server_transform.py` | - | `tests/agent/test_codex_app_server_transform.py` |
 | `agent/test_codex_aux_no_progress_timeout.py` | `1` | `agent/test_codex_aux_no_progress_timeout.py` | - | `tests/agent/test_codex_aux_no_progress_timeout.py` |
 | `agent/test_codex_aux_timeout_fd_ownership.py` | `1` | `agent/test_codex_aux_timeout_fd_ownership.py` | - | `tests/agent/test_codex_aux_timeout_fd_ownership.py` |
 | `agent/test_codex_cloudflare_headers.py` | `1` | `agent/test_codex_cloudflare_headers.py` | - | `tests/agent/test_codex_cloudflare_headers.py` |
@@ -246,7 +271,9 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_codex_model_entitlement_rotation.py` | `1` | `agent/test_codex_model_entitlement_rotation.py` | - | `tests/agent/test_codex_model_entitlement_rotation.py` |
 | `agent/test_codex_multimodal_tool_result.py` | `1` | `agent/test_codex_multimodal_tool_result.py` | - | `tests/agent/test_codex_multimodal_tool_result.py` |
 | `agent/test_codex_no_tools_nonetype.py` | `1` | `agent/test_codex_no_tools_nonetype.py` | - | `tests/agent/test_codex_no_tools_nonetype.py` |
+| `agent/test_codex_pending_tool_text.py` | `1` | `agent/test_codex_pending_tool_text.py` | - | `tests/agent/test_codex_pending_tool_text.py` |
 | `agent/test_codex_reasoning_only_streak.py` | `1` | `agent/test_codex_reasoning_only_streak.py` | - | `tests/agent/test_codex_reasoning_only_streak.py` |
+| `agent/test_codex_request_compression.py` | `1` | `agent/test_codex_request_compression.py` | - | `tests/agent/test_codex_request_compression.py` |
 | `agent/test_codex_request_transport_diagnostics.py` | `1` | `agent/test_codex_request_transport_diagnostics.py` | - | `tests/agent/test_codex_request_transport_diagnostics.py` |
 | `agent/test_codex_responses_adapter.py` | `1` | `agent/test_codex_responses_adapter.py` | - | `tests/agent/test_codex_responses_adapter.py` |
 | `agent/test_codex_responses_settle_pending_tool_calls.py` | `1` | `agent/test_codex_responses_settle_pending_tool_calls.py` | - | `tests/agent/test_codex_responses_settle_pending_tool_calls.py` |
@@ -254,7 +281,9 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_codex_runtime_live_events.py` | `1` | `agent/test_codex_runtime_live_events.py` | - | `tests/agent/test_codex_runtime_live_events.py` |
 | `agent/test_codex_runtime_prompt_handoff.py` | `1` | `agent/test_codex_runtime_prompt_handoff.py` | - | `tests/agent/test_codex_runtime_prompt_handoff.py` |
 | `agent/test_codex_sdk_transform_bypass.py` | `1` | `agent/test_codex_sdk_transform_bypass.py` | - | `tests/agent/test_codex_sdk_transform_bypass.py` |
+| `agent/test_codex_service_tiers.py` | `1` | `agent/test_codex_service_tiers.py` | - | `tests/agent/test_codex_service_tiers.py` |
 | `agent/test_codex_soft_failure_pool_rotation.py` | `1` | `agent/test_codex_soft_failure_pool_rotation.py` | - | `tests/agent/test_codex_soft_failure_pool_rotation.py` |
+| `agent/test_codex_stream_rotating_item_ids.py` | `1` | `agent/test_codex_stream_rotating_item_ids.py` | - | `tests/agent/test_codex_stream_rotating_item_ids.py` |
 | `agent/test_codex_stream_supersession.py` | `1` | `agent/test_codex_stream_supersession.py` | - | `tests/agent/test_codex_stream_supersession.py` |
 | `agent/test_codex_token_expired_replay_recovery.py` | `1` | `agent/test_codex_token_expired_replay_recovery.py` | - | `tests/agent/test_codex_token_expired_replay_recovery.py` |
 | `agent/test_codex_ttfb_watchdog.py` | `1` | `agent/test_codex_ttfb_watchdog.py` | - | `tests/agent/test_codex_ttfb_watchdog.py` |
@@ -262,10 +291,12 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_codex_watchdog_reasoning_effort.py` | `1` | `agent/test_codex_watchdog_reasoning_effort.py` | - | `tests/agent/test_codex_watchdog_reasoning_effort.py` |
 | `agent/test_codex_xai_oauth_recovery.py` | `1` | `agent/test_codex_xai_oauth_recovery.py` | - | `tests/agent/test_codex_xai_oauth_recovery.py` |
 | `agent/test_coding_context.py` | `1` | `agent/test_coding_context.py` | - | `tests/agent/test_coding_context.py` |
+| `agent/test_coding_worktree_note.py` | `1` | `agent/test_coding_worktree_note.py` | - | `tests/agent/test_coding_worktree_note.py` |
 | `agent/test_command_secret_source.py` | `1` | `agent/test_command_secret_source.py` | - | `tests/agent/test_command_secret_source.py` |
 | `agent/test_command_token_source.py` | `1` | `agent/test_command_token_source.py` | - | `tests/agent/test_command_token_source.py` |
 | `agent/test_commit_memory_session_context_engine.py` | `1` | `agent/test_commit_memory_session_context_engine.py` | - | `tests/agent/test_commit_memory_session_context_engine.py` |
 | `agent/test_compaction_anti_thrash.py` | `1` | `agent/test_compaction_anti_thrash.py` | - | `tests/agent/test_compaction_anti_thrash.py` |
+| `agent/test_compaction_events.py` | `1` | `agent/test_compaction_events.py` | - | `tests/agent/test_compaction_events.py` |
 | `agent/test_compaction_ops_notification_anchor.py` | `1` | `agent/test_compaction_ops_notification_anchor.py` | - | `tests/agent/test_compaction_ops_notification_anchor.py` |
 | `agent/test_compaction_prompt_rebuild.py` | `1` | `agent/test_compaction_prompt_rebuild.py` | - | `tests/agent/test_compaction_prompt_rebuild.py` |
 | `agent/test_compaction_redaction_boundaries.py` | `1` | `agent/test_compaction_redaction_boundaries.py` | - | `tests/agent/test_compaction_redaction_boundaries.py` |
@@ -277,15 +308,19 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_compression_adoption_preserves_live_tail.py` | `1` | `agent/test_compression_adoption_preserves_live_tail.py` | - | `tests/agent/test_compression_adoption_preserves_live_tail.py` |
 | `agent/test_compression_anti_thrash_persistence.py` | `1` | `agent/test_compression_anti_thrash_persistence.py` | - | `tests/agent/test_compression_anti_thrash_persistence.py` |
 | `agent/test_compression_anti_thrash_recovery.py` | `1` | `agent/test_compression_anti_thrash_recovery.py` | - | `tests/agent/test_compression_anti_thrash_recovery.py` |
+| `agent/test_compression_attempt_effect.py` | `1` | `agent/test_compression_attempt_effect.py` | - | `tests/agent/test_compression_attempt_effect.py` |
 | `agent/test_compression_attempt_lifecycle.py` | `1` | `agent/test_compression_attempt_lifecycle.py` | - | `tests/agent/test_compression_attempt_lifecycle.py` |
 | `agent/test_compression_attempt_ownership.py` | `1` | `agent/test_compression_attempt_ownership.py` | - | `tests/agent/test_compression_attempt_ownership.py` |
 | `agent/test_compression_attempt_telemetry.py` | `1` | `agent/test_compression_attempt_telemetry.py` | - | `tests/agent/test_compression_attempt_telemetry.py` |
 | `agent/test_compression_auto_summary_fallback.py` | `1` | `agent/test_compression_auto_summary_fallback.py` | - | `tests/agent/test_compression_auto_summary_fallback.py` |
+| `agent/test_compression_aux_fallback_authority.py` | `1` | `agent/test_compression_aux_fallback_authority.py` | - | `tests/agent/test_compression_aux_fallback_authority.py` |
+| `agent/test_compression_aux_fallback_route.py` | `1` | `agent/test_compression_aux_fallback_route.py` | - | `tests/agent/test_compression_aux_fallback_route.py` |
 | `agent/test_compression_boundary.py` | `1` | `agent/test_compression_boundary.py` | - | `tests/agent/test_compression_boundary.py` |
 | `agent/test_compression_boundary_hook.py` | `1` | `agent/test_compression_boundary_hook.py` | - | `tests/agent/test_compression_boundary_hook.py` |
 | `agent/test_compression_budget_rearm.py` | `1` | `agent/test_compression_budget_rearm.py` | - | `tests/agent/test_compression_budget_rearm.py` |
 | `agent/test_compression_budget_refund.py` | `1` | `agent/test_compression_budget_refund.py` | - | `tests/agent/test_compression_budget_refund.py` |
 | `agent/test_compression_busy_steer_anchor.py` | `1` | `agent/test_compression_busy_steer_anchor.py` | - | `tests/agent/test_compression_busy_steer_anchor.py` |
+| `agent/test_compression_call_llm_fallback_reported.py` | `1` | `agent/test_compression_call_llm_fallback_reported.py` | - | `tests/agent/test_compression_call_llm_fallback_reported.py` |
 | `agent/test_compression_child_source.py` | `1` | `agent/test_compression_child_source.py` | - | `tests/agent/test_compression_child_source.py` |
 | `agent/test_compression_closed_adoption.py` | `1` | `agent/test_compression_closed_adoption.py` | - | `tests/agent/test_compression_closed_adoption.py` |
 | `agent/test_compression_commit_fence_race.py` | `1` | `agent/test_compression_commit_fence_race.py` | - | `tests/agent/test_compression_commit_fence_race.py` |
@@ -298,22 +333,31 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_compression_last_assistant_anchor.py` | `1` | `agent/test_compression_last_assistant_anchor.py` | - | `tests/agent/test_compression_last_assistant_anchor.py` |
 | `agent/test_compression_lock_defer.py` | `1` | `agent/test_compression_lock_defer.py` | - | `tests/agent/test_compression_lock_defer.py` |
 | `agent/test_compression_logging_session_context.py` | `1` | `agent/test_compression_logging_session_context.py` | - | `tests/agent/test_compression_logging_session_context.py` |
+| `agent/test_compression_marker.py` | `1` | `agent/test_compression_marker.py` | - | `tests/agent/test_compression_marker.py` |
 | `agent/test_compression_max_attempts_config.py` | `1` | `agent/test_compression_max_attempts_config.py` | - | `tests/agent/test_compression_max_attempts_config.py` |
 | `agent/test_compression_orphan_recovery.py` | `1` | `agent/test_compression_orphan_recovery.py` | - | `tests/agent/test_compression_orphan_recovery.py` |
 | `agent/test_compression_persistence.py` | `1` | `agent/test_compression_persistence.py` | - | `tests/agent/test_compression_persistence.py` |
 | `agent/test_compression_progress.py` | `1` | `agent/test_compression_progress.py` | - | `tests/agent/test_compression_progress.py` |
+| `agent/test_compression_prompt_reading.py` | `1` | `agent/test_compression_prompt_reading.py` | - | `tests/agent/test_compression_prompt_reading.py` |
+| `agent/test_compression_refusal_restores_transcript.py` | `1` | `agent/test_compression_refusal_restores_transcript.py` | - | `tests/agent/test_compression_refusal_restores_transcript.py` |
 | `agent/test_compression_review.py` | `1` | `agent/test_compression_review.py` | - | `tests/agent/test_compression_review.py` |
 | `agent/test_compression_rotation_state.py` | `1` | `agent/test_compression_rotation_state.py` | - | `tests/agent/test_compression_rotation_state.py` |
+| `agent/test_compression_skill_safety_single_copy.py` | `1` | `agent/test_compression_skill_safety_single_copy.py` | - | `tests/agent/test_compression_skill_safety_single_copy.py` |
 | `agent/test_compression_small_ctx_threshold_floor.py` | `1` | `agent/test_compression_small_ctx_threshold_floor.py` | - | `tests/agent/test_compression_small_ctx_threshold_floor.py` |
 | `agent/test_compression_stall_deterministic_fallback.py` | `1` | `agent/test_compression_stall_deterministic_fallback.py` | - | `tests/agent/test_compression_stall_deterministic_fallback.py` |
 | `agent/test_compression_stall_fallback.py` | `1` | `agent/test_compression_stall_fallback.py` | - | `tests/agent/test_compression_stall_fallback.py` |
 | `agent/test_compression_stall_interrupt.py` | `1` | `agent/test_compression_stall_interrupt.py` | - | `tests/agent/test_compression_stall_interrupt.py` |
 | `agent/test_compression_supersession_split.py` | `1` | `agent/test_compression_supersession_split.py` | - | `tests/agent/test_compression_supersession_split.py` |
+| `agent/test_compression_tail_threshold_share.py` | `1` | `agent/test_compression_tail_threshold_share.py` | - | `tests/agent/test_compression_tail_threshold_share.py` |
+| `agent/test_compression_terminal_activity_persist.py` | `1` | `agent/test_compression_terminal_activity_persist.py` | - | `tests/agent/test_compression_terminal_activity_persist.py` |
 | `agent/test_compression_timeout_terminal.py` | `1` | `agent/test_compression_timeout_terminal.py` | - | `tests/agent/test_compression_timeout_terminal.py` |
+| `agent/test_compression_trigger_labels.py` | `1` | `agent/test_compression_trigger_labels.py` | - | `tests/agent/test_compression_trigger_labels.py` |
 | `agent/test_compression_worker_isolation.py` | `1` | `agent/test_compression_worker_isolation.py` | - | `tests/agent/test_compression_worker_isolation.py` |
 | `agent/test_compressor_actionable_tail_anchor.py` | `1` | `agent/test_compressor_actionable_tail_anchor.py` | - | `tests/agent/test_compressor_actionable_tail_anchor.py` |
 | `agent/test_compressor_assistant_tail_anchor.py` | `1` | `agent/test_compressor_assistant_tail_anchor.py` | - | `tests/agent/test_compressor_assistant_tail_anchor.py` |
 | `agent/test_compressor_fallback_update.py` | `1` | `agent/test_compressor_fallback_update.py` | - | `tests/agent/test_compressor_fallback_update.py` |
+| `agent/test_compressor_handoff_tail_price.py` | `1` | `agent/test_compressor_handoff_tail_price.py` | - | `tests/agent/test_compressor_handoff_tail_price.py` |
+| `agent/test_compressor_handoff_tool_group_floor.py` | `1` | `agent/test_compressor_handoff_tool_group_floor.py` | - | `tests/agent/test_compressor_handoff_tool_group_floor.py` |
 | `agent/test_compressor_historical_media.py` | `1` | `agent/test_compressor_historical_media.py` | - | `tests/agent/test_compressor_historical_media.py` |
 | `agent/test_compressor_image_tokens.py` | `1` | `agent/test_compressor_image_tokens.py` | - | `tests/agent/test_compressor_image_tokens.py` |
 | `agent/test_compressor_media_stripping.py` | `1` | `agent/test_compressor_media_stripping.py` | - | `tests/agent/test_compressor_media_stripping.py` |
@@ -324,21 +368,26 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_compressor_truncated_summary_guard.py` | `1` | `agent/test_compressor_truncated_summary_guard.py` | - | `tests/agent/test_compressor_truncated_summary_guard.py` |
 | `agent/test_compressor_zero_user_guard.py` | `1` | `agent/test_compressor_zero_user_guard.py` | - | `tests/agent/test_compressor_zero_user_guard.py` |
 | `agent/test_concurrent_interrupt.py` | `1` | `agent/test_concurrent_interrupt.py` | - | `tests/agent/test_concurrent_interrupt.py` |
+| `agent/test_config_load_warning.py` | `1` | `agent/test_config_load_warning.py` | - | `tests/agent/test_config_load_warning.py` |
 | `agent/test_content_policy_blocked.py` | `1` | `agent/test_content_policy_blocked.py` | - | `tests/agent/test_content_policy_blocked.py` |
 | `agent/test_content_policy_refusal_stop_details.py` | `1` | `agent/test_content_policy_refusal_stop_details.py` | - | `tests/agent/test_content_policy_refusal_stop_details.py` |
 | `agent/test_context_breakdown.py` | `1` | `agent/test_context_breakdown.py` | - | `tests/agent/test_context_breakdown.py` |
+| `agent/test_context_compressor_bench_probe.py` | `1` | `agent/test_context_compressor_bench_probe.py` | - | `tests/agent/test_context_compressor_bench_probe.py` |
 | `agent/test_context_compressor_cross_session_guard.py` | `1` | `agent/test_context_compressor_cross_session_guard.py` | - | `tests/agent/test_context_compressor_cross_session_guard.py` |
 | `agent/test_context_compressor_custom_providers.py` | `1` | `agent/test_context_compressor_custom_providers.py` | - | `tests/agent/test_context_compressor_custom_providers.py` |
+| `agent/test_context_compressor_overload.py` | `1` | `agent/test_context_compressor_overload.py` | - | `tests/agent/test_context_compressor_overload.py` |
 | `agent/test_context_compressor_reasoning_fallback.py` | `1` | `agent/test_context_compressor_reasoning_fallback.py` | - | `tests/agent/test_context_compressor_reasoning_fallback.py` |
 | `agent/test_context_compressor_session_end_clears_state.py` | `1` | `agent/test_context_compressor_session_end_clears_state.py` | - | `tests/agent/test_context_compressor_session_end_clears_state.py` |
 | `agent/test_context_compressor_structural_backoff.py` | `1` | `agent/test_context_compressor_structural_backoff.py` | - | `tests/agent/test_context_compressor_structural_backoff.py` |
 | `agent/test_context_compressor_summary_continuity.py` | `1` | `agent/test_context_compressor_summary_continuity.py` | - | `tests/agent/test_context_compressor_summary_continuity.py` |
 | `agent/test_context_compressor_summary_hook_compat.py` | `1` | `agent/test_context_compressor_summary_hook_compat.py` | - | `tests/agent/test_context_compressor_summary_hook_compat.py` |
+| `agent/test_context_compressor_tail.py` | `1` | `agent/test_context_compressor_tail.py` | - | `tests/agent/test_context_compressor_tail.py` |
 | `agent/test_context_compressor_task_heading.py` | `1` | `agent/test_context_compressor_task_heading.py` | - | `tests/agent/test_context_compressor_task_heading.py` |
 | `agent/test_context_compressor_temporal_anchoring.py` | `1` | `agent/test_context_compressor_temporal_anchoring.py` | - | `tests/agent/test_context_compressor_temporal_anchoring.py` |
 | `agent/test_context_compressor_zero_user_provenance.py` | `1` | `agent/test_context_compressor_zero_user_provenance.py` | - | `tests/agent/test_context_compressor_zero_user_provenance.py` |
 | `agent/test_context_display_provenance.py` | `1` | `agent/test_context_display_provenance.py` | - | `tests/agent/test_context_display_provenance.py` |
 | `agent/test_context_engine_host_contract.py` | `1` | `agent/test_context_engine_host_contract.py` | - | `tests/agent/test_context_engine_host_contract.py` |
+| `agent/test_context_engine_message_uid.py` | `1` | `agent/test_context_engine_message_uid.py` | - | `tests/agent/test_context_engine_message_uid.py` |
 | `agent/test_context_engine_on_turn_complete_usage.py` | `1` | `agent/test_context_engine_on_turn_complete_usage.py` | - | `tests/agent/test_context_engine_on_turn_complete_usage.py` |
 | `agent/test_context_engine_select_context.py` | `1` | `agent/test_context_engine_select_context.py` | - | `tests/agent/test_context_engine_select_context.py` |
 | `agent/test_context_estimator_multimodal.py` | `1` | `agent/test_context_estimator_multimodal.py` | - | `tests/agent/test_context_estimator_multimodal.py` |
@@ -353,10 +402,7 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_conversation_compression_manual.py` | `1` | `agent/test_conversation_compression_manual.py` | - | `tests/agent/test_conversation_compression_manual.py` |
 | `agent/test_conversation_fallback_state.py` | `1` | `agent/test_conversation_fallback_state.py` | - | `tests/agent/test_conversation_fallback_state.py` |
 | `agent/test_conversation_loop_interpreter_shutdown.py` | `1` | `agent/test_conversation_loop_interpreter_shutdown.py` | - | `tests/agent/test_conversation_loop_interpreter_shutdown.py` |
-| `agent/test_copilot_acp_client.py` | `1` | `agent/test_copilot_acp_client.py` | - | `tests/agent/test_copilot_acp_client.py` |
-| `agent/test_copilot_acp_deprecation.py` | `1` | `agent/test_copilot_acp_deprecation.py` | - | `tests/agent/test_copilot_acp_deprecation.py` |
-| `agent/test_copilot_initiator.py` | `1` | `agent/test_copilot_initiator.py` | - | `tests/agent/test_copilot_initiator.py` |
-| `agent/test_copilot_native_vision_headers.py` | `1` | `agent/test_copilot_native_vision_headers.py` | - | `tests/agent/test_copilot_native_vision_headers.py` |
+| `agent/test_copilot_acp_alias_compat.py` | `1` | `agent/test_copilot_acp_alias_compat.py` | - | `tests/agent/test_copilot_acp_alias_compat.py` |
 | `agent/test_corruption_recovery_guidance.py` | `1` | `agent/test_corruption_recovery_guidance.py` | - | `tests/agent/test_corruption_recovery_guidance.py` |
 | `agent/test_create_openai_client_disables_sdk_retries.py` | `1` | `agent/test_create_openai_client_disables_sdk_retries.py` | - | `tests/agent/test_create_openai_client_disables_sdk_retries.py` |
 | `agent/test_create_openai_client_kwargs_isolation.py` | `1` | `agent/test_create_openai_client_kwargs_isolation.py` | - | `tests/agent/test_create_openai_client_kwargs_isolation.py` |
@@ -367,18 +413,21 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_credential_pool_anthropic_refresh_race.py` | `1` | `agent/test_credential_pool_anthropic_refresh_race.py` | - | `tests/agent/test_credential_pool_anthropic_refresh_race.py` |
 | `agent/test_credential_pool_auto_detect.py` | `1` | `agent/test_credential_pool_auto_detect.py` | - | `tests/agent/test_credential_pool_auto_detect.py` |
 | `agent/test_credential_pool_codex_singleton_isolation.py` | `1` | `agent/test_credential_pool_codex_singleton_isolation.py` | - | `tests/agent/test_credential_pool_codex_singleton_isolation.py` |
+| `agent/test_credential_pool_connectors_guest.py` | `1` | `agent/test_credential_pool_connectors_guest.py` | - | `tests/agent/test_credential_pool_connectors_guest.py` |
 | `agent/test_credential_pool_deferred_refresh.py` | `1` | `agent/test_credential_pool_deferred_refresh.py` | - | `tests/agent/test_credential_pool_deferred_refresh.py` |
 | `agent/test_credential_pool_interrupt.py` | `1` | `agent/test_credential_pool_interrupt.py` | - | `tests/agent/test_credential_pool_interrupt.py` |
 | `agent/test_credential_pool_key_rotation.py` | `1` | `agent/test_credential_pool_key_rotation.py` | - | `tests/agent/test_credential_pool_key_rotation.py` |
 | `agent/test_credential_pool_lease_refresh_reselect.py` | `1` | `agent/test_credential_pool_lease_refresh_reselect.py` | - | `tests/agent/test_credential_pool_lease_refresh_reselect.py` |
 | `agent/test_credential_pool_no_entries_log_throttle.py` | `1` | `agent/test_credential_pool_no_entries_log_throttle.py` | - | `tests/agent/test_credential_pool_no_entries_log_throttle.py` |
 | `agent/test_credential_pool_nous_refresh_stampede.py` | `1` | `agent/test_credential_pool_nous_refresh_stampede.py` | - | `tests/agent/test_credential_pool_nous_refresh_stampede.py` |
+| `agent/test_credential_pool_nous_transient_401.py` | `1` | `agent/test_credential_pool_nous_transient_401.py` | - | `tests/agent/test_credential_pool_nous_transient_401.py` |
 | `agent/test_credential_pool_oat_authtype.py` | `1` | `agent/test_credential_pool_oat_authtype.py` | - | `tests/agent/test_credential_pool_oat_authtype.py` |
 | `agent/test_credential_pool_oauth_writethrough.py` | `1` | `agent/test_credential_pool_oauth_writethrough.py` | - | `tests/agent/test_credential_pool_oauth_writethrough.py` |
 | `agent/test_credential_pool_operations.py` | `1` | `agent/test_credential_pool_operations.py` | - | `tests/agent/test_credential_pool_operations.py` |
 | `agent/test_credential_pool_plugin_seam.py` | `1` | `agent/test_credential_pool_plugin_seam.py` | - | `tests/agent/test_credential_pool_plugin_seam.py` |
 | `agent/test_credential_pool_profile_oauth_fork.py` | `1` | `agent/test_credential_pool_profile_oauth_fork.py` | - | `tests/agent/test_credential_pool_profile_oauth_fork.py` |
 | `agent/test_credential_pool_provider_boundary.py` | `1` | `agent/test_credential_pool_provider_boundary.py` | - | `tests/agent/test_credential_pool_provider_boundary.py` |
+| `agent/test_credential_pool_refresh_sweep_spacing.py` | `1` | `agent/test_credential_pool_refresh_sweep_spacing.py` | - | `tests/agent/test_credential_pool_refresh_sweep_spacing.py` |
 | `agent/test_credential_pool_routing.py` | `1` | `agent/test_credential_pool_routing.py` | - | `tests/agent/test_credential_pool_routing.py` |
 | `agent/test_credential_pool_seed_existing_env_sources.py` | `1` | `agent/test_credential_pool_seed_existing_env_sources.py` | - | `tests/agent/test_credential_pool_seed_existing_env_sources.py` |
 | `agent/test_credential_pool_sole_cooldown.py` | `1` | `agent/test_credential_pool_sole_cooldown.py` | - | `tests/agent/test_credential_pool_sole_cooldown.py` |
@@ -386,15 +435,18 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_credential_pool_terminal_refresh_visibility.py` | `1` | `agent/test_credential_pool_terminal_refresh_visibility.py` | - | `tests/agent/test_credential_pool_terminal_refresh_visibility.py` |
 | `agent/test_credential_pool_unmatched_rotation_bound.py` | `1` | `agent/test_credential_pool_unmatched_rotation_bound.py` | - | `tests/agent/test_credential_pool_unmatched_rotation_bound.py` |
 | `agent/test_credential_rotation_route_settings.py` | `1` | `agent/test_credential_rotation_route_settings.py` | - | `tests/agent/test_credential_rotation_route_settings.py` |
+| `agent/test_credential_source_labels.py` | `1` | `agent/test_credential_source_labels.py` | - | `tests/agent/test_credential_source_labels.py` |
 | `agent/test_credit_404_fallback.py` | `1` | `agent/test_credit_404_fallback.py` | - | `tests/agent/test_credit_404_fallback.py` |
 | `agent/test_credits_cold_start.py` | `1` | `agent/test_credits_cold_start.py` | - | `tests/agent/test_credits_cold_start.py` |
 | `agent/test_credits_notices_toggle.py` | `1` | `agent/test_credits_notices_toggle.py` | - | `tests/agent/test_credits_notices_toggle.py` |
 | `agent/test_credits_policy.py` | `1` | `agent/test_credits_policy.py` | - | `tests/agent/test_credits_policy.py` |
 | `agent/test_credits_tracker.py` | `1` | `agent/test_credits_tracker.py` | - | `tests/agent/test_credits_tracker.py` |
+| `agent/test_credits_usage_window.py` | `1` | `agent/test_credits_usage_window.py` | - | `tests/agent/test_credits_usage_window.py` |
 | `agent/test_credits_view.py` | `1` | `agent/test_credits_view.py` | - | `tests/agent/test_credits_view.py` |
 | `agent/test_cron_inflight_prompt_reappend.py` | `1` | `agent/test_cron_inflight_prompt_reappend.py` | - | `tests/agent/test_cron_inflight_prompt_reappend.py` |
 | `agent/test_cron_inline_api_call.py` | `1` | `agent/test_cron_inline_api_call.py` | - | `tests/agent/test_cron_inline_api_call.py` |
 | `agent/test_cross_process_turn_lease.py` | `1` | `agent/test_cross_process_turn_lease.py` | - | `tests/agent/test_cross_process_turn_lease.py` |
+| `agent/test_cross_turn_reasoning_continuity.py` | `1` | `agent/test_cross_turn_reasoning_continuity.py` | - | `tests/agent/test_cross_turn_reasoning_continuity.py` |
 | `agent/test_crossloop_client_cache.py` | `1` | `agent/test_crossloop_client_cache.py` | - | `tests/agent/test_crossloop_client_cache.py` |
 | `agent/test_ctx_halving_fix.py` | `1` | `agent/test_ctx_halving_fix.py` | - | `tests/agent/test_ctx_halving_fix.py` |
 | `agent/test_curator.py` | `1` | `agent/test_curator.py` | - | `tests/agent/test_curator.py` |
@@ -402,6 +454,7 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_curator_backup.py` | `1` | `agent/test_curator_backup.py` | - | `tests/agent/test_curator_backup.py` |
 | `agent/test_curator_classification.py` | `1` | `agent/test_curator_classification.py` | - | `tests/agent/test_curator_classification.py` |
 | `agent/test_curator_reports.py` | `1` | `agent/test_curator_reports.py` | - | `tests/agent/test_curator_reports.py` |
+| `agent/test_curator_rollback_staging.py` | `1` | `agent/test_curator_rollback_staging.py` | - | `tests/agent/test_curator_rollback_staging.py` |
 | `agent/test_curator_run_hygiene.py` | `1` | `agent/test_curator_run_hygiene.py` | - | `tests/agent/test_curator_run_hygiene.py` |
 | `agent/test_cursor_optimizations_parity.py` | `1` | `agent/test_cursor_optimizations_parity.py` | - | `tests/agent/test_cursor_optimizations_parity.py` |
 | `agent/test_custom_pool_mismatch_guard.py` | `1` | `agent/test_custom_pool_mismatch_guard.py` | - | `tests/agent/test_custom_pool_mismatch_guard.py` |
@@ -410,12 +463,14 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_custom_provider_extra_body_matching.py` | `1` | `agent/test_custom_provider_extra_body_matching.py` | - | `tests/agent/test_custom_provider_extra_body_matching.py` |
 | `agent/test_custom_provider_extra_headers_client.py` | `1` | `agent/test_custom_provider_extra_headers_client.py` | - | `tests/agent/test_custom_provider_extra_headers_client.py` |
 | `agent/test_custom_providers_vision.py` | `1` | `agent/test_custom_providers_vision.py` | - | `tests/agent/test_custom_providers_vision.py` |
+| `agent/test_dead_connection_cleanup.py` | `1` | `agent/test_dead_connection_cleanup.py` | - | `tests/agent/test_dead_connection_cleanup.py` |
 | `agent/test_deadline.py` | `1` | `agent/test_deadline.py` | - | `tests/agent/test_deadline.py` |
 | `agent/test_deadline_fork_race.py` | `1` | `agent/test_deadline_fork_race.py` | - | `tests/agent/test_deadline_fork_race.py` |
 | `agent/test_declared_conversation_scope.py` | `1` | `agent/test_declared_conversation_scope.py` | - | `tests/agent/test_declared_conversation_scope.py` |
 | `agent/test_deepseek_anthropic_thinking.py` | `1` | `agent/test_deepseek_anthropic_thinking.py` | - | `tests/agent/test_deepseek_anthropic_thinking.py` |
 | `agent/test_deepseek_reasoning_content_echo.py` | `1` | `agent/test_deepseek_reasoning_content_echo.py` | - | `tests/agent/test_deepseek_reasoning_content_echo.py` |
 | `agent/test_degenerate_final_recovery.py` | `1` | `agent/test_degenerate_final_recovery.py` | - | `tests/agent/test_degenerate_final_recovery.py` |
+| `agent/test_delegation_switch_next_session.py` | `1` | `agent/test_delegation_switch_next_session.py` | - | `tests/agent/test_delegation_switch_next_session.py` |
 | `agent/test_detached_fork_lifecycle_hooks.py` | `1` | `agent/test_detached_fork_lifecycle_hooks.py` | - | `tests/agent/test_detached_fork_lifecycle_hooks.py` |
 | `agent/test_dict_tool_call_args.py` | `1` | `agent/test_dict_tool_call_args.py` | - | `tests/agent/test_dict_tool_call_args.py` |
 | `agent/test_direct_contexts_stream_inline.py` | `1` | `agent/test_direct_contexts_stream_inline.py` | - | `tests/agent/test_direct_contexts_stream_inline.py` |
@@ -430,6 +485,7 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_empty_terminal_reasoning_surface.py` | `1` | `agent/test_empty_terminal_reasoning_surface.py` | - | `tests/agent/test_empty_terminal_reasoning_surface.py` |
 | `agent/test_empty_tool_name_loop_dampening.py` | `1` | `agent/test_empty_tool_name_loop_dampening.py` | - | `tests/agent/test_empty_tool_name_loop_dampening.py` |
 | `agent/test_endpoint_blackhole.py` | `1` | `agent/test_endpoint_blackhole.py` | - | `tests/agent/test_endpoint_blackhole.py` |
+| `agent/test_endpoint_profile_seams.py` | `1` | `agent/test_endpoint_profile_seams.py` | - | `tests/agent/test_endpoint_profile_seams.py` |
 | `agent/test_engine_preflight_wire.py` | `1` | `agent/test_engine_preflight_wire.py` | - | `tests/agent/test_engine_preflight_wire.py` |
 | `agent/test_entitlement_fail_closed.py` | `1` | `agent/test_entitlement_fail_closed.py` | - | `tests/agent/test_entitlement_fail_closed.py` |
 | `agent/test_env_credential_turn_refresh.py` | `1` | `agent/test_env_credential_turn_refresh.py` | - | `tests/agent/test_env_credential_turn_refresh.py` |
@@ -437,12 +493,17 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_env_loader_reload_restore.py` | `1` | `agent/test_env_loader_reload_restore.py` | - | `tests/agent/test_env_loader_reload_restore.py` |
 | `agent/test_env_loader_secret_sources.py` | `1` | `agent/test_env_loader_secret_sources.py` | - | `tests/agent/test_env_loader_secret_sources.py` |
 | `agent/test_error_classifier.py` | `1` | `agent/test_error_classifier.py` | - | `tests/agent/test_error_classifier.py` |
+| `agent/test_error_classifier_content_policy.py` | `1` | `agent/test_error_classifier_content_policy.py` | - | `tests/agent/test_error_classifier_content_policy.py` |
+| `agent/test_error_classifier_data_policy.py` | `1` | `agent/test_error_classifier_data_policy.py` | - | `tests/agent/test_error_classifier_data_policy.py` |
+| `agent/test_error_classifier_observed.py` | `1` | `agent/test_error_classifier_observed.py` | - | `tests/agent/test_error_classifier_observed.py` |
+| `agent/test_error_classifier_reasoning_level.py` | `1` | `agent/test_error_classifier_reasoning_level.py` | - | `tests/agent/test_error_classifier_reasoning_level.py` |
 | `agent/test_error_classifier_upstream_blocked.py` | `1` | `agent/test_error_classifier_upstream_blocked.py` | - | `tests/agent/test_error_classifier_upstream_blocked.py` |
 | `agent/test_error_surface.py` | `1` | `agent/test_error_surface.py` | - | `tests/agent/test_error_surface.py` |
 | `agent/test_estimator_parity.py` | `1` | `agent/test_estimator_parity.py` | - | `tests/agent/test_estimator_parity.py` |
 | `agent/test_exit_cleanup_interrupt.py` | `1` | `agent/test_exit_cleanup_interrupt.py` | - | `tests/agent/test_exit_cleanup_interrupt.py` |
 | `agent/test_export_current_turn_boundary.py` | `1` | `agent/test_export_current_turn_boundary.py` | - | `tests/agent/test_export_current_turn_boundary.py` |
 | `agent/test_external_process_provider_init.py` | `1` | `agent/test_external_process_provider_init.py` | - | `tests/agent/test_external_process_provider_init.py` |
+| `agent/test_external_process_streaming.py` | `1` | `agent/test_external_process_streaming.py` | - | `tests/agent/test_external_process_streaming.py` |
 | `agent/test_external_skills.py` | `1` | `agent/test_external_skills.py` | - | `tests/agent/test_external_skills.py` |
 | `agent/test_external_skills_dirs_cache.py` | `1` | `agent/test_external_skills_dirs_cache.py` | - | `tests/agent/test_external_skills_dirs_cache.py` |
 | `agent/test_failed_turn_chat_copy.py` | `1` | `agent/test_failed_turn_chat_copy.py` | - | `tests/agent/test_failed_turn_chat_copy.py` |
@@ -455,6 +516,7 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_fallback_entry_base_url.py` | `1` | `agent/test_fallback_entry_base_url.py` | - | `tests/agent/test_fallback_entry_base_url.py` |
 | `agent/test_fallback_exhaustion_cooldown.py` | `1` | `agent/test_fallback_exhaustion_cooldown.py` | - | `tests/agent/test_fallback_exhaustion_cooldown.py` |
 | `agent/test_fallback_reasoning_override.py` | `1` | `agent/test_fallback_reasoning_override.py` | - | `tests/agent/test_fallback_reasoning_override.py` |
+| `agent/test_fallback_restore_codex_early_reopen.py` | `1` | `agent/test_fallback_restore_codex_early_reopen.py` | - | `tests/agent/test_fallback_restore_codex_early_reopen.py` |
 | `agent/test_fast_compression_lane.py` | `1` | `agent/test_fast_compression_lane.py` | - | `tests/agent/test_fast_compression_lane.py` |
 | `agent/test_fast_mode_auto.py` | `1` | `agent/test_fast_mode_auto.py` | - | `tests/agent/test_fast_mode_auto.py` |
 | `agent/test_file_mutation_verifier.py` | `1` | `agent/test_file_mutation_verifier.py` | - | `tests/agent/test_file_mutation_verifier.py` |
@@ -467,23 +529,33 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_file_safety_write_credentials.py` | `1` | `agent/test_file_safety_write_credentials.py` | - | `tests/agent/test_file_safety_write_credentials.py` |
 | `agent/test_first_chunk_at_hook.py` | `1` | `agent/test_first_chunk_at_hook.py` | - | `tests/agent/test_first_chunk_at_hook.py` |
 | `agent/test_flush_diverts_on_corrupt_state_db.py` | `1` | `agent/test_flush_diverts_on_corrupt_state_db.py` | - | `tests/agent/test_flush_diverts_on_corrupt_state_db.py` |
+| `agent/test_flush_uid_reinsert_guard.py` | `1` | `agent/test_flush_uid_reinsert_guard.py` | - | `tests/agent/test_flush_uid_reinsert_guard.py` |
+| `agent/test_free_tier_rate_limit_class.py` | `1` | `agent/test_free_tier_rate_limit_class.py` | - | `tests/agent/test_free_tier_rate_limit_class.py` |
 | `agent/test_future_timeout_worker_death.py` | `1` | `agent/test_future_timeout_worker_death.py` | - | `tests/agent/test_future_timeout_worker_death.py` |
 | `agent/test_gateway_turn_sidecar.py` | `1` | `agent/test_gateway_turn_sidecar.py` | - | `tests/agent/test_gateway_turn_sidecar.py` |
 | `agent/test_gemini_alias_native_route.py` | `1` | `agent/test_gemini_alias_native_route.py` | - | `tests/agent/test_gemini_alias_native_route.py` |
 | `agent/test_gemini_fast_fallback.py` | `1` | `agent/test_gemini_fast_fallback.py` | - | `tests/agent/test_gemini_fast_fallback.py` |
 | `agent/test_gemini_free_tier_gate.py` | `1` | `agent/test_gemini_free_tier_gate.py` | - | `tests/agent/test_gemini_free_tier_gate.py` |
 | `agent/test_gemini_key_surface_guidance.py` | `1` | `agent/test_gemini_key_surface_guidance.py` | - | `tests/agent/test_gemini_key_surface_guidance.py` |
+| `agent/test_gemini_long_decode.py` | `1` | `agent/test_gemini_long_decode.py` | - | `tests/agent/test_gemini_long_decode.py` |
 | `agent/test_gemini_native_adapter.py` | `1` | `agent/test_gemini_native_adapter.py` | - | `tests/agent/test_gemini_native_adapter.py` |
 | `agent/test_gemini_native_reservation.py` | `1` | `agent/test_gemini_native_reservation.py` | - | `tests/agent/test_gemini_native_reservation.py` |
 | `agent/test_gemini_schema.py` | `1` | `agent/test_gemini_schema.py` | - | `tests/agent/test_gemini_schema.py` |
 | `agent/test_gemini_standard_key_guidance.py` | `1` | `agent/test_gemini_standard_key_guidance.py` | - | `tests/agent/test_gemini_standard_key_guidance.py` |
 | `agent/test_gemini_thinking_config.py` | `1` | `agent/test_gemini_thinking_config.py` | - | `tests/agent/test_gemini_thinking_config.py` |
 | `agent/test_gemini_type_arrays.py` | `1` | `agent/test_gemini_type_arrays.py` | - | `tests/agent/test_gemini_type_arrays.py` |
+| `agent/test_generated_media_durable.py` | `1` | `agent/test_generated_media_durable.py` | - | `tests/agent/test_generated_media_durable.py` |
 | `agent/test_ghost_skill_pruning.py` | `1` | `agent/test_ghost_skill_pruning.py` | - | `tests/agent/test_ghost_skill_pruning.py` |
 | `agent/test_glm_context_window_resolution.py` | `1` | `agent/test_glm_context_window_resolution.py` | - | `tests/agent/test_glm_context_window_resolution.py` |
 | `agent/test_grid_sweep_cli_tui_stream_diagnostics.py` | `1` | `agent/test_grid_sweep_cli_tui_stream_diagnostics.py` | - | `tests/agent/test_grid_sweep_cli_tui_stream_diagnostics.py` |
 | `agent/test_hermetic_side_effect_guards.py` | `1` | `agent/test_hermetic_side_effect_guards.py` | - | `tests/agent/test_hermetic_side_effect_guards.py` |
+| `agent/test_hold_stream_agent.py` | `1` | `agent/test_hold_stream_agent.py` | - | `tests/agent/test_hold_stream_agent.py` |
+| `agent/test_hold_stream_edges.py` | `1` | `agent/test_hold_stream_edges.py` | - | `tests/agent/test_hold_stream_edges.py` |
+| `agent/test_hold_stream_exits.py` | `1` | `agent/test_hold_stream_exits.py` | - | `tests/agent/test_hold_stream_exits.py` |
 | `agent/test_hygiene_timeout_cooldown_isolation.py` | `1` | `agent/test_hygiene_timeout_cooldown_isolation.py` | - | `tests/agent/test_hygiene_timeout_cooldown_isolation.py` |
+| `agent/test_i18n_languages.py` | `1` | `agent/test_i18n_languages.py` | - | `tests/agent/test_i18n_languages.py` |
+| `agent/test_i18n_layers.py` | `1` | `agent/test_i18n_layers.py` | - | `tests/agent/test_i18n_layers.py` |
+| `agent/test_i18n_tui_packs.py` | `1` | `agent/test_i18n_tui_packs.py` | - | `tests/agent/test_i18n_tui_packs.py` |
 | `agent/test_identity_flush.py` | `1` | `agent/test_identity_flush.py` | - | `tests/agent/test_identity_flush.py` |
 | `agent/test_idle_compaction.py` | `1` | `agent/test_idle_compaction.py` | - | `tests/agent/test_idle_compaction.py` |
 | `agent/test_idle_compaction_lock_and_guards.py` | `1` | `agent/test_idle_compaction_lock_and_guards.py` | - | `tests/agent/test_idle_compaction_lock_and_guards.py` |
@@ -492,14 +564,17 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_image_gen_registry.py` | `1` | `agent/test_image_gen_registry.py` | - | `tests/agent/test_image_gen_registry.py` |
 | `agent/test_image_generate_parallel.py` | `1` | `agent/test_image_generate_parallel.py` | - | `tests/agent/test_image_generate_parallel.py` |
 | `agent/test_image_rejection_fallback.py` | `1` | `agent/test_image_rejection_fallback.py` | - | `tests/agent/test_image_rejection_fallback.py` |
+| `agent/test_image_replay.py` | `1` | `agent/test_image_replay.py` | - | `tests/agent/test_image_replay.py` |
 | `agent/test_image_routing.py` | `1` | `agent/test_image_routing.py` | - | `tests/agent/test_image_routing.py` |
 | `agent/test_image_shrink_recovery.py` | `1` | `agent/test_image_shrink_recovery.py` | - | `tests/agent/test_image_shrink_recovery.py` |
 | `agent/test_image_token_cost.py` | `1` | `agent/test_image_token_cost.py` | - | `tests/agent/test_image_token_cost.py` |
 | `agent/test_in_place_commit_rollback.py` | `1` | `agent/test_in_place_commit_rollback.py` | - | `tests/agent/test_in_place_commit_rollback.py` |
 | `agent/test_in_place_compaction.py` | `1` | `agent/test_in_place_compaction.py` | - | `tests/agent/test_in_place_compaction.py` |
+| `agent/test_in_place_merged_user_rows.py` | `1` | `agent/test_in_place_merged_user_rows.py` | - | `tests/agent/test_in_place_merged_user_rows.py` |
 | `agent/test_in_place_persist_marker.py` | `1` | `agent/test_in_place_persist_marker.py` | - | `tests/agent/test_in_place_persist_marker.py` |
 | `agent/test_in_place_preflight_rewind.py` | `1` | `agent/test_in_place_preflight_rewind.py` | - | `tests/agent/test_in_place_preflight_rewind.py` |
 | `agent/test_infinite_compaction_loop.py` | `1` | `agent/test_infinite_compaction_loop.py` | - | `tests/agent/test_infinite_compaction_loop.py` |
+| `agent/test_init_exhausted_pool_billing_error.py` | `1` | `agent/test_init_exhausted_pool_billing_error.py` | - | `tests/agent/test_init_exhausted_pool_billing_error.py` |
 | `agent/test_init_fallback_on_exhausted_pool.py` | `1` | `agent/test_init_fallback_on_exhausted_pool.py` | - | `tests/agent/test_init_fallback_on_exhausted_pool.py` |
 | `agent/test_init_fallback_refusal_warning.py` | `1` | `agent/test_init_fallback_refusal_warning.py` | - | `tests/agent/test_init_fallback_refusal_warning.py` |
 | `agent/test_injected_param_strip_retry_registry.py` | `1` | `agent/test_injected_param_strip_retry_registry.py` | - | `tests/agent/test_injected_param_strip_retry_registry.py` |
@@ -521,23 +596,31 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_jiter_preload.py` | `1` | `agent/test_jiter_preload.py` | - | `tests/agent/test_jiter_preload.py` |
 | `agent/test_kanban_budget_checkpoint.py` | `1` | `agent/test_kanban_budget_checkpoint.py` | - | `tests/agent/test_kanban_budget_checkpoint.py` |
 | `agent/test_kanban_stop.py` | `1` | `agent/test_kanban_stop.py` | - | `tests/agent/test_kanban_stop.py` |
+| `agent/test_kanban_turn_recovery.py` | `1` | `agent/test_kanban_turn_recovery.py` | - | `tests/agent/test_kanban_turn_recovery.py` |
 | `agent/test_kimi_coding_anthropic_thinking.py` | `1` | `agent/test_kimi_coding_anthropic_thinking.py` | - | `tests/agent/test_kimi_coding_anthropic_thinking.py` |
+| `agent/test_kimi_coding_openai_base_url.py` | `1` | `agent/test_kimi_coding_openai_base_url.py` | - | `tests/agent/test_kimi_coding_openai_base_url.py` |
 | `agent/test_last_total_tokens.py` | `1` | `agent/test_last_total_tokens.py` | - | `tests/agent/test_last_total_tokens.py` |
 | `agent/test_lean_single_aux_call.py` | `1` | `agent/test_lean_single_aux_call.py` | - | `tests/agent/test_lean_single_aux_call.py` |
 | `agent/test_learn_prompt.py` | `1` | `agent/test_learn_prompt.py` | - | `tests/agent/test_learn_prompt.py` |
 | `agent/test_learning_graph.py` | `1` | `agent/test_learning_graph.py` | - | `tests/agent/test_learning_graph.py` |
 | `agent/test_learning_graph_render.py` | `1` | `agent/test_learning_graph_render.py` | - | `tests/agent/test_learning_graph_render.py` |
 | `agent/test_learning_mutations.py` | `1` | `agent/test_learning_mutations.py` | - | `tests/agent/test_learning_mutations.py` |
+| `agent/test_left_core_kept_notice_delivery.py` | `1` | `agent/test_left_core_kept_notice_delivery.py` | - | `tests/agent/test_left_core_kept_notice_delivery.py` |
 | `agent/test_legacy_cli.py` | `1` | `agent/test_legacy_cli.py` | - | `tests/agent/test_legacy_cli.py` |
 | `agent/test_length_continuation_thinking_exhaustion.py` | `1` | `agent/test_length_continuation_thinking_exhaustion.py` | - | `tests/agent/test_length_continuation_thinking_exhaustion.py` |
 | `agent/test_length_continuation_window_headroom.py` | `1` | `agent/test_length_continuation_window_headroom.py` | - | `tests/agent/test_length_continuation_window_headroom.py` |
 | `agent/test_litellm_tool_part_cache_markers.py` | `1` | `agent/test_litellm_tool_part_cache_markers.py` | - | `tests/agent/test_litellm_tool_part_cache_markers.py` |
+| `agent/test_live_db_preview_locks.py` | `1` | `agent/test_live_db_preview_locks.py` | - | `tests/agent/test_live_db_preview_locks.py` |
+| `agent/test_llamacpp_alias_managed_endpoint.py` | `1` | `agent/test_llamacpp_alias_managed_endpoint.py` | - | `tests/agent/test_llamacpp_alias_managed_endpoint.py` |
 | `agent/test_lmstudio_load_mode.py` | `1` | `agent/test_lmstudio_load_mode.py` | - | `tests/agent/test_lmstudio_load_mode.py` |
 | `agent/test_lmstudio_reasoning.py` | `1` | `agent/test_lmstudio_reasoning.py` | - | `tests/agent/test_lmstudio_reasoning.py` |
 | `agent/test_load_time_durability_stamp.py` | `1` | `agent/test_load_time_durability_stamp.py` | - | `tests/agent/test_load_time_durability_stamp.py` |
 | `agent/test_local_probe_disk_cache.py` | `1` | `agent/test_local_probe_disk_cache.py` | - | `tests/agent/test_local_probe_disk_cache.py` |
+| `agent/test_local_prompt_progress.py` | `1` | `agent/test_local_prompt_progress.py` | - | `tests/agent/test_local_prompt_progress.py` |
 | `agent/test_local_stream_timeout.py` | `1` | `agent/test_local_stream_timeout.py` | - | `tests/agent/test_local_stream_timeout.py` |
+| `agent/test_local_tool_batches.py` | `1` | `agent/test_local_tool_batches.py` | - | `tests/agent/test_local_tool_batches.py` |
 | `agent/test_lock_fallback_base_semantics.py` | `1` | `agent/test_lock_fallback_base_semantics.py` | - | `tests/agent/test_lock_fallback_base_semantics.py` |
+| `agent/test_long_lived_cache_bounds.py` | `1` | `agent/test_long_lived_cache_bounds.py` | - | `tests/agent/test_long_lived_cache_bounds.py` |
 | `agent/test_malformed_tool_args_no_fallback.py` | `1` | `agent/test_malformed_tool_args_no_fallback.py` | - | `tests/agent/test_malformed_tool_args_no_fallback.py` |
 | `agent/test_malformed_tool_arguments.py` | `1` | `agent/test_malformed_tool_arguments.py` | - | `tests/agent/test_malformed_tool_arguments.py` |
 | `agent/test_manual_compression_feedback.py` | `1` | `agent/test_manual_compression_feedback.py` | - | `tests/agent/test_manual_compression_feedback.py` |
@@ -545,19 +628,26 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_markdown_tables.py` | `1` | `agent/test_markdown_tables.py` | - | `tests/agent/test_markdown_tables.py` |
 | `agent/test_materialize_data_url_cleanup.py` | `1` | `agent/test_materialize_data_url_cleanup.py` | - | `tests/agent/test_materialize_data_url_cleanup.py` |
 | `agent/test_max_iteration_handoff.py` | `1` | `agent/test_max_iteration_handoff.py` | - | `tests/agent/test_max_iteration_handoff.py` |
+| `agent/test_mcp_execution_deadline.py` | `1` | `agent/test_mcp_execution_deadline.py` | - | `tests/agent/test_mcp_execution_deadline.py` |
 | `agent/test_memory_agent_context.py` | `1` | `agent/test_memory_agent_context.py` | - | `tests/agent/test_memory_agent_context.py` |
 | `agent/test_memory_async_sync.py` | `1` | `agent/test_memory_async_sync.py` | - | `tests/agent/test_memory_async_sync.py` |
 | `agent/test_memory_boundary_commit.py` | `1` | `agent/test_memory_boundary_commit.py` | - | `tests/agent/test_memory_boundary_commit.py` |
 | `agent/test_memory_context_dedupe.py` | `1` | `agent/test_memory_context_dedupe.py` | - | `tests/agent/test_memory_context_dedupe.py` |
+| `agent/test_memory_migration_notifications.py` | `1` | `agent/test_memory_migration_notifications.py` | - | `tests/agent/test_memory_migration_notifications.py` |
 | `agent/test_memory_provider.py` | `1` | `agent/test_memory_provider.py` | - | `tests/agent/test_memory_provider.py` |
+| `agent/test_memory_provider_caller_profile.py` | `1` | `agent/test_memory_provider_caller_profile.py` | - | `tests/agent/test_memory_provider_caller_profile.py` |
 | `agent/test_memory_provider_init.py` | `1` | `agent/test_memory_provider_init.py` | - | `tests/agent/test_memory_provider_init.py` |
 | `agent/test_memory_provider_unavailable_warning.py` | `1` | `agent/test_memory_provider_unavailable_warning.py` | - | `tests/agent/test_memory_provider_unavailable_warning.py` |
 | `agent/test_memory_recall_indicator.py` | `1` | `agent/test_memory_recall_indicator.py` | - | `tests/agent/test_memory_recall_indicator.py` |
+| `agent/test_memory_review_grounding.py` | `1` | `agent/test_memory_review_grounding.py` | - | `tests/agent/test_memory_review_grounding.py` |
 | `agent/test_memory_session_switch.py` | `1` | `agent/test_memory_session_switch.py` | - | `tests/agent/test_memory_session_switch.py` |
 | `agent/test_memory_skill_scaffolding.py` | `1` | `agent/test_memory_skill_scaffolding.py` | - | `tests/agent/test_memory_skill_scaffolding.py` |
+| `agent/test_memory_stalled_background_call.py` | `1` | `agent/test_memory_stalled_background_call.py` | - | `tests/agent/test_memory_stalled_background_call.py` |
 | `agent/test_memory_sync_interrupted.py` | `1` | `agent/test_memory_sync_interrupted.py` | - | `tests/agent/test_memory_sync_interrupted.py` |
+| `agent/test_memory_sync_redaction.py` | `1` | `agent/test_memory_sync_redaction.py` | - | `tests/agent/test_memory_sync_redaction.py` |
 | `agent/test_memory_user_id.py` | `1` | `agent/test_memory_user_id.py` | - | `tests/agent/test_memory_user_id.py` |
 | `agent/test_memory_write_bridge.py` | `1` | `agent/test_memory_write_bridge.py` | - | `tests/agent/test_memory_write_bridge.py` |
+| `agent/test_merged_user_override.py` | `1` | `agent/test_merged_user_override.py` | - | `tests/agent/test_merged_user_override.py` |
 | `agent/test_message_content.py` | `1` | `agent/test_message_content.py` | - | `tests/agent/test_message_content.py` |
 | `agent/test_message_metadata.py` | `1` | `agent/test_message_metadata.py` | - | `tests/agent/test_message_metadata.py` |
 | `agent/test_message_reactions.py` | `1` | `agent/test_message_reactions.py` | - | `tests/agent/test_message_reactions.py` |
@@ -570,6 +660,7 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_minimax_auxiliary_url.py` | `1` | `agent/test_minimax_auxiliary_url.py` | - | `tests/agent/test_minimax_auxiliary_url.py` |
 | `agent/test_minimax_provider.py` | `1` | `agent/test_minimax_provider.py` | - | `tests/agent/test_minimax_provider.py` |
 | `agent/test_missing_provider_credentials_hint.py` | `1` | `agent/test_missing_provider_credentials_hint.py` | - | `tests/agent/test_missing_provider_credentials_hint.py` |
+| `agent/test_mistral_tool_ids.py` | `1` | `agent/test_mistral_tool_ids.py` | - | `tests/agent/test_mistral_tool_ids.py` |
 | `agent/test_moa_aggregator_cache_control.py` | `1` | `agent/test_moa_aggregator_cache_control.py` | - | `tests/agent/test_moa_aggregator_cache_control.py` |
 | `agent/test_moa_aggregator_cost_slot.py` | `1` | `agent/test_moa_aggregator_cost_slot.py` | - | `tests/agent/test_moa_aggregator_cost_slot.py` |
 | `agent/test_moa_aggregator_prefix_stability.py` | `1` | `agent/test_moa_aggregator_prefix_stability.py` | - | `tests/agent/test_moa_aggregator_prefix_stability.py` |
@@ -577,6 +668,7 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_moa_cold_start_cache.py` | `1` | `agent/test_moa_cold_start_cache.py` | - | `tests/agent/test_moa_cold_start_cache.py` |
 | `agent/test_moa_context_max_tokens.py` | `1` | `agent/test_moa_context_max_tokens.py` | - | `tests/agent/test_moa_context_max_tokens.py` |
 | `agent/test_moa_fanout_cadence.py` | `1` | `agent/test_moa_fanout_cadence.py` | - | `tests/agent/test_moa_fanout_cadence.py` |
+| `agent/test_moa_fanout_liveness.py` | `1` | `agent/test_moa_fanout_liveness.py` | - | `tests/agent/test_moa_fanout_liveness.py` |
 | `agent/test_moa_loop_mode.py` | `1` | `agent/test_moa_loop_mode.py` | - | `tests/agent/test_moa_loop_mode.py` |
 | `agent/test_moa_observability_bridge.py` | `1` | `agent/test_moa_observability_bridge.py` | - | `tests/agent/test_moa_observability_bridge.py` |
 | `agent/test_moa_prepared_request_client_swap.py` | `1` | `agent/test_moa_prepared_request_client_swap.py` | - | `tests/agent/test_moa_prepared_request_client_swap.py` |
@@ -587,16 +679,20 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_moa_reasoning_effort.py` | `1` | `agent/test_moa_reasoning_effort.py` | - | `tests/agent/test_moa_reasoning_effort.py` |
 | `agent/test_moa_slot_api_mode.py` | `1` | `agent/test_moa_slot_api_mode.py` | - | `tests/agent/test_moa_slot_api_mode.py` |
 | `agent/test_moa_slot_max_tokens.py` | `1` | `agent/test_moa_slot_max_tokens.py` | - | `tests/agent/test_moa_slot_max_tokens.py` |
+| `agent/test_moa_slot_request_headers.py` | `1` | `agent/test_moa_slot_request_headers.py` | - | `tests/agent/test_moa_slot_request_headers.py` |
 | `agent/test_moa_stale_guidance_note.py` | `1` | `agent/test_moa_stale_guidance_note.py` | - | `tests/agent/test_moa_stale_guidance_note.py` |
 | `agent/test_moa_streaming.py` | `1` | `agent/test_moa_streaming.py` | - | `tests/agent/test_moa_streaming.py` |
 | `agent/test_moa_switch_api_mode.py` | `1` | `agent/test_moa_switch_api_mode.py` | - | `tests/agent/test_moa_switch_api_mode.py` |
 | `agent/test_moa_trace_streamed_capture.py` | `1` | `agent/test_moa_trace_streamed_capture.py` | - | `tests/agent/test_moa_trace_streamed_capture.py` |
 | `agent/test_model_extra_type_guard.py` | `1` | `agent/test_model_extra_type_guard.py` | - | `tests/agent/test_model_extra_type_guard.py` |
 | `agent/test_model_metadata.py` | `1` | `agent/test_model_metadata.py` | - | `tests/agent/test_model_metadata.py` |
+| `agent/test_model_metadata_cache.py` | `1` | `agent/test_model_metadata_cache.py` | - | `tests/agent/test_model_metadata_cache.py` |
 | `agent/test_model_metadata_http.py` | `1` | `agent/test_model_metadata_http.py` | - | `tests/agent/test_model_metadata_http.py` |
 | `agent/test_model_metadata_local_ctx.py` | `1` | `agent/test_model_metadata_local_ctx.py` | - | `tests/agent/test_model_metadata_local_ctx.py` |
+| `agent/test_model_metadata_probe_deadline.py` | `1` | `agent/test_model_metadata_probe_deadline.py` | - | `tests/agent/test_model_metadata_probe_deadline.py` |
 | `agent/test_model_streaming_config.py` | `1` | `agent/test_model_streaming_config.py` | - | `tests/agent/test_model_streaming_config.py` |
 | `agent/test_models_dev.py` | `1` | `agent/test_models_dev.py` | - | `tests/agent/test_models_dev.py` |
+| `agent/test_models_dev_fetch_deadline.py` | `1` | `agent/test_models_dev_fetch_deadline.py` | - | `tests/agent/test_models_dev_fetch_deadline.py` |
 | `agent/test_models_dev_provider_capabilities.py` | `1` | `agent/test_models_dev_provider_capabilities.py` | - | `tests/agent/test_models_dev_provider_capabilities.py` |
 | `agent/test_moonshot_schema.py` | `1` | `agent/test_moonshot_schema.py` | - | `tests/agent/test_moonshot_schema.py` |
 | `agent/test_multimodal_interim.py` | `1` | `agent/test_multimodal_interim.py` | - | `tests/agent/test_multimodal_interim.py` |
@@ -608,6 +704,7 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_native_compaction_nontext_retention.py` | `1` | `agent/test_native_compaction_nontext_retention.py` | - | `tests/agent/test_native_compaction_nontext_retention.py` |
 | `agent/test_native_compaction_summary_retention.py` | `1` | `agent/test_native_compaction_summary_retention.py` | - | `tests/agent/test_native_compaction_summary_retention.py` |
 | `agent/test_native_compaction_switch_capabilities.py` | `1` | `agent/test_native_compaction_switch_capabilities.py` | - | `tests/agent/test_native_compaction_switch_capabilities.py` |
+| `agent/test_native_compaction_typed_user_retention.py` | `1` | `agent/test_native_compaction_typed_user_retention.py` | - | `tests/agent/test_native_compaction_typed_user_retention.py` |
 | `agent/test_native_preflight_estimate.py` | `1` | `agent/test_native_preflight_estimate.py` | - | `tests/agent/test_native_preflight_estimate.py` |
 | `agent/test_non_chat_primary_restore.py` | `1` | `agent/test_non_chat_primary_restore.py` | - | `tests/agent/test_non_chat_primary_restore.py` |
 | `agent/test_non_stream_stale_timeout.py` | `1` | `agent/test_non_stream_stale_timeout.py` | - | `tests/agent/test_non_stream_stale_timeout.py` |
@@ -623,20 +720,24 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_nous_key_pre_expiry_adoption.py` | `1` | `agent/test_nous_key_pre_expiry_adoption.py` | - | `tests/agent/test_nous_key_pre_expiry_adoption.py` |
 | `agent/test_nous_portal_anthropic_wire.py` | `1` | `agent/test_nous_portal_anthropic_wire.py` | - | `tests/agent/test_nous_portal_anthropic_wire.py` |
 | `agent/test_nous_rate_guard.py` | `1` | `agent/test_nous_rate_guard.py` | - | `tests/agent/test_nous_rate_guard.py` |
+| `agent/test_nous_transient_401_interrupt.py` | `1` | `agent/test_nous_transient_401_interrupt.py` | - | `tests/agent/test_nous_transient_401_interrupt.py` |
 | `agent/test_nous_usage_profile_context.py` | `1` | `agent/test_nous_usage_profile_context.py` | - | `tests/agent/test_nous_usage_profile_context.py` |
 | `agent/test_nous_welcome_client_contract.py` | `1` | `agent/test_nous_welcome_client_contract.py` | - | `tests/agent/test_nous_welcome_client_contract.py` |
 | `agent/test_nous_wire_auto.py` | `1` | `agent/test_nous_wire_auto.py` | - | `tests/agent/test_nous_wire_auto.py` |
 | `agent/test_nt_namespace_guard.py` | `1` | `agent/test_nt_namespace_guard.py` | - | `tests/agent/test_nt_namespace_guard.py` |
 | `agent/test_ollama_num_ctx.py` | `1` | `agent/test_ollama_num_ctx.py` | - | `tests/agent/test_ollama_num_ctx.py` |
 | `agent/test_onboarding.py` | `1` | `agent/test_onboarding.py` | - | `tests/agent/test_onboarding.py` |
+| `agent/test_onboarding_first_tasks.py` | `1` | `agent/test_onboarding_first_tasks.py` | - | `tests/agent/test_onboarding_first_tasks.py` |
+| `agent/test_onboarding_flow.py` | `1` | `agent/test_onboarding_flow.py` | - | `tests/agent/test_onboarding_flow.py` |
 | `agent/test_onepassword_secrets.py` | `1` | `agent/test_onepassword_secrets.py` | - | `tests/agent/test_onepassword_secrets.py` |
 | `agent/test_oneshot.py` | `1` | `agent/test_oneshot.py` | - | `tests/agent/test_oneshot.py` |
 | `agent/test_oneshot_footprint.py` | `1` | `agent/test_oneshot_footprint.py` | - | `tests/agent/test_oneshot_footprint.py` |
+| `agent/test_oneshot_interactive_surface.py` | `1` | `agent/test_oneshot_interactive_surface.py` | - | `tests/agent/test_oneshot_interactive_surface.py` |
 | `agent/test_openai_client_lifecycle.py` | `1` | `agent/test_openai_client_lifecycle.py` | - | `tests/agent/test_openai_client_lifecycle.py` |
+| `agent/test_openai_ultrafast.py` | `1` | `agent/test_openai_ultrafast.py` | - | `tests/agent/test_openai_ultrafast.py` |
 | `agent/test_opencode_session_affinity.py` | `1` | `agent/test_opencode_session_affinity.py` | - | `tests/agent/test_opencode_session_affinity.py` |
 | `agent/test_openrouter_response_cache.py` | `1` | `agent/test_openrouter_response_cache.py` | - | `tests/agent/test_openrouter_response_cache.py` |
 | `agent/test_openrouter_silent_default_purge.py` | `1` | `agent/test_openrouter_silent_default_purge.py` | - | `tests/agent/test_openrouter_silent_default_purge.py` |
-| `agent/test_org_skill_namespace.py` | `1` | `agent/test_org_skill_namespace.py` | - | `tests/agent/test_org_skill_namespace.py` |
 | `agent/test_outbound_stale_vision.py` | `1` | `agent/test_outbound_stale_vision.py` | - | `tests/agent/test_outbound_stale_vision.py` |
 | `agent/test_outbound_webhooks.py` | `1` | `agent/test_outbound_webhooks.py` | - | `tests/agent/test_outbound_webhooks.py` |
 | `agent/test_outer_error_retry_bound.py` | `1` | `agent/test_outer_error_retry_bound.py` | - | `tests/agent/test_outer_error_retry_bound.py` |
@@ -655,13 +756,16 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_periodic_scheduler_context.py` | `1` | `agent/test_periodic_scheduler_context.py` | - | `tests/agent/test_periodic_scheduler_context.py` |
 | `agent/test_pet_engine.py` | `1` | `agent/test_pet_engine.py` | - | `tests/agent/test_pet_engine.py` |
 | `agent/test_phantom_tool_references.py` | `1` | `agent/test_phantom_tool_references.py` | - | `tests/agent/test_phantom_tool_references.py` |
+| `agent/test_plan_limits.py` | `1` | `agent/test_plan_limits.py` | - | `tests/agent/test_plan_limits.py` |
 | `agent/test_plan_prompt.py` | `1` | `agent/test_plan_prompt.py` | - | `tests/agent/test_plan_prompt.py` |
+| `agent/test_plan_snapshot_sync.py` | `1` | `agent/test_plan_snapshot_sync.py` | - | `tests/agent/test_plan_snapshot_sync.py` |
 | `agent/test_platform_hint_cron_delivery.py` | `1` | `agent/test_platform_hint_cron_delivery.py` | - | `tests/agent/test_platform_hint_cron_delivery.py` |
 | `agent/test_platform_hint_desktop.py` | `1` | `agent/test_platform_hint_desktop.py` | - | `tests/agent/test_platform_hint_desktop.py` |
 | `agent/test_platform_hint_overrides.py` | `1` | `agent/test_platform_hint_overrides.py` | - | `tests/agent/test_platform_hint_overrides.py` |
 | `agent/test_plugin_context_engine_clone.py` | `1` | `agent/test_plugin_context_engine_clone.py` | - | `tests/agent/test_plugin_context_engine_clone.py` |
 | `agent/test_plugin_context_engine_init.py` | `1` | `agent/test_plugin_context_engine_init.py` | - | `tests/agent/test_plugin_context_engine_init.py` |
 | `agent/test_plugin_context_references.py` | `1` | `agent/test_plugin_context_references.py` | - | `tests/agent/test_plugin_context_references.py` |
+| `agent/test_plugin_live_notes_delivery.py` | `1` | `agent/test_plugin_live_notes_delivery.py` | - | `tests/agent/test_plugin_live_notes_delivery.py` |
 | `agent/test_plugin_llm.py` | `1` | `agent/test_plugin_llm.py` | - | `tests/agent/test_plugin_llm.py` |
 | `agent/test_plugin_llm_task_routing.py` | `1` | `agent/test_plugin_llm_task_routing.py` | - | `tests/agent/test_plugin_llm_task_routing.py` |
 | `agent/test_plugin_prompt_sections.py` | `1` | `agent/test_plugin_prompt_sections.py` | - | `tests/agent/test_plugin_prompt_sections.py` |
@@ -669,16 +773,19 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_pool_revert_after_cooldown.py` | `1` | `agent/test_pool_revert_after_cooldown.py` | - | `tests/agent/test_pool_revert_after_cooldown.py` |
 | `agent/test_pool_rotation_endpoint_veto.py` | `1` | `agent/test_pool_rotation_endpoint_veto.py` | - | `tests/agent/test_pool_rotation_endpoint_veto.py` |
 | `agent/test_portal_tags.py` | `1` | `agent/test_portal_tags.py` | - | `tests/agent/test_portal_tags.py` |
+| `agent/test_post_compaction_hook.py` | `1` | `agent/test_post_compaction_hook.py` | - | `tests/agent/test_post_compaction_hook.py` |
 | `agent/test_post_compression_trim.py` | `1` | `agent/test_post_compression_trim.py` | - | `tests/agent/test_post_compression_trim.py` |
 | `agent/test_post_tool_compression_attempt_cap.py` | `1` | `agent/test_post_tool_compression_attempt_cap.py` | - | `tests/agent/test_post_tool_compression_attempt_cap.py` |
 | `agent/test_pre_compress_checkpoint_contract.py` | `1` | `agent/test_pre_compress_checkpoint_contract.py` | - | `tests/agent/test_pre_compress_checkpoint_contract.py` |
 | `agent/test_pre_compress_memory_context.py` | `1` | `agent/test_pre_compress_memory_context.py` | - | `tests/agent/test_pre_compress_memory_context.py` |
 | `agent/test_pre_compress_memory_context_handoff.py` | `1` | `agent/test_pre_compress_memory_context_handoff.py` | - | `tests/agent/test_pre_compress_memory_context_handoff.py` |
+| `agent/test_pre_llm_block_hook.py` | `1` | `agent/test_pre_llm_block_hook.py` | - | `tests/agent/test_pre_llm_block_hook.py` |
 | `agent/test_preflight_compression_cap_e2e.py` | `1` | `agent/test_preflight_compression_cap_e2e.py` | - | `tests/agent/test_preflight_compression_cap_e2e.py` |
 | `agent/test_preflight_compression_gate.py` | `1` | `agent/test_preflight_compression_gate.py` | - | `tests/agent/test_preflight_compression_gate.py` |
 | `agent/test_preflight_compression_timeout_fail_closed.py` | `1` | `agent/test_preflight_compression_timeout_fail_closed.py` | - | `tests/agent/test_preflight_compression_timeout_fail_closed.py` |
 | `agent/test_preflight_lock_defer.py` | `1` | `agent/test_preflight_lock_defer.py` | - | `tests/agent/test_preflight_lock_defer.py` |
 | `agent/test_preflight_timeout_typed_result.py` | `1` | `agent/test_preflight_timeout_typed_result.py` | - | `tests/agent/test_preflight_timeout_typed_result.py` |
+| `agent/test_prepared_compaction.py` | `1` | `agent/test_prepared_compaction.py` | - | `tests/agent/test_prepared_compaction.py` |
 | `agent/test_primary_runtime_restore.py` | `1` | `agent/test_primary_runtime_restore.py` | - | `tests/agent/test_primary_runtime_restore.py` |
 | `agent/test_private_credential_writers.py` | `1` | `agent/test_private_credential_writers.py` | - | `tests/agent/test_private_credential_writers.py` |
 | `agent/test_proactive_prune_config.py` | `1` | `agent/test_proactive_prune_config.py` | - | `tests/agent/test_proactive_prune_config.py` |
@@ -687,10 +794,12 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_proactive_prune_restart_safety.py` | `1` | `agent/test_proactive_prune_restart_safety.py` | - | `tests/agent/test_proactive_prune_restart_safety.py` |
 | `agent/test_proactive_tool_result_pruning.py` | `1` | `agent/test_proactive_tool_result_pruning.py` | - | `tests/agent/test_proactive_tool_result_pruning.py` |
 | `agent/test_probe_cache_followups.py` | `1` | `agent/test_probe_cache_followups.py` | - | `tests/agent/test_probe_cache_followups.py` |
+| `agent/test_profile_declared_core_sets.py` | `1` | `agent/test_profile_declared_core_sets.py` | - | `tests/agent/test_profile_declared_core_sets.py` |
 | `agent/test_profile_home_override_precedence.py` | `1` | `agent/test_profile_home_override_precedence.py` | - | `tests/agent/test_profile_home_override_precedence.py` |
 | `agent/test_project_skills.py` | `1` | `agent/test_project_skills.py` | - | `tests/agent/test_project_skills.py` |
 | `agent/test_prompt_builder.py` | `1` | `agent/test_prompt_builder.py` | - | `tests/agent/test_prompt_builder.py` |
 | `agent/test_prompt_cache_boundary.py` | `1` | `agent/test_prompt_cache_boundary.py` | - | `tests/agent/test_prompt_cache_boundary.py` |
+| `agent/test_prompt_cache_prefix_contract.py` | `1` | `agent/test_prompt_cache_prefix_contract.py` | - | `tests/agent/test_prompt_cache_prefix_contract.py` |
 | `agent/test_prompt_cache_scope.py` | `1` | `agent/test_prompt_cache_scope.py` | - | `tests/agent/test_prompt_cache_scope.py` |
 | `agent/test_prompt_cache_ttl_auto.py` | `1` | `agent/test_prompt_cache_ttl_auto.py` | - | `tests/agent/test_prompt_cache_ttl_auto.py` |
 | `agent/test_prompt_cache_ttl_propagation.py` | `1` | `agent/test_prompt_cache_ttl_propagation.py` | - | `tests/agent/test_prompt_cache_ttl_propagation.py` |
@@ -699,26 +808,35 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_provider_attribution_headers.py` | `1` | `agent/test_provider_attribution_headers.py` | - | `tests/agent/test_provider_attribution_headers.py` |
 | `agent/test_provider_client_cancel.py` | `1` | `agent/test_provider_client_cancel.py` | - | `tests/agent/test_provider_client_cancel.py` |
 | `agent/test_provider_client_seam.py` | `1` | `agent/test_provider_client_seam.py` | - | `tests/agent/test_provider_client_seam.py` |
+| `agent/test_provider_credential_seams.py` | `1` | `agent/test_provider_credential_seams.py` | - | `tests/agent/test_provider_credential_seams.py` |
 | `agent/test_provider_fallback.py` | `1` | `agent/test_provider_fallback.py` | - | `tests/agent/test_provider_fallback.py` |
 | `agent/test_provider_history_parity.py` | `1` | `agent/test_provider_history_parity.py` | - | `tests/agent/test_provider_history_parity.py` |
+| `agent/test_provider_hook_policy.py` | `1` | `agent/test_provider_hook_policy.py` | - | `tests/agent/test_provider_hook_policy.py` |
+| `agent/test_provider_id_mint_normalization.py` | `1` | `agent/test_provider_id_mint_normalization.py` | - | `tests/agent/test_provider_id_mint_normalization.py` |
 | `agent/test_provider_media.py` | `1` | `agent/test_provider_media.py` | - | `tests/agent/test_provider_media.py` |
 | `agent/test_provider_parity.py` | `1` | `agent/test_provider_parity.py` | - | `tests/agent/test_provider_parity.py` |
 | `agent/test_provider_profile_recovery_seam.py` | `1` | `agent/test_provider_profile_recovery_seam.py` | - | `tests/agent/test_provider_profile_recovery_seam.py` |
 | `agent/test_provider_projection.py` | `1` | `agent/test_provider_projection.py` | - | `tests/agent/test_provider_projection.py` |
+| `agent/test_provider_refresh_hook_failures.py` | `1` | `agent/test_provider_refresh_hook_failures.py` | - | `tests/agent/test_provider_refresh_hook_failures.py` |
 | `agent/test_provider_reset_cooldown.py` | `1` | `agent/test_provider_reset_cooldown.py` | - | `tests/agent/test_provider_reset_cooldown.py` |
 | `agent/test_provider_scope_keys.py` | `1` | `agent/test_provider_scope_keys.py` | - | `tests/agent/test_provider_scope_keys.py` |
+| `agent/test_provider_wire_seams.py` | `1` | `agent/test_provider_wire_seams.py` | - | `tests/agent/test_provider_wire_seams.py` |
 | `agent/test_proxy_and_url_validation.py` | `1` | `agent/test_proxy_and_url_validation.py` | - | `tests/agent/test_proxy_and_url_validation.py` |
 | `agent/test_proxy_bypass_shared.py` | `1` | `agent/test_proxy_bypass_shared.py` | - | `tests/agent/test_proxy_bypass_shared.py` |
 | `agent/test_pydantic_dump_warning_leak.py` | `1` | `agent/test_pydantic_dump_warning_leak.py` | - | `tests/agent/test_pydantic_dump_warning_leak.py` |
 | `agent/test_rate_limit_reset_hint.py` | `1` | `agent/test_rate_limit_reset_hint.py` | - | `tests/agent/test_rate_limit_reset_hint.py` |
 | `agent/test_rate_limit_tracker.py` | `1` | `agent/test_rate_limit_tracker.py` | - | `tests/agent/test_rate_limit_tracker.py` |
 | `agent/test_reactions.py` | `1` | `agent/test_reactions.py` | - | `tests/agent/test_reactions.py` |
+| `agent/test_read_dedup_rewrite_boundaries.py` | `1` | `agent/test_read_dedup_rewrite_boundaries.py` | - | `tests/agent/test_read_dedup_rewrite_boundaries.py` |
+| `agent/test_reasoning_carriers.py` | `1` | `agent/test_reasoning_carriers.py` | - | `tests/agent/test_reasoning_carriers.py` |
 | `agent/test_reasoning_disable_recovery.py` | `1` | `agent/test_reasoning_disable_recovery.py` | - | `tests/agent/test_reasoning_disable_recovery.py` |
 | `agent/test_reasoning_echo_resolver_e2e.py` | `1` | `agent/test_reasoning_echo_resolver_e2e.py` | - | `tests/agent/test_reasoning_echo_resolver_e2e.py` |
 | `agent/test_reasoning_effort_labels.py` | `1` | `agent/test_reasoning_effort_labels.py` | - | `tests/agent/test_reasoning_effort_labels.py` |
 | `agent/test_reasoning_effort_module.py` | `1` | `agent/test_reasoning_effort_module.py` | - | `tests/agent/test_reasoning_effort_module.py` |
 | `agent/test_reasoning_effort_wire_translation.py` | `1` | `agent/test_reasoning_effort_wire_translation.py` | - | `tests/agent/test_reasoning_effort_wire_translation.py` |
+| `agent/test_reasoning_gate_claimed_hosts.py` | `1` | `agent/test_reasoning_gate_claimed_hosts.py` | - | `tests/agent/test_reasoning_gate_claimed_hosts.py` |
 | `agent/test_reasoning_only_stop_persistence.py` | `1` | `agent/test_reasoning_only_stop_persistence.py` | - | `tests/agent/test_reasoning_only_stop_persistence.py` |
+| `agent/test_reasoning_replay_routes.py` | `1` | `agent/test_reasoning_replay_routes.py` | - | `tests/agent/test_reasoning_replay_routes.py` |
 | `agent/test_reasoning_shape_boundaries.py` | `1` | `agent/test_reasoning_shape_boundaries.py` | - | `tests/agent/test_reasoning_shape_boundaries.py` |
 | `agent/test_reasoning_stale_timeout_floor.py` | `1` | `agent/test_reasoning_stale_timeout_floor.py` | - | `tests/agent/test_reasoning_stale_timeout_floor.py` |
 | `agent/test_reasoning_summaries.py` | `1` | `agent/test_reasoning_summaries.py` | - | `tests/agent/test_reasoning_summaries.py` |
@@ -729,6 +847,8 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_refine_focus.py` | `1` | `agent/test_refine_focus.py` | - | `tests/agent/test_refine_focus.py` |
 | `agent/test_refine_snapshot_isolation.py` | `1` | `agent/test_refine_snapshot_isolation.py` | - | `tests/agent/test_refine_snapshot_isolation.py` |
 | `agent/test_relay_atof_cwd.py` | `1` | `agent/test_relay_atof_cwd.py` | - | `tests/agent/test_relay_atof_cwd.py` |
+| `agent/test_relay_compaction.py` | `1` | `agent/test_relay_compaction.py` | - | `tests/agent/test_relay_compaction.py` |
+| `agent/test_relay_compaction_atof.py` | `1` | `agent/test_relay_compaction_atof.py` | - | `tests/agent/test_relay_compaction_atof.py` |
 | `agent/test_relay_cwd.py` | `1` | `agent/test_relay_cwd.py` | - | `tests/agent/test_relay_cwd.py` |
 | `agent/test_relay_llm.py` | `1` | `agent/test_relay_llm.py` | - | `tests/agent/test_relay_llm.py` |
 | `agent/test_relay_nested_execution.py` | `1` | `agent/test_relay_nested_execution.py` | - | `tests/agent/test_relay_nested_execution.py` |
@@ -745,6 +865,8 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_repetition_guard.py` | `1` | `agent/test_repetition_guard.py` | - | `tests/agent/test_repetition_guard.py` |
 | `agent/test_replay_budget_accounting.py` | `1` | `agent/test_replay_budget_accounting.py` | - | `tests/agent/test_replay_budget_accounting.py` |
 | `agent/test_replay_cleanup.py` | `1` | `agent/test_replay_cleanup.py` | - | `tests/agent/test_replay_cleanup.py` |
+| `agent/test_replay_echo_retirement.py` | `1` | `agent/test_replay_echo_retirement.py` | - | `tests/agent/test_replay_echo_retirement.py` |
+| `agent/test_reply_line_before_silence.py` | `1` | `agent/test_reply_line_before_silence.py` | - | `tests/agent/test_reply_line_before_silence.py` |
 | `agent/test_request_client_reuse.py` | `1` | `agent/test_request_client_reuse.py` | - | `tests/agent/test_request_client_reuse.py` |
 | `agent/test_request_client_reuse_abort_races.py` | `1` | `agent/test_request_client_reuse_abort_races.py` | - | `tests/agent/test_request_client_reuse_abort_races.py` |
 | `agent/test_reset_aware_primary_restore.py` | `1` | `agent/test_reset_aware_primary_restore.py` | - | `tests/agent/test_reset_aware_primary_restore.py` |
@@ -757,18 +879,26 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_retry_status_buffer.py` | `1` | `agent/test_retry_status_buffer.py` | - | `tests/agent/test_retry_status_buffer.py` |
 | `agent/test_retry_utils.py` | `1` | `agent/test_retry_utils.py` | - | `tests/agent/test_retry_utils.py` |
 | `agent/test_review_engine.py` | `1` | `agent/test_review_engine.py` | - | `tests/agent/test_review_engine.py` |
+| `agent/test_review_fork_cache_scope.py` | `1` | `agent/test_review_fork_cache_scope.py` | - | `tests/agent/test_review_fork_cache_scope.py` |
 | `agent/test_review_idle_queue.py` | `1` | `agent/test_review_idle_queue.py` | - | `tests/agent/test_review_idle_queue.py` |
 | `agent/test_rotation_flush_persisted_boundary.py` | `1` | `agent/test_rotation_flush_persisted_boundary.py` | - | `tests/agent/test_rotation_flush_persisted_boundary.py` |
 | `agent/test_router_timeout_shim.py` | `1` | `agent/test_router_timeout_shim.py` | - | `tests/agent/test_router_timeout_shim.py` |
 | `agent/test_run_agent.py` | `1` | `agent/test_run_agent.py` | - | `tests/agent/test_run_agent.py` |
 | `agent/test_run_agent_codex_responses.py` | `1` | `agent/test_run_agent_codex_responses.py` | - | `tests/agent/test_run_agent_codex_responses.py` |
+| `agent/test_run_agent_interrupt_hook.py` | `1` | `agent/test_run_agent_interrupt_hook.py` | - | `tests/agent/test_run_agent_interrupt_hook.py` |
 | `agent/test_run_agent_multimodal_prologue.py` | `1` | `agent/test_run_agent_multimodal_prologue.py` | - | `tests/agent/test_run_agent_multimodal_prologue.py` |
 | `agent/test_run_budget.py` | `1` | `agent/test_run_budget.py` | - | `tests/agent/test_run_budget.py` |
 | `agent/test_runtime_cwd.py` | `1` | `agent/test_runtime_cwd.py` | - | `tests/agent/test_runtime_cwd.py` |
 | `agent/test_runtime_self_protection.py` | `1` | `agent/test_runtime_self_protection.py` | - | `tests/agent/test_runtime_self_protection.py` |
+| `agent/test_runtime_session_store.py` | `1` | `agent/test_runtime_session_store.py` | - | `tests/agent/test_runtime_session_store.py` |
+| `agent/test_runtime_session_store_lease_refresh.py` | `1` | `agent/test_runtime_session_store_lease_refresh.py` | - | `tests/agent/test_runtime_session_store_lease_refresh.py` |
+| `agent/test_runtime_session_store_proxy.py` | `1` | `agent/test_runtime_session_store_proxy.py` | - | `tests/agent/test_runtime_session_store_proxy.py` |
+| `agent/test_runtime_session_store_surface_parity.py` | `1` | `agent/test_runtime_session_store_surface_parity.py` | - | `tests/agent/test_runtime_session_store_surface_parity.py` |
+| `agent/test_safe_worker_policy.py` | `1` | `agent/test_safe_worker_policy.py` | - | `tests/agent/test_safe_worker_policy.py` |
 | `agent/test_salvage_grown_transcript.py` | `1` | `agent/test_salvage_grown_transcript.py` | - | `tests/agent/test_salvage_grown_transcript.py` |
 | `agent/test_sanitiser_escalation.py` | `1` | `agent/test_sanitiser_escalation.py` | - | `tests/agent/test_sanitiser_escalation.py` |
 | `agent/test_save_url_image.py` | `1` | `agent/test_save_url_image.py` | - | `tests/agent/test_save_url_image.py` |
+| `agent/test_secret_cache_location.py` | `1` | `agent/test_secret_cache_location.py` | - | `tests/agent/test_secret_cache_location.py` |
 | `agent/test_secret_scope.py` | `1` | `agent/test_secret_scope.py` | - | `tests/agent/test_secret_scope.py` |
 | `agent/test_secret_scope_env_cache.py` | `1` | `agent/test_secret_scope_env_cache.py` | - | `tests/agent/test_secret_scope_env_cache.py` |
 | `agent/test_secret_scope_pinned_launch_home.py` | `1` | `agent/test_secret_scope_pinned_launch_home.py` | - | `tests/agent/test_secret_scope_pinned_launch_home.py` |
@@ -785,30 +915,42 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_session_affinity_header.py` | `1` | `agent/test_session_affinity_header.py` | - | `tests/agent/test_session_affinity_header.py` |
 | `agent/test_session_id_env.py` | `1` | `agent/test_session_id_env.py` | - | `tests/agent/test_session_id_env.py` |
 | `agent/test_session_meta_filtering.py` | `1` | `agent/test_session_meta_filtering.py` | - | `tests/agent/test_session_meta_filtering.py` |
+| `agent/test_session_prompt_refresh.py` | `1` | `agent/test_session_prompt_refresh.py` | - | `tests/agent/test_session_prompt_refresh.py` |
 | `agent/test_session_reset_fix.py` | `1` | `agent/test_session_reset_fix.py` | - | `tests/agent/test_session_reset_fix.py` |
 | `agent/test_session_rotation_flush_cold_resume.py` | `1` | `agent/test_session_rotation_flush_cold_resume.py` | - | `tests/agent/test_session_rotation_flush_cold_resume.py` |
+| `agent/test_session_row_under_live_agent_persist.py` | `1` | `agent/test_session_row_under_live_agent_persist.py` | - | `tests/agent/test_session_row_under_live_agent_persist.py` |
 | `agent/test_session_snapshot_removal.py` | `1` | `agent/test_session_snapshot_removal.py` | - | `tests/agent/test_session_snapshot_removal.py` |
 | `agent/test_session_source.py` | `1` | `agent/test_session_source.py` | - | `tests/agent/test_session_source.py` |
 | `agent/test_set_runtime_main_custom_provider.py` | `1` | `agent/test_set_runtime_main_custom_provider.py` | - | `tests/agent/test_set_runtime_main_custom_provider.py` |
+| `agent/test_setup_beat_card_round.py` | `1` | `agent/test_setup_beat_card_round.py` | - | `tests/agent/test_setup_beat_card_round.py` |
+| `agent/test_setup_logging_profile_scope.py` | `1` | `agent/test_setup_logging_profile_scope.py` | - | `tests/agent/test_setup_logging_profile_scope.py` |
 | `agent/test_shared_client_fd_corruption.py` | `1` | `agent/test_shared_client_fd_corruption.py` | - | `tests/agent/test_shared_client_fd_corruption.py` |
 | `agent/test_shared_http_transport.py` | `1` | `agent/test_shared_http_transport.py` | - | `tests/agent/test_shared_http_transport.py` |
 | `agent/test_shell_hooks.py` | `1` | `agent/test_shell_hooks.py` | - | `tests/agent/test_shell_hooks.py` |
 | `agent/test_shell_hooks_consent.py` | `1` | `agent/test_shell_hooks_consent.py` | - | `tests/agent/test_shell_hooks_consent.py` |
 | `agent/test_shell_hooks_tree_kill.py` | `1` | `agent/test_shell_hooks_tree_kill.py` | - | `tests/agent/test_shell_hooks_tree_kill.py` |
+| `agent/test_short_housekeeping_reply.py` | `1` | `agent/test_short_housekeeping_reply.py` | - | `tests/agent/test_short_housekeeping_reply.py` |
 | `agent/test_side_question.py` | `1` | `agent/test_side_question.py` | - | `tests/agent/test_side_question.py` |
+| `agent/test_side_question_lease.py` | `1` | `agent/test_side_question_lease.py` | - | `tests/agent/test_side_question_lease.py` |
+| `agent/test_side_question_request.py` | `1` | `agent/test_side_question_request.py` | - | `tests/agent/test_side_question_request.py` |
 | `agent/test_skill_app_snapshot.py` | `1` | `agent/test_skill_app_snapshot.py` | - | `tests/agent/test_skill_app_snapshot.py` |
 | `agent/test_skill_applied_notifications.py` | `1` | `agent/test_skill_applied_notifications.py` | - | `tests/agent/test_skill_applied_notifications.py` |
 | `agent/test_skill_bundles.py` | `1` | `agent/test_skill_bundles.py` | - | `tests/agent/test_skill_bundles.py` |
+| `agent/test_skill_cache_thrash.py` | `1` | `agent/test_skill_cache_thrash.py` | - | `tests/agent/test_skill_cache_thrash.py` |
 | `agent/test_skill_commands.py` | `1` | `agent/test_skill_commands.py` | - | `tests/agent/test_skill_commands.py` |
+| `agent/test_skill_commands_freshness.py` | `1` | `agent/test_skill_commands_freshness.py` | - | `tests/agent/test_skill_commands_freshness.py` |
 | `agent/test_skill_commands_reload.py` | `1` | `agent/test_skill_commands_reload.py` | - | `tests/agent/test_skill_commands_reload.py` |
 | `agent/test_skill_inline_bash_windows.py` | `1` | `agent/test_skill_inline_bash_windows.py` | - | `tests/agent/test_skill_inline_bash_windows.py` |
 | `agent/test_skill_inline_shell_output.py` | `1` | `agent/test_skill_inline_shell_output.py` | - | `tests/agent/test_skill_inline_shell_output.py` |
+| `agent/test_skill_inline_shell_trust.py` | `1` | `agent/test_skill_inline_shell_trust.py` | - | `tests/agent/test_skill_inline_shell_trust.py` |
 | `agent/test_skill_invocation_description.py` | `1` | `agent/test_skill_invocation_description.py` | - | `tests/agent/test_skill_invocation_description.py` |
 | `agent/test_skill_session_platform_gate.py` | `1` | `agent/test_skill_session_platform_gate.py` | - | `tests/agent/test_skill_session_platform_gate.py` |
 | `agent/test_skill_todo_retention_parity.py` | `1` | `agent/test_skill_todo_retention_parity.py` | - | `tests/agent/test_skill_todo_retention_parity.py` |
 | `agent/test_skill_utils.py` | `1` | `agent/test_skill_utils.py` | - | `tests/agent/test_skill_utils.py` |
 | `agent/test_skills_auto_load.py` | `1` | `agent/test_skills_auto_load.py` | - | `tests/agent/test_skills_auto_load.py` |
 | `agent/test_skills_guidance_content_filter.py` | `1` | `agent/test_skills_guidance_content_filter.py` | - | `tests/agent/test_skills_guidance_content_filter.py` |
+| `agent/test_skills_index_delta.py` | `1` | `agent/test_skills_index_delta.py` | - | `tests/agent/test_skills_index_delta.py` |
+| `agent/test_skills_index_format.py` | `1` | `agent/test_skills_index_format.py` | - | `tests/agent/test_skills_index_format.py` |
 | `agent/test_skip_background_review.py` | `1` | `agent/test_skip_background_review.py` | - | `tests/agent/test_skip_background_review.py` |
 | `agent/test_skip_memory_store.py` | `1` | `agent/test_skip_memory_store.py` | - | `tests/agent/test_skip_memory_store.py` |
 | `agent/test_soul_legacy_bot_protocol.py` | `1` | `agent/test_soul_legacy_bot_protocol.py` | - | `tests/agent/test_soul_legacy_bot_protocol.py` |
@@ -825,12 +967,15 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_stream_drop_logging.py` | `1` | `agent/test_stream_drop_logging.py` | - | `tests/agent/test_stream_drop_logging.py` |
 | `agent/test_stream_interrupt_abort_socket.py` | `1` | `agent/test_stream_interrupt_abort_socket.py` | - | `tests/agent/test_stream_interrupt_abort_socket.py` |
 | `agent/test_stream_interrupt_retry.py` | `1` | `agent/test_stream_interrupt_retry.py` | - | `tests/agent/test_stream_interrupt_retry.py` |
+| `agent/test_stream_max_lifetime.py` | `1` | `agent/test_stream_max_lifetime.py` | - | `tests/agent/test_stream_max_lifetime.py` |
 | `agent/test_stream_reasoning_details.py` | `1` | `agent/test_stream_reasoning_details.py` | - | `tests/agent/test_stream_reasoning_details.py` |
 | `agent/test_stream_retry_backoff.py` | `1` | `agent/test_stream_retry_backoff.py` | - | `tests/agent/test_stream_retry_backoff.py` |
 | `agent/test_stream_retry_route_switch.py` | `1` | `agent/test_stream_retry_route_switch.py` | - | `tests/agent/test_stream_retry_route_switch.py` |
+| `agent/test_stream_runaway_repetition.py` | `1` | `agent/test_stream_runaway_repetition.py` | - | `tests/agent/test_stream_runaway_repetition.py` |
 | `agent/test_stream_serving_provider.py` | `1` | `agent/test_stream_serving_provider.py` | - | `tests/agent/test_stream_serving_provider.py` |
 | `agent/test_stream_single_writer.py` | `1` | `agent/test_stream_single_writer.py` | - | `tests/agent/test_stream_single_writer.py` |
 | `agent/test_stream_single_writer_guard.py` | `1` | `agent/test_stream_single_writer_guard.py` | - | `tests/agent/test_stream_single_writer_guard.py` |
+| `agent/test_stream_stale_abandon.py` | `1` | `agent/test_stream_stale_abandon.py` | - | `tests/agent/test_stream_stale_abandon.py` |
 | `agent/test_stream_stale_breaker_reset.py` | `1` | `agent/test_stream_stale_breaker_reset.py` | - | `tests/agent/test_stream_stale_breaker_reset.py` |
 | `agent/test_stream_stale_circuit_breaker.py` | `1` | `agent/test_stream_stale_circuit_breaker.py` | - | `tests/agent/test_stream_stale_circuit_breaker.py` |
 | `agent/test_stream_stale_kill_unwedge.py` | `1` | `agent/test_stream_stale_kill_unwedge.py` | - | `tests/agent/test_stream_stale_kill_unwedge.py` |
@@ -870,6 +1015,7 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_synthetic_turn_display_kind.py` | `1` | `agent/test_synthetic_turn_display_kind.py` | - | `tests/agent/test_synthetic_turn_display_kind.py` |
 | `agent/test_system_prompt.py` | `1` | `agent/test_system_prompt.py` | - | `tests/agent/test_system_prompt.py` |
 | `agent/test_system_prompt_restore.py` | `1` | `agent/test_system_prompt_restore.py` | - | `tests/agent/test_system_prompt_restore.py` |
+| `agent/test_system_prompt_switch_invalidation.py` | `1` | `agent/test_system_prompt_switch_invalidation.py` | - | `tests/agent/test_system_prompt_switch_invalidation.py` |
 | `agent/test_terminal_approval_batch.py` | `1` | `agent/test_terminal_approval_batch.py` | - | `tests/agent/test_terminal_approval_batch.py` |
 | `agent/test_terminal_env_registry.py` | `1` | `agent/test_terminal_env_registry.py` | - | `tests/agent/test_terminal_env_registry.py` |
 | `agent/test_text_turn_incremental_persistence.py` | `1` | `agent/test_text_turn_incremental_persistence.py` | - | `tests/agent/test_text_turn_incremental_persistence.py` |
@@ -878,11 +1024,16 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_thinking_prefill_trailing_turn.py` | `1` | `agent/test_thinking_prefill_trailing_turn.py` | - | `tests/agent/test_thinking_prefill_trailing_turn.py` |
 | `agent/test_thinking_timeout_guidance.py` | `1` | `agent/test_thinking_timeout_guidance.py` | - | `tests/agent/test_thinking_timeout_guidance.py` |
 | `agent/test_thread_scoped_output.py` | `1` | `agent/test_thread_scoped_output.py` | - | `tests/agent/test_thread_scoped_output.py` |
+| `agent/test_timeout_error_summary.py` | `1` | `agent/test_timeout_error_summary.py` | - | `tests/agent/test_timeout_error_summary.py` |
 | `agent/test_title_generator.py` | `1` | `agent/test_title_generator.py` | - | `tests/agent/test_title_generator.py` |
+| `agent/test_title_input.py` | `1` | `agent/test_title_input.py` | - | `tests/agent/test_title_input.py` |
 | `agent/test_tls_fd_recycle_corruption.py` | `1` | `agent/test_tls_fd_recycle_corruption.py` | - | `tests/agent/test_tls_fd_recycle_corruption.py` |
 | `agent/test_token_estimator_shared.py` | `1` | `agent/test_token_estimator_shared.py` | - | `tests/agent/test_token_estimator_shared.py` |
 | `agent/test_token_guard_session_source.py` | `1` | `agent/test_token_guard_session_source.py` | - | `tests/agent/test_token_guard_session_source.py` |
+| `agent/test_token_memo_lru_budget.py` | `1` | `agent/test_token_memo_lru_budget.py` | - | `tests/agent/test_token_memo_lru_budget.py` |
+| `agent/test_token_memo_release_on_close.py` | `1` | `agent/test_token_memo_release_on_close.py` | - | `tests/agent/test_token_memo_release_on_close.py` |
 | `agent/test_token_persistence_non_cli.py` | `1` | `agent/test_token_persistence_non_cli.py` | - | `tests/agent/test_token_persistence_non_cli.py` |
+| `agent/test_token_read_barrier_on_loop.py` | `1` | `agent/test_token_read_barrier_on_loop.py` | - | `tests/agent/test_token_read_barrier_on_loop.py` |
 | `agent/test_tool_activity_heartbeat.py` | `1` | `agent/test_tool_activity_heartbeat.py` | - | `tests/agent/test_tool_activity_heartbeat.py` |
 | `agent/test_tool_arg_coercion.py` | `1` | `agent/test_tool_arg_coercion.py` | - | `tests/agent/test_tool_arg_coercion.py` |
 | `agent/test_tool_batch_segmentation.py` | `1` | `agent/test_tool_batch_segmentation.py` | - | `tests/agent/test_tool_batch_segmentation.py` |
@@ -906,30 +1057,40 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_turn_api_error_stream_parse.py` | `1` | `agent/test_turn_api_error_stream_parse.py` | - | `tests/agent/test_turn_api_error_stream_parse.py` |
 | `agent/test_turn_author.py` | `1` | `agent/test_turn_author.py` | - | `tests/agent/test_turn_author.py` |
 | `agent/test_turn_base_display_anchor.py` | `1` | `agent/test_turn_base_display_anchor.py` | - | `tests/agent/test_turn_base_display_anchor.py` |
+| `agent/test_turn_budget_durable_rows.py` | `1` | `agent/test_turn_budget_durable_rows.py` | - | `tests/agent/test_turn_budget_durable_rows.py` |
 | `agent/test_turn_completion_explainer.py` | `1` | `agent/test_turn_completion_explainer.py` | - | `tests/agent/test_turn_completion_explainer.py` |
 | `agent/test_turn_context.py` | `1` | `agent/test_turn_context.py` | - | `tests/agent/test_turn_context.py` |
 | `agent/test_turn_context_compaction.py` | `1` | `agent/test_turn_context_compaction.py` | - | `tests/agent/test_turn_context_compaction.py` |
 | `agent/test_turn_context_overflow_warning.py` | `1` | `agent/test_turn_context_overflow_warning.py` | - | `tests/agent/test_turn_context_overflow_warning.py` |
+| `agent/test_turn_end_stall_diagnostics.py` | `1` | `agent/test_turn_end_stall_diagnostics.py` | - | `tests/agent/test_turn_end_stall_diagnostics.py` |
 | `agent/test_turn_facade_lease.py` | `1` | `agent/test_turn_facade_lease.py` | - | `tests/agent/test_turn_facade_lease.py` |
 | `agent/test_turn_finalizer_cleanup_guard.py` | `1` | `agent/test_turn_finalizer_cleanup_guard.py` | - | `tests/agent/test_turn_finalizer_cleanup_guard.py` |
 | `agent/test_turn_finalizer_final_response_persistence.py` | `1` | `agent/test_turn_finalizer_final_response_persistence.py` | - | `tests/agent/test_turn_finalizer_final_response_persistence.py` |
 | `agent/test_turn_finalizer_interrupt_alternation.py` | `1` | `agent/test_turn_finalizer_interrupt_alternation.py` | - | `tests/agent/test_turn_finalizer_interrupt_alternation.py` |
 | `agent/test_turn_finalizer_iteration_limit_exit.py` | `1` | `agent/test_turn_finalizer_iteration_limit_exit.py` | - | `tests/agent/test_turn_finalizer_iteration_limit_exit.py` |
 | `agent/test_turn_iteration_prep.py` | `1` | `agent/test_turn_iteration_prep.py` | - | `tests/agent/test_turn_iteration_prep.py` |
+| `agent/test_turn_lease_frees_by_refcount.py` | `1` | `agent/test_turn_lease_frees_by_refcount.py` | - | `tests/agent/test_turn_lease_frees_by_refcount.py` |
 | `agent/test_turn_liveness.py` | `1` | `agent/test_turn_liveness.py` | - | `tests/agent/test_turn_liveness.py` |
 | `agent/test_turn_liveness_watchdog.py` | `1` | `agent/test_turn_liveness_watchdog.py` | - | `tests/agent/test_turn_liveness_watchdog.py` |
 | `agent/test_turn_overlap_tripwire.py` | `1` | `agent/test_turn_overlap_tripwire.py` | - | `tests/agent/test_turn_overlap_tripwire.py` |
 | `agent/test_turn_recovery_autorecover.py` | `1` | `agent/test_turn_recovery_autorecover.py` | - | `tests/agent/test_turn_recovery_autorecover.py` |
+| `agent/test_turn_response_intake_relay.py` | `1` | `agent/test_turn_response_intake_relay.py` | - | `tests/agent/test_turn_response_intake_relay.py` |
 | `agent/test_turn_retry_state.py` | `1` | `agent/test_turn_retry_state.py` | - | `tests/agent/test_turn_retry_state.py` |
+| `agent/test_turn_scripted_prelude.py` | `1` | `agent/test_turn_scripted_prelude.py` | - | `tests/agent/test_turn_scripted_prelude.py` |
 | `agent/test_turn_summary.py` | `1` | `agent/test_turn_summary.py` | - | `tests/agent/test_turn_summary.py` |
 | `agent/test_turn_usage_log_line.py` | `1` | `agent/test_turn_usage_log_line.py` | - | `tests/agent/test_turn_usage_log_line.py` |
+| `agent/test_turn_user_intervened.py` | `1` | `agent/test_turn_user_intervened.py` | - | `tests/agent/test_turn_user_intervened.py` |
 | `agent/test_uncompressed_context_guardrail.py` | `1` | `agent/test_uncompressed_context_guardrail.py` | - | `tests/agent/test_uncompressed_context_guardrail.py` |
 | `agent/test_unicode_ascii_codec.py` | `1` | `agent/test_unicode_ascii_codec.py` | - | `tests/agent/test_unicode_ascii_codec.py` |
 | `agent/test_unset_reasoning_effort_default.py` | `1` | `agent/test_unset_reasoning_effort_default.py` | - | `tests/agent/test_unset_reasoning_effort_default.py` |
 | `agent/test_usage_anchor.py` | `1` | `agent/test_usage_anchor.py` | - | `tests/agent/test_usage_anchor.py` |
 | `agent/test_usage_pricing.py` | `1` | `agent/test_usage_pricing.py` | - | `tests/agent/test_usage_pricing.py` |
+| `agent/test_vault_backend_registry.py` | `1` | `agent/test_vault_backend_registry.py` | - | `tests/agent/test_vault_backend_registry.py` |
 | `agent/test_vault_backends.py` | `1` | `agent/test_vault_backends.py` | - | `tests/agent/test_vault_backends.py` |
+| `agent/test_vault_key_storage.py` | `1` | `agent/test_vault_key_storage.py` | - | `tests/agent/test_vault_key_storage.py` |
+| `agent/test_vault_keychain_native.py` | `1` | `agent/test_vault_keychain_native.py` | - | `tests/agent/test_vault_keychain_native.py` |
 | `agent/test_vault_store.py` | `1` | `agent/test_vault_store.py` | - | `tests/agent/test_vault_store.py` |
+| `agent/test_vault_unlock_tokens.py` | `1` | `agent/test_vault_unlock_tokens.py` | - | `tests/agent/test_vault_unlock_tokens.py` |
 | `agent/test_verification_continuation_budget.py` | `1` | `agent/test_verification_continuation_budget.py` | - | `tests/agent/test_verification_continuation_budget.py` |
 | `agent/test_verification_evidence.py` | `1` | `agent/test_verification_evidence.py` | - | `tests/agent/test_verification_evidence.py` |
 | `agent/test_verification_evidence_disabled.py` | `1` | `agent/test_verification_evidence_disabled.py` | - | `tests/agent/test_verification_evidence_disabled.py` |
@@ -943,50 +1104,58 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `agent/test_vision_resolved_args.py` | `1` | `agent/test_vision_resolved_args.py` | - | `tests/agent/test_vision_resolved_args.py` |
 | `agent/test_vision_routing.py` | `1` | `agent/test_vision_routing.py` | - | `tests/agent/test_vision_routing.py` |
 | `agent/test_vision_tool_messages.py` | `1` | `agent/test_vision_tool_messages.py` | - | `tests/agent/test_vision_tool_messages.py` |
+| `agent/test_voice_turn_route.py` | `1` | `agent/test_voice_turn_route.py` | - | `tests/agent/test_voice_turn_route.py` |
 | `agent/test_wait_notice_cadence.py` | `1` | `agent/test_wait_notice_cadence.py` | - | `tests/agent/test_wait_notice_cadence.py` |
 | `agent/test_wait_state_visibility.py` | `1` | `agent/test_wait_state_visibility.py` | - | `tests/agent/test_wait_state_visibility.py` |
 | `agent/test_warning_presentation.py` | `1` | `agent/test_warning_presentation.py` | - | `tests/agent/test_warning_presentation.py` |
 | `agent/test_welcome_error_identity.py` | `1` | `agent/test_welcome_error_identity.py` | - | `tests/agent/test_welcome_error_identity.py` |
 | `agent/test_welcome_tier_recovery.py` | `1` | `agent/test_welcome_tier_recovery.py` | - | `tests/agent/test_welcome_tier_recovery.py` |
+| `agent/test_worker_outbox_adoption.py` | `1` | `agent/test_worker_outbox_adoption.py` | - | `tests/agent/test_worker_outbox_adoption.py` |
+| `agent/test_worker_outbox_reopen.py` | `1` | `agent/test_worker_outbox_reopen.py` | - | `tests/agent/test_worker_outbox_reopen.py` |
+| `agent/test_worker_rpc_connection_reuse.py` | `1` | `agent/test_worker_rpc_connection_reuse.py` | - | `tests/agent/test_worker_rpc_connection_reuse.py` |
+| `agent/test_worker_rpc_loop_diagnostic.py` | `1` | `agent/test_worker_rpc_loop_diagnostic.py` | - | `tests/agent/test_worker_rpc_loop_diagnostic.py` |
+| `agent/test_worker_rpc_proxy.py` | `1` | `agent/test_worker_rpc_proxy.py` | - | `tests/agent/test_worker_rpc_proxy.py` |
 | `agent/test_would_grow_refusal_runway.py` | `1` | `agent/test_would_grow_refusal_runway.py` | - | `tests/agent/test_would_grow_refusal_runway.py` |
-| `agent/transports` | `15` | `agent/transports` | `Hermes agent runtime strict-fidelity source-pair expansion`, `Hermes fast-mode request override serializer`, `OpenRouter Pareto router request plugin` | `tests/agent/transports/__init__.py`, `tests/agent/transports/test_bedrock_transport.py`, `tests/agent/transports/test_chat_completions_empty_tool_calls.py`, `tests/agent/transports/test_chat_completions_reasoning_details_replay.py`, `tests/agent/transports/test_chat_completions_xai_tool_search_alias.py` |
-| `ci` | `23` | `ci` | - | `tests/ci/desktop_release_roles.py`, `tests/ci/test_assemble_review_comment.py`, `tests/ci/test_channel_build_publication.py`, `tests/ci/test_check_os_marker_fakes.py`, `tests/ci/test_classify_changes.py` |
+| `agent/transports` | `19` | `agent/transports` | `Hermes agent runtime strict-fidelity source-pair expansion`, `Hermes fast-mode request override serializer`, `OpenRouter Pareto router request plugin` | `tests/agent/transports/__init__.py`, `tests/agent/transports/test_bedrock_transport.py`, `tests/agent/transports/test_chat_completions_empty_tool_calls.py`, `tests/agent/transports/test_chat_completions_reasoning_details_replay.py`, `tests/agent/transports/test_chat_completions_xai_tool_search_alias.py` |
+| `ci` | `41` | `ci` | - | `tests/ci/_gha_expr.py`, `tests/ci/desktop_release_roles.py`, `tests/ci/test_assemble_review_comment.py`, `tests/ci/test_cache_report.py`, `tests/ci/test_cache_report_collection.py` |
 | `compat` | `4` | `compat` | - | `tests/compat/README.md`, `tests/compat/old_updater_dependencies.py`, `tests/compat/old_updater_support.py`, `tests/compat/old_updater_surface.json` |
 | `computer_use` | `12` | `computer_use` | - | `tests/computer_use/driver_fixture.py`, `tests/computer_use/live_cua_0_9_smoke.py`, `tests/computer_use/test_cua_atexit_teardown.py`, `tests/computer_use/test_cua_no_overlay.py`, `tests/computer_use/test_cua_perf_knobs.py` |
 | `conformance` | `14` | `conformance` | - | `tests/conformance/__init__.py`, `tests/conformance/persistence/README.md`, `tests/conformance/persistence/__init__.py`, `tests/conformance/persistence/_harness.py`, `tests/conformance/persistence/test_cell1_prefix_durability.py` |
 | `conftest.py` | `1` | `conftest.py` | - | `tests/conftest.py` |
-| `cron` | `139` | `cron` | `Cron deliver=all routing intent expansion`, `Cron env-ref expansion + parallel run state serialization`, `Cron no-agent script-only short-circuit`, `Cron origin delivery isolation from session identity`, `Cron partial legacy job read-model normalization` | `tests/cron/__init__.py`, `tests/cron/conftest.py`, `tests/cron/test_agent_scheduling_gate.py`, `tests/cron/test_atomic_paused_creation.py`, `tests/cron/test_blueprint_catalog.py` |
+| `cron` | `176` | `cron` | `Cron deliver=all routing intent expansion`, `Cron env-ref expansion + parallel run state serialization`, `Cron no-agent script-only short-circuit`, `Cron origin delivery isolation from session identity`, `Cron partial legacy job read-model normalization` | `tests/cron/__init__.py`, `tests/cron/conftest.py`, `tests/cron/test_agent_scheduling_gate.py`, `tests/cron/test_atomic_paused_creation.py`, `tests/cron/test_blueprint_catalog.py` |
 | `dashboard` | `1` | `dashboard` | - | `tests/dashboard/test_ws_client_host.py` |
 | `desktop` | `2` | `desktop` | - | `tests/desktop/test_appinstaller_check_script.py`, `tests/desktop/test_check_store_update.py` |
-| `docker` | `28` | `docker` | - | `tests/docker/__init__.py`, `tests/docker/conftest.py`, `tests/docker/test_config_migration.py`, `tests/docker/test_container_restart.py`, `tests/docker/test_dashboard.py` |
-| `e2e` | `171` | `e2e` | - | `tests/e2e/__init__.py`, `tests/e2e/conftest.py`, `tests/e2e/core/__init__.py`, `tests/e2e/core/_pending_fixes.py`, `tests/e2e/core/_pm_dependencies.py` |
-| `evals` | `3` | `evals` | - | `tests/evals/__init__.py`, `tests/evals/test_codebase_navigability.py`, `tests/evals/test_compaction_jev_arm.py` |
-| `fakes` | `13` | `fakes` | - | `tests/fakes/fake_llm_provider.py`, `tests/fakes/providers/__init__.py`, `tests/fakes/providers/anthropic_messages.py`, `tests/fakes/providers/bedrock_converse.py`, `tests/fakes/providers/catalog_fake.py` |
-| `fixtures` | `7` | `fixtures` | - | `tests/fixtures/cua_driver_0_9_tools_list.json`, `tests/fixtures/plugins/example-dashboard/dashboard/manifest.json`, `tests/fixtures/plugins/example-dashboard/dashboard/plugin_api.py`, `tests/fixtures/resolution_allowlist.json`, `tests/fixtures/room_link_protocol_v2.json` |
-| `gateway` | `982` | `gateway` | `Agent lifecycle hooks (agent:start, agent:step, agent:end)`, `Agent turn and tool execution events on bus`, `Discord gateway event-bus adapter`, `Discord native slash/thread command registration parity`, `Email allowlist pre-dispatch loop guard` | `tests/gateway/__init__.py`, `tests/gateway/_plugin_adapter_loader.py`, `tests/gateway/conftest.py`, `tests/gateway/feishu_helpers.py`, `tests/gateway/platforms/__init__.py` |
+| `docker` | `33` | `docker` | - | `tests/docker/__init__.py`, `tests/docker/conftest.py`, `tests/docker/test_config_migration.py`, `tests/docker/test_container_restart.py`, `tests/docker/test_dashboard.py` |
+| `e2e` | `258` | `e2e` | - | `tests/e2e/__init__.py`, `tests/e2e/conftest.py`, `tests/e2e/core/__init__.py`, `tests/e2e/core/_pending_fixes.py`, `tests/e2e/core/_pm_dependencies.py` |
+| `evals` | `4` | `evals` | - | `tests/evals/__init__.py`, `tests/evals/test_codebase_navigability.py`, `tests/evals/test_compaction_jev_arm.py`, `tests/evals/test_core_tool_deferral_sandbox.py` |
+| `fakes` | `22` | `fakes` | - | `tests/fakes/cron_owner.py`, `tests/fakes/fake_llm_provider.py`, `tests/fakes/platforms/__init__.py`, `tests/fakes/platforms/_standin.py`, `tests/fakes/platforms/discord_shim/sitecustomize.py` |
+| `file_write_observer.py` | `1` | `file_write_observer.py` | - | `tests/file_write_observer.py` |
+| `fixtures` | `48` | `fixtures` | - | `tests/fixtures/cua_driver_0_9_tools_list.json`, `tests/fixtures/identifier_speech_corpus.json`, `tests/fixtures/legacy_desktop/update-marker-be3fd671.mts`, `tests/fixtures/plugin_component_detection.json`, `tests/fixtures/plugins/example-dashboard/dashboard/manifest.json` |
+| `gateway` | `1804` | `gateway` | `Advance Hermes checkout and source pairs to latest upstream`, `Agent lifecycle hooks (agent:start, agent:step, agent:end)`, `Agent turn and tool execution events on bus`, `Discord gateway event-bus adapter`, `Discord native slash/thread command registration parity` | `tests/gateway/__init__.py`, `tests/gateway/_plugin_adapter_loader.py`, `tests/gateway/conftest.py`, `tests/gateway/feishu_helpers.py`, `tests/gateway/fixtures/agent_persistence_worker.py` |
 | `git_safety.py` | `1` | `git_safety.py` | - | `tests/git_safety.py` |
-| `hermes_cli` | `1347` | `hermes_cli` | `Agent personalities + enhanced display config`, `Auth state TOCTOU close + redaction default-on parity`, `Bitwarden disk cache parity`, `Bitwarden managed bws install + checksum verification`, `Bitwarden secrets command status/sync/disable` | `tests/hermes_cli/__init__.py`, `tests/hermes_cli/anon_portal.py`, `tests/hermes_cli/benchmark_session_timeline.py`, `tests/hermes_cli/conftest.py`, `tests/hermes_cli/conftest_dashboard_auth.py` |
-| `hermes_platform` | `7` | `hermes_platform` | - | `tests/hermes_platform/__init__.py`, `tests/hermes_platform/test_declaration.py`, `tests/hermes_platform/test_facts.py`, `tests/hermes_platform/test_import_hygiene.py`, `tests/hermes_platform/test_products.py` |
-| `hermes_state` | `137` | `hermes_state` | - | `tests/hermes_state/__init__.py`, `tests/hermes_state/_wal_generation_harness.py`, `tests/hermes_state/test_append_message_after_close.py`, `tests/hermes_state/test_append_messages_batch.py`, `tests/hermes_state/test_auto_vacuum_holder_gate.py` |
+| `hermes_cli` | `1868` | `hermes_cli` | `Advance Hermes checkout and source pairs to latest upstream`, `Agent personalities + enhanced display config`, `Auth state TOCTOU close + redaction default-on parity`, `Bitwarden disk cache parity`, `Bitwarden managed bws install + checksum verification` | `tests/hermes_cli/__init__.py`, `tests/hermes_cli/anon_portal.py`, `tests/hermes_cli/benchmark_session_timeline.py`, `tests/hermes_cli/conftest.py`, `tests/hermes_cli/conftest_dashboard_auth.py` |
+| `hermes_platform` | `9` | `hermes_platform` | - | `tests/hermes_platform/__init__.py`, `tests/hermes_platform/test_declaration.py`, `tests/hermes_platform/test_facts.py`, `tests/hermes_platform/test_gpu_adapters.py`, `tests/hermes_platform/test_host_summary.py` |
+| `hermes_state` | `214` | `hermes_state` | - | `tests/hermes_state/__init__.py`, `tests/hermes_state/_wal_generation_harness.py`, `tests/hermes_state/conftest.py`, `tests/hermes_state/test_append_message_after_close.py`, `tests/hermes_state/test_append_messages_batch.py` |
 | `home_io_guard.py` | `1` | `home_io_guard.py` | - | `tests/home_io_guard.py` |
-| `honcho_plugin` | `23` | `honcho_plugin` | - | `tests/honcho_plugin/__init__.py`, `tests/honcho_plugin/conftest.py`, `tests/honcho_plugin/test_a2a_sessions.py`, `tests/honcho_plugin/test_async_memory.py`, `tests/honcho_plugin/test_auth_recovery.py` |
-| `install` | `71` | `install` | - | `tests/install/BUNDLED_UPDATES.md`, `tests/install/KNOWN_FAILURES.md`, `tests/install/README.md`, `tests/install/e2e-assets/bundle-inputs.mjs`, `tests/install/e2e-assets/bundle-manifest.cjs` |
+| `install` | `74` | `install` | - | `tests/install/BUNDLED_UPDATES.md`, `tests/install/KNOWN_FAILURES.md`, `tests/install/README.md`, `tests/install/e2e-assets/bundle-inputs.mjs`, `tests/install/e2e-assets/bundle-manifest.cjs` |
 | `installation` | `2` | `installation` | - | `tests/installation/__init__.py`, `tests/installation/test_installer_common.py` |
 | `installation_launcher_fixture.py` | `1` | `installation_launcher_fixture.py` | - | `tests/installation_launcher_fixture.py` |
 | `integration` | `1` | `integration` | - | `tests/integration/test_local_runtime_pm_download.py` |
 | `live_process_fixtures.py` | `1` | `live_process_fixtures.py` | - | `tests/live_process_fixtures.py` |
+| `lock_contention.py` | `1` | `lock_contention.py` | - | `tests/lock_contention.py` |
 | `manual` | `2` | `manual` | - | `tests/manual/cron_inchannel_dm_e2e.py`, `tests/manual/cron_inchannel_e2e.py` |
+| `module_clock.py` | `1` | `module_clock.py` | - | `tests/module_clock.py` |
 | `monitoring` | `6` | `monitoring` | - | `tests/monitoring/__init__.py`, `tests/monitoring/test_cron_health_export.py`, `tests/monitoring/test_emitter.py`, `tests/monitoring/test_export_redaction.py`, `tests/monitoring/test_gateway_health_export.py` |
-| `openviking_plugin` | `1` | `openviking_plugin` | - | `tests/openviking_plugin/test_openviking.py` |
 | `perf_guards` | `1` | `perf_guards` | - | `tests/perf_guards/test_pattern_b_scaling.py` |
-| `plugins` | `156` | `plugins` | `Bundled platform plugin manifest drift guard`, `Google Chat install dependency hint refresh`, `Google Chat relay sender-type self-filter`, `Google Chat shared-chassis platform adapter seam`, `Google Chat standalone cron sender` | `tests/plugins/__init__.py`, `tests/plugins/browser/__init__.py`, `tests/plugins/browser/check_parity_vs_main.py`, `tests/plugins/browser/test_browser_provider_plugins.py`, `tests/plugins/dashboard_auth/test_basic_provider.py` |
-| `pm` | `112` | `pm` | - | `tests/pm/__init__.py`, `tests/pm/_fixtures.py`, `tests/pm/_range_server.py`, `tests/pm/conftest.py`, `tests/pm/test_activate_scripts.py` |
-| `providers` | `17` | `providers` | - | `tests/providers/__init__.py`, `tests/providers/fake_pkce_idp.py`, `tests/providers/test_auth_registry_import_order.py`, `tests/providers/test_auth_registry_mid_discovery.py`, `tests/providers/test_e2e_wiring.py` |
+| `plugins` | `160` | `plugins` | `Advance Hermes checkout and source pairs to latest upstream`, `Bundled platform plugin manifest drift guard`, `Google Chat install dependency hint refresh`, `Google Chat relay sender-type self-filter`, `Google Chat shared-chassis platform adapter seam` | `tests/plugins/__init__.py`, `tests/plugins/browser/__init__.py`, `tests/plugins/browser/check_parity_vs_main.py`, `tests/plugins/browser/test_browser_provider_plugins.py`, `tests/plugins/config_backends/__init__.py` |
+| `pm` | `142` | `pm` | - | `tests/pm/__init__.py`, `tests/pm/_fixtures.py`, `tests/pm/_range_server.py`, `tests/pm/activation_support.py`, `tests/pm/conftest.py` |
+| `posix_lock_probe.py` | `1` | `posix_lock_probe.py` | - | `tests/posix_lock_probe.py` |
+| `providers` | `22` | `providers` | - | `tests/providers/__init__.py`, `tests/providers/fake_pkce_idp.py`, `tests/providers/test_auth_registry_import_order.py`, `tests/providers/test_auth_registry_lazy_mirror.py`, `tests/providers/test_auth_registry_mid_discovery.py` |
 | `run_interrupt_test.py` | `1` | `run_interrupt_test.py` | - | `tests/run_interrupt_test.py` |
-| `scripts` | `128` | `scripts` | - | `tests/scripts/desktop_update/test_desktop_update_gateway_flag.py`, `tests/scripts/desktop_update/test_desktop_update_linux_gate.py`, `tests/scripts/desktop_update/test_desktop_update_macos_no_browser.py`, `tests/scripts/desktop_update/test_desktop_update_shim_profile_cleanup.py`, `tests/scripts/desktop_update/test_desktop_update_shim_progress.py` |
+| `scripts` | `178` | `scripts` | - | `tests/scripts/desktop_update/legacy_desktop_reader.py`, `tests/scripts/desktop_update/lineage_rule_cases.py`, `tests/scripts/desktop_update/test_desktop_update_gateway_flag.py`, `tests/scripts/desktop_update/test_desktop_update_linux_gate.py`, `tests/scripts/desktop_update/test_desktop_update_linux_gate_arm.py` |
 | `secret_sources` | `5` | `secret_sources` | - | `tests/secret_sources/__init__.py`, `tests/secret_sources/conformance.py`, `tests/secret_sources/test_error_remediation.py`, `tests/secret_sources/test_profile_secrets.py`, `tests/secret_sources/test_secret_source_registry.py` |
 | `security` | `1` | `security` | - | `tests/security/test_gitspawn_config_injection.py` |
-| `skills` | `32` | `skills` | `Hermes integrations claim audit + source-backed plugin/skill parity map`, `Hermes skill catalog strict-fidelity classifier`, `Sharp v1.0 differentiator decision` | `tests/skills/test_authoring_standards.py`, `tests/skills/test_cloudflare_temporary_deploy_skill.py`, `tests/skills/test_comfyui_skill.py`, `tests/skills/test_evidence_store.py`, `tests/skills/test_fetch_transcript.py` |
+| `skills` | `32` | `skills` | `Advance Hermes checkout and source pairs to latest upstream`, `Hermes integrations claim audit + source-backed plugin/skill parity map`, `Hermes skill catalog strict-fidelity classifier`, `Sharp v1.0 differentiator decision` | `tests/skills/test_authoring_standards.py`, `tests/skills/test_bundled_skill_doc_placeholders.py`, `tests/skills/test_cloudflare_temporary_deploy_skill.py`, `tests/skills/test_comfyui_skill.py`, `tests/skills/test_document_env_blocks.py` |
 | `termux_fixtures.py` | `1` | `termux_fixtures.py` | - | `tests/termux_fixtures.py` |
 | `test_agent_close_lifecycle.py` | `1` | `test_agent_close_lifecycle.py` | - | `tests/test_agent_close_lifecycle.py` |
 | `test_atomic_json_writers_unified.py` | `1` | `test_atomic_json_writers_unified.py` | - | `tests/test_atomic_json_writers_unified.py` |
@@ -1002,23 +1171,26 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `test_credential_file_permissions.py` | `1` | `test_credential_file_permissions.py` | - | `tests/test_credential_file_permissions.py` |
 | `test_dispatch_session_id.py` | `1` | `test_dispatch_session_id.py` | - | `tests/test_dispatch_session_id.py` |
 | `test_display_hermes_home.py` | `1` | `test_display_hermes_home.py` | - | `tests/test_display_hermes_home.py` |
+| `test_docker_poll_stalled_exec.py` | `1` | `test_docker_poll_stalled_exec.py` | - | `tests/test_docker_poll_stalled_exec.py` |
 | `test_engines_satisfiable.py` | `1` | `test_engines_satisfiable.py` | - | `tests/test_engines_satisfiable.py` |
 | `test_fast_safe_load.py` | `1` | `test_fast_safe_load.py` | - | `tests/test_fast_safe_load.py` |
 | `test_get_tool_definitions_cache_isolation.py` | `1` | `test_get_tool_definitions_cache_isolation.py` | - | `tests/test_get_tool_definitions_cache_isolation.py` |
 | `test_git_safety_boundary.py` | `1` | `test_git_safety_boundary.py` | - | `tests/test_git_safety_boundary.py` |
 | `test_hermes_bootstrap.py` | `1` | `test_hermes_bootstrap.py` | - | `tests/test_hermes_bootstrap.py` |
 | `test_hermes_constants.py` | `1` | `test_hermes_constants.py` | - | `tests/test_hermes_constants.py` |
+| `test_hermes_dir_acl.py` | `1` | `test_hermes_dir_acl.py` | - | `tests/test_hermes_dir_acl.py` |
+| `test_hermes_dir_acl_windows.py` | `1` | `test_hermes_dir_acl_windows.py` | - | `tests/test_hermes_dir_acl_windows.py` |
 | `test_hermes_home_key_cache.py` | `1` | `test_hermes_home_key_cache.py` | - | `tests/test_hermes_home_key_cache.py` |
 | `test_hermes_home_profile_warning.py` | `1` | `test_hermes_home_profile_warning.py` | - | `tests/test_hermes_home_profile_warning.py` |
 | `test_hermes_logging.py` | `1` | `test_hermes_logging.py` | - | `tests/test_hermes_logging.py` |
 | `test_hermes_yaml.py` | `1` | `test_hermes_yaml.py` | - | `tests/test_hermes_yaml.py` |
 | `test_ipv4_preference.py` | `1` | `test_ipv4_preference.py` | - | `tests/test_ipv4_preference.py` |
+| `test_live_nous_services_fence.py` | `1` | `test_live_nous_services_fence.py` | - | `tests/test_live_nous_services_fence.py` |
 | `test_live_system_guard.py` | `1` | `test_live_system_guard.py` | - | `tests/test_live_system_guard.py` |
 | `test_live_system_guard_self_test.py` | `1` | `test_live_system_guard_self_test.py` | - | `tests/test_live_system_guard_self_test.py` |
 | `test_load_yaml_file_readonly.py` | `1` | `test_load_yaml_file_readonly.py` | - | `tests/test_load_yaml_file_readonly.py` |
 | `test_log_isolation.py` | `1` | `test_log_isolation.py` | - | `tests/test_log_isolation.py` |
 | `test_managed_runtime_resolution.py` | `1` | `test_managed_runtime_resolution.py` | - | `tests/test_managed_runtime_resolution.py` |
-| `test_mcp_serve.py` | `1` | `test_mcp_serve.py` | - | `tests/test_mcp_serve.py` |
 | `test_mini_swe_runner.py` | `1` | `test_mini_swe_runner.py` | - | `tests/test_mini_swe_runner.py` |
 | `test_model_forces_max_completion_tokens.py` | `1` | `test_model_forces_max_completion_tokens.py` | - | `tests/test_model_forces_max_completion_tokens.py` |
 | `test_model_tools_async_bridge.py` | `1` | `test_model_tools_async_bridge.py` | - | `tests/test_model_tools_async_bridge.py` |
@@ -1032,90 +1204,99 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `test_project_metadata.py` | `1` | `test_project_metadata.py` | - | `tests/test_project_metadata.py` |
 | `test_sanitize_tool_error.py` | `1` | `test_sanitize_tool_error.py` | - | `tests/test_sanitize_tool_error.py` |
 | `test_scratch_dir.py` | `1` | `test_scratch_dir.py` | - | `tests/test_scratch_dir.py` |
+| `test_scratch_prune_undeletable.py` | `1` | `test_scratch_prune_undeletable.py` | - | `tests/test_scratch_prune_undeletable.py` |
+| `test_scratch_registered_clock_step.py` | `1` | `test_scratch_registered_clock_step.py` | - | `tests/test_scratch_registered_clock_step.py` |
 | `test_scratch_scan_failures.py` | `1` | `test_scratch_scan_failures.py` | - | `tests/test_scratch_scan_failures.py` |
+| `test_search_cjk_prefix_wildcard.py` | `1` | `test_search_cjk_prefix_wildcard.py` | - | `tests/test_search_cjk_prefix_wildcard.py` |
+| `test_session_daemon_reaper.py` | `1` | `test_session_daemon_reaper.py` | - | `tests/test_session_daemon_reaper.py` |
+| `test_session_spillover_cleanup.py` | `1` | `test_session_spillover_cleanup.py` | - | `tests/test_session_spillover_cleanup.py` |
+| `test_state_config_contention.py` | `1` | `test_state_config_contention.py` | - | `tests/test_state_config_contention.py` |
 | `test_tests_tree_layout.py` | `1` | `test_tests_tree_layout.py` | - | `tests/test_tests_tree_layout.py` |
 | `test_trajectory_compressor.py` | `1` | `test_trajectory_compressor.py` | - | `tests/test_trajectory_compressor.py` |
 | `test_trajectory_compressor_async.py` | `1` | `test_trajectory_compressor_async.py` | - | `tests/test_trajectory_compressor_async.py` |
 | `test_utils_atomic_roundtrip_yaml_save.py` | `1` | `test_utils_atomic_roundtrip_yaml_save.py` | - | `tests/test_utils_atomic_roundtrip_yaml_save.py` |
 | `test_utils_atomic_writers_deleted_profile.py` | `1` | `test_utils_atomic_writers_deleted_profile.py` | - | `tests/test_utils_atomic_writers_deleted_profile.py` |
+| `test_utils_no_proxy_sanitize.py` | `1` | `test_utils_no_proxy_sanitize.py` | - | `tests/test_utils_no_proxy_sanitize.py` |
 | `test_utils_rmtree_readonly.py` | `1` | `test_utils_rmtree_readonly.py` | - | `tests/test_utils_rmtree_readonly.py` |
 | `test_utils_truthy_values.py` | `1` | `test_utils_truthy_values.py` | - | `tests/test_utils_truthy_values.py` |
+| `test_utils_unlink_files_older_than.py` | `1` | `test_utils_unlink_files_older_than.py` | - | `tests/test_utils_unlink_files_older_than.py` |
 | `test_wal_reset_repair_hint.py` | `1` | `test_wal_reset_repair_hint.py` | - | `tests/test_wal_reset_repair_hint.py` |
 | `test_windows_subprocess_no_window_flags.py` | `1` | `test_windows_subprocess_no_window_flags.py` | - | `tests/test_windows_subprocess_no_window_flags.py` |
 | `test_yaml_indent_consistency.py` | `1` | `test_yaml_indent_consistency.py` | - | `tests/test_yaml_indent_consistency.py` |
-| `tools` | `700` | `tools` | `ACP session CWD propagation into prompt runners`, `Audio preprocessing and chunking pipeline`, `Block-anchor fuzzy replace for native patch tool`, `Brave Search + DDGS web search provider parity`, `Browser console expression CDP result shaping` | `tests/tools/__init__.py`, `tests/tools/_child_env_fixtures.py`, `tests/tools/conftest.py`, `tests/tools/environments/__init__.py`, `tests/tools/environments/test_local_path_completion.py` |
-| `tui_gateway` | `227` | `tui_gateway` | `Hermes fast-mode request override serializer`, `Hermes gateway platform strict-fidelity source-pair expansion`, `TUI + Telegram browsing`, `TUI gateway config health null-section probe`, `TUI websocket attach transport` | `tests/tui_gateway/__init__.py`, `tests/tui_gateway/_compute_host_frames.py`, `tests/tui_gateway/conftest.py`, `tests/tui_gateway/contracts/__init__.py`, `tests/tui_gateway/contracts/test_generated.py` |
-| `ui-tui` | `75` | `ui-tui` | `CLI setup/onboard/help text fidelity matrix`, `Gateway/TUI /queue explicit FIFO slash parity`, `Gormes-owned chat TUI divergence ratification`, `Gormes-owned semantic chat style system`, `Gormes-owned session-aware welcome panel` | `ui-tui/src/__tests__/activeSessionSwitcher.test.ts`, `ui-tui/src/__tests__/agentControls.test.ts`, `ui-tui/src/__tests__/agentRoster.test.ts`, `ui-tui/src/__tests__/agentsCompact.test.tsx`, `ui-tui/src/__tests__/agentsDock.test.tsx` |
+| `tools` | `844` | `tools` | `ACP session CWD propagation into prompt runners`, `Advance Hermes checkout and source pairs to latest upstream`, `Audio preprocessing and chunking pipeline`, `Block-anchor fuzzy replace for native patch tool`, `Brave Search + DDGS web search provider parity` | `tests/tools/__init__.py`, `tests/tools/_child_env_fixtures.py`, `tests/tools/browser_launcher_fakes.py`, `tests/tools/conftest.py`, `tests/tools/environments/__init__.py` |
+| `tui_gateway` | `365` | `tui_gateway` | `Hermes fast-mode request override serializer`, `Hermes gateway platform strict-fidelity source-pair expansion`, `TUI + Telegram browsing`, `TUI gateway config health null-section probe`, `TUI websocket attach transport` | `tests/tui_gateway/__init__.py`, `tests/tui_gateway/_compute_host_frames.py`, `tests/tui_gateway/_turn_marker_backend.py`, `tests/tui_gateway/conftest.py`, `tests/tui_gateway/contracts/__init__.py` |
+| `ui-tui` | `148` | `ui-tui` | `Advance Hermes checkout and source pairs to latest upstream`, `CLI setup/onboard/help text fidelity matrix`, `Gateway/TUI /queue explicit FIFO slash parity`, `Gormes-owned chat TUI divergence ratification`, `Gormes-owned semantic chat style system` | `ui-tui/src/__tests__/activeSessionSwitcher.test.ts`, `ui-tui/src/__tests__/agentControls.test.ts`, `ui-tui/src/__tests__/agentRoster.test.ts`, `ui-tui/src/__tests__/agentsCompact.test.tsx`, `ui-tui/src/__tests__/agentsDock.test.tsx` |
+| `usage_window_fixtures.py` | `1` | `usage_window_fixtures.py` | - | `tests/usage_window_fixtures.py` |
 | `verify` | `4` | `verify` | - | `tests/verify/test_environment_and_runner.py`, `tests/verify/test_ledger_and_nudge_integration.py`, `tests/verify/test_recipes.py`, `tests/verify/test_verify_cmd.py` |
-| `website` | `7` | `website` | `Google Chat install dependency hint refresh`, `Gormes profile distribution metadata readout`, `Gormes setup/channel/provider docs webpage parity gate`, `Hermes config migration dry-run manifest`, `Hermes website docs mirror coverage gate` | `tests/website/__init__.py`, `tests/website/test_check_doc_links.py`, `tests/website/test_extract_plugins.py`, `tests/website/test_extract_skills.py`, `tests/website/test_fetch_plugin_stars.py` |
+| `waiting.py` | `1` | `waiting.py` | - | `tests/waiting.py` |
+| `website` | `8` | `website` | `Google Chat install dependency hint refresh`, `Gormes profile distribution metadata readout`, `Gormes setup/channel/provider docs webpage parity gate`, `Hermes config migration dry-run manifest`, `Hermes website docs mirror coverage gate` | `tests/website/__init__.py`, `tests/website/test_catalog_rules_mirror.py`, `tests/website/test_check_doc_links.py`, `tests/website/test_extract_plugins.py`, `tests/website/test_extract_skills.py` |
 
 ## Plugin Catalog Classification
 
 | Family | Status | Count | Progress rows | Source pairs | Examples | Reason |
 |---|---|---:|---|---|---|---|
-| `browser_web_search` | `partial` | `47` | `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP bridge doctor/status evidence`, `ACP server side`, `+1059 more` | `gateway/run.py`, `tools/url_safety.py`, `tools/web_tools.py`, `tools/website_policy.py` | `plugins/browser/_common.py`, `plugins/browser/browser_use/__init__.py`, `plugins/browser/browser_use/plugin.yaml`, `plugins/browser/browser_use/provider.py`, `plugins/browser/browserbase/__init__.py`, `+42 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `browser_web_search` | `partial` | `47` | `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP bridge doctor/status evidence`, `ACP server side`, `+1065 more` | `gateway/run.py`, `tools/url_safety.py`, `tools/web_tools.py`, `tools/website_policy.py` | `plugins/browser/_common.py`, `plugins/browser/browser_use/__init__.py`, `plugins/browser/browser_use/plugin.yaml`, `plugins/browser/browser_use/provider.py`, `plugins/browser/browserbase/__init__.py`, `+42 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 | `dashboard_observability` | `partial` | `6` | `16ms coalescing mailbox`, `API server detailed health endpoint`, `API server detailed health snapshot contract`, `API server legacy jobs routes + default toolset`, `+146 more` | - | `plugins/hermes-achievements/README.md`, `plugins/hermes-achievements/dashboard/manifest.json`, `plugins/hermes-achievements/dashboard/plugin_api.py`, `plugins/hermes-achievements/tests/test_achievement_engine.py`, `plugins/kanban/dashboard/manifest.json`, `+1 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 | `google_meet` | `partial` | `18` | `Block-anchor fuzzy replace for native patch tool`, `Context-aware fuzzy replace for native patch tool`, `First-party Google Meet plugin metadata fixture`, `Hermes plugin catalog strict-fidelity classifier`, `+3 more` | - | `plugins/google_meet/README.md`, `plugins/google_meet/SKILL.md`, `plugins/google_meet/__init__.py`, `plugins/google_meet/_jsonfile.py`, `plugins/google_meet/audio_bridge.py`, `+13 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `image_video_generation` | `partial` | `25` | `6 typed memory categories with confidence scoring`, `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP server side`, `+534 more` | `agent/prompt_builder.py`, `hermes_cli/default_soul.py`, `tools/image_generation_tool.py`, `tools/transcription_tools.py`, `+1 more` | `plugins/image_gen/_common.py`, `plugins/image_gen/deepinfra/__init__.py`, `plugins/image_gen/deepinfra/plugin.yaml`, `plugins/image_gen/fal/__init__.py`, `plugins/image_gen/fal/plugin.yaml`, `+20 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `memory_providers` | `partial` | `46` | `2-layer seed selection`, `6 typed memory categories with confidence scoring`, `<memory-context> fence`, `ACP Client Bridge Mode`, `+801 more` | `agent/context_engine.py`, `agent/prompt_builder.py`, `agent/transports/chat_completions.py`, `agent/transports/codex.py`, `+8 more` | `plugins/memory/__init__.py`, `plugins/memory/byterover/README.md`, `plugins/memory/byterover/__init__.py`, `plugins/memory/byterover/plugin.yaml`, `plugins/memory/config_schema.py`, `+41 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `model_providers` | `partial` | `77` | `6 typed memory categories with confidence scoring`, `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP bridge doctor/status evidence`, `+836 more` | `agent/context_engine.py`, `agent/prompt_builder.py`, `agent/transports/chat_completions.py`, `agent/transports/codex.py`, `+9 more` | `plugins/model-providers/README.md`, `plugins/model-providers/actual/__init__.py`, `plugins/model-providers/actual/plugin.yaml`, `plugins/model-providers/ai-gateway/__init__.py`, `plugins/model-providers/ai-gateway/plugin.yaml`, `+72 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `platform_adapters` | `partial` | `104` | `(platform, chat_id) -> session_id`, `61-tool registry port`, `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `+695 more` | `agent/prompt_builder.py`, `gateway/run.py`, `tools/web_tools.py` | `plugins/platforms/a2a/DESIGN.md`, `plugins/platforms/a2a/README.md`, `plugins/platforms/a2a/__init__.py`, `plugins/platforms/a2a/adapter.py`, `plugins/platforms/a2a/plugin.yaml`, `+99 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `spotify` | `partial` | `4` | `Effective toolset picker dedupes bundled plugin keys`, `First-party Google Meet plugin metadata fixture`, `First-party Spotify plugin fixture`, `Gormes mcp login browser callback flow`, `+11 more` | - | `plugins/spotify/__init__.py`, `plugins/spotify/client.py`, `plugins/spotify/plugin.yaml`, `plugins/spotify/tools.py` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `image_video_generation` | `partial` | `25` | `6 typed memory categories with confidence scoring`, `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP server side`, `+535 more` | `agent/prompt_builder.py`, `hermes_cli/default_soul.py`, `tools/image_generation_tool.py`, `tools/transcription_tools.py`, `+1 more` | `plugins/image_gen/_common.py`, `plugins/image_gen/deepinfra/__init__.py`, `plugins/image_gen/deepinfra/plugin.yaml`, `plugins/image_gen/fal/__init__.py`, `plugins/image_gen/fal/plugin.yaml`, `+20 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `memory_providers` | `partial` | `9` | `2-layer seed selection`, `6 typed memory categories with confidence scoring`, `<memory-context> fence`, `ACP Client Bridge Mode`, `+805 more` | `agent/context_engine.py`, `agent/prompt_builder.py`, `agent/transports/chat_completions.py`, `agent/transports/codex.py`, `+8 more` | `plugins/memory/__init__.py`, `plugins/memory/byterover/README.md`, `plugins/memory/byterover/__init__.py`, `plugins/memory/byterover/plugin.yaml`, `plugins/memory/config_schema.py`, `+4 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `model_providers` | `partial` | `81` | `6 typed memory categories with confidence scoring`, `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP bridge doctor/status evidence`, `+838 more` | `agent/context_engine.py`, `agent/prompt_builder.py`, `agent/transports/chat_completions.py`, `agent/transports/codex.py`, `+9 more` | `plugins/model-providers/README.md`, `plugins/model-providers/actual/__init__.py`, `plugins/model-providers/actual/plugin.yaml`, `plugins/model-providers/ai-gateway/__init__.py`, `plugins/model-providers/ai-gateway/plugin.yaml`, `+76 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `platform_adapters` | `partial` | `188` | `(platform, chat_id) -> session_id`, `61-tool registry port`, `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `+698 more` | `agent/prompt_builder.py`, `gateway/run.py`, `tools/web_tools.py` | `plugins/platforms/a2a/DESIGN.md`, `plugins/platforms/a2a/README.md`, `plugins/platforms/a2a/__init__.py`, `plugins/platforms/a2a/adapter.py`, `plugins/platforms/a2a/plugin.yaml`, `+183 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 | `teams_pipeline` | `partial` | `9` | `Agent middleware chain framework`, `Agentic-porting-kit public repo scaffold`, `Audio preprocessing and chunking pipeline`, `Backlog split C5d: migrate gormes-* skill discovery commands off raw jq of the canonical progress.json`, `+55 more` | - | `plugins/teams_pipeline/__init__.py`, `plugins/teams_pipeline/cli.py`, `plugins/teams_pipeline/meetings.py`, `plugins/teams_pipeline/models.py`, `plugins/teams_pipeline/pipeline.py`, `+4 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 
 ## Skill Catalog Classification
 
 | Family | Status | Count | Progress rows | Source pairs | Examples | Reason |
 |---|---|---:|---|---|---|---|
-| `bundled_catalog_metadata` | `partial` | `58` | `Bundled Airtable productivity skill contract`, `Bundled TouchDesigner MCP skill catalog contract`, `Cron GitHub auth-header scanner parity`, `Deterministic selection + prompt block`, `+36 more` | `tools/skills_sync.py`, `tools/skills_tool.py` | `skills/apple/apple-notes/SKILL.md`, `skills/apple/apple-reminders/SKILL.md`, `skills/apple/findmy/SKILL.md`, `skills/apple/imessage/SKILL.md`, `skills/autonomous-ai-agents/claude-code/SKILL.md`, `+53 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `bundled_catalog_metadata` | `partial` | `45` | `Advance Hermes checkout and source pairs to latest upstream`, `Bundled Airtable productivity skill contract`, `Bundled TouchDesigner MCP skill catalog contract`, `Cron GitHub auth-header scanner parity`, `+37 more` | `tools/skills_sync.py`, `tools/skills_tool.py` | `skills/apple/apple-notes/SKILL.md`, `skills/apple/apple-reminders/SKILL.md`, `skills/apple/findmy/SKILL.md`, `skills/apple/imessage/SKILL.md`, `skills/autonomous-ai-agents/claude-code/SKILL.md`, `+40 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 | `category_descriptions` | `partial` | `26` | `Agentic-porting-kit local porting skill skeletons`, `Bundled Airtable productivity skill contract`, `Bundled TouchDesigner MCP skill catalog contract`, `Discord native slash/thread command registration parity`, `+22 more` | - | `optional-skills/DESCRIPTION.md`, `optional-skills/autonomous-ai-agents/DESCRIPTION.md`, `optional-skills/communication/DESCRIPTION.md`, `optional-skills/data-science/DESCRIPTION.md`, `optional-skills/dogfood/DESCRIPTION.md`, `+21 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `optional_catalog_metadata` | `partial` | `150` | `Backlog split C5: single atomic operator-gated flip to the module-keyed split directory`, `Backlog split C5a: optional per-row module key + deterministic derivation + backfill`, `Bundled Airtable productivity skill contract`, `Bundled TouchDesigner MCP skill catalog contract`, `+36 more` | - | `optional-skills/autonomous-ai-agents/agent-merge-conflict-arbiter/SKILL.md`, `optional-skills/autonomous-ai-agents/antigravity-cli/SKILL.md`, `optional-skills/autonomous-ai-agents/blackbox/SKILL.md`, `optional-skills/autonomous-ai-agents/dynamic-workflow/SKILL.md`, `optional-skills/autonomous-ai-agents/grok/SKILL.md`, `+145 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `prerequisites_readiness_metadata` | `partial` | `30` | `Agentic-porting-kit local public layout assembly gate`, `Agentic-porting-kit local standalone fixture`, `Agentic-porting-kit public repo scaffold`, `Backlog split C5a: optional per-row module key + deterministic derivation + backfill`, `+114 more` | - | `optional-skills/autonomous-ai-agents/honcho/SKILL.md`, `optional-skills/creative/comfyui/SKILL.md`, `optional-skills/creative/hyperframes/SKILL.md`, `optional-skills/email/agentmail/SKILL.md`, `optional-skills/health/fitness-nutrition/SKILL.md`, `+25 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `python_script_examples` | `partial` | `176` | `Agentic-porting-kit extraction spec`, `Agentic-porting-kit local README and license fixture`, `Agentic-porting-kit local porting skill skeletons`, `Agentic-porting-kit local public layout assembly gate`, `+41 more` | - | `optional-skills/blockchain/evm/scripts/evm_client.py`, `optional-skills/blockchain/hyperliquid/scripts/hyperliquid_client.py`, `optional-skills/blockchain/solana/scripts/solana_client.py`, `optional-skills/creative/ai-presenter-video/scripts/finalize_delivery.sh`, `optional-skills/creative/ai-presenter-video/scripts/init_job.py`, `+171 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `support_assets` | `partial` | `600` | `Agent Hooks Registry`, `Agent personalities + enhanced display config`, `Agentic-porting-kit extraction spec`, `Agentic-porting-kit local porting skill skeletons`, `+103 more` | `tools/skill_manager_tool.py` | `optional-skills/autonomous-ai-agents/antigravity-cli/references/cli-docs.md`, `optional-skills/creative/ai-presenter-video/assets/job.template.json`, `optional-skills/creative/ai-presenter-video/references/editing.md`, `optional-skills/creative/ai-presenter-video/references/generation.md`, `optional-skills/creative/ai-presenter-video/references/qa-recovery.md`, `+595 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `sync_reset_boundaries` | `partial` | `10` | `Bundled Airtable productivity skill contract`, `Dashboard page-scoped plugin slot inventory`, `Dashboard theme/plugin extension status contract`, `Delta-bounded skill and memory maintenance passes`, `+60 more` | `tools/skills_sync.py` | `optional-skills/creative/baoyu-article-illustrator/references/style-presets.md`, `optional-skills/creative/baoyu-comic/references/presets/concept-story.md`, `optional-skills/creative/baoyu-comic/references/presets/four-panel.md`, `optional-skills/creative/baoyu-comic/references/presets/ohmsha.md`, `optional-skills/creative/baoyu-comic/references/presets/shoujo.md`, `+5 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `triggers_tags_related_skills` | `partial` | `208` | `Agent Hooks Registry`, `Backlog split C5: single atomic operator-gated flip to the module-keyed split directory`, `Backlog split C5a: optional per-row module key + deterministic derivation + backfill`, `Blocker Policy Integration`, `+34 more` | - | `optional-skills/autonomous-ai-agents/agent-merge-conflict-arbiter/SKILL.md`, `optional-skills/autonomous-ai-agents/antigravity-cli/SKILL.md`, `optional-skills/autonomous-ai-agents/blackbox/SKILL.md`, `optional-skills/autonomous-ai-agents/dynamic-workflow/SKILL.md`, `optional-skills/autonomous-ai-agents/grok/SKILL.md`, `+203 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `optional_catalog_metadata` | `partial` | `149` | `Advance Hermes checkout and source pairs to latest upstream`, `Backlog split C5: single atomic operator-gated flip to the module-keyed split directory`, `Backlog split C5a: optional per-row module key + deterministic derivation + backfill`, `Bundled Airtable productivity skill contract`, `+37 more` | - | `optional-skills/autonomous-ai-agents/agent-merge-conflict-arbiter/SKILL.md`, `optional-skills/autonomous-ai-agents/antigravity-cli/SKILL.md`, `optional-skills/autonomous-ai-agents/blackbox/SKILL.md`, `optional-skills/autonomous-ai-agents/dynamic-workflow/SKILL.md`, `optional-skills/autonomous-ai-agents/grok/SKILL.md`, `+144 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `prerequisites_readiness_metadata` | `partial` | `31` | `Agentic-porting-kit local public layout assembly gate`, `Agentic-porting-kit local standalone fixture`, `Agentic-porting-kit public repo scaffold`, `Backlog split C5a: optional per-row module key + deterministic derivation + backfill`, `+114 more` | - | `optional-skills/autonomous-ai-agents/honcho/SKILL.md`, `optional-skills/creative/comfyui/SKILL.md`, `optional-skills/creative/hyperframes/SKILL.md`, `optional-skills/email/agentmail/SKILL.md`, `optional-skills/health/fitness-nutrition/SKILL.md`, `+26 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `python_script_examples` | `partial` | `172` | `Advance Hermes checkout and source pairs to latest upstream`, `Agentic-porting-kit extraction spec`, `Agentic-porting-kit local README and license fixture`, `Agentic-porting-kit local porting skill skeletons`, `+42 more` | - | `optional-skills/blockchain/evm/scripts/evm_client.py`, `optional-skills/blockchain/hyperliquid/scripts/hyperliquid_client.py`, `optional-skills/blockchain/solana/scripts/solana_client.py`, `optional-skills/creative/ai-presenter-video/scripts/finalize_delivery.sh`, `optional-skills/creative/ai-presenter-video/scripts/init_job.py`, `+167 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `support_assets` | `partial` | `580` | `Advance Hermes checkout and source pairs to latest upstream`, `Agent Hooks Registry`, `Agent personalities + enhanced display config`, `Agentic-porting-kit extraction spec`, `+104 more` | `tools/skill_manager_tool.py` | `optional-skills/autonomous-ai-agents/antigravity-cli/references/cli-docs.md`, `optional-skills/creative/ai-presenter-video/assets/job.template.json`, `optional-skills/creative/ai-presenter-video/references/editing.md`, `optional-skills/creative/ai-presenter-video/references/generation.md`, `optional-skills/creative/ai-presenter-video/references/qa-recovery.md`, `+575 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `sync_reset_boundaries` | `partial` | `10` | `Advance Hermes checkout and source pairs to latest upstream`, `Bundled Airtable productivity skill contract`, `Dashboard page-scoped plugin slot inventory`, `Dashboard theme/plugin extension status contract`, `+61 more` | `tools/skills_sync.py` | `optional-skills/creative/baoyu-article-illustrator/references/style-presets.md`, `optional-skills/creative/baoyu-comic/references/presets/concept-story.md`, `optional-skills/creative/baoyu-comic/references/presets/four-panel.md`, `optional-skills/creative/baoyu-comic/references/presets/ohmsha.md`, `optional-skills/creative/baoyu-comic/references/presets/shoujo.md`, `+5 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `triggers_tags_related_skills` | `partial` | `194` | `Agent Hooks Registry`, `Backlog split C5: single atomic operator-gated flip to the module-keyed split directory`, `Backlog split C5a: optional per-row module key + deterministic derivation + backfill`, `Blocker Policy Integration`, `+35 more` | - | `optional-skills/autonomous-ai-agents/agent-merge-conflict-arbiter/SKILL.md`, `optional-skills/autonomous-ai-agents/antigravity-cli/SKILL.md`, `optional-skills/autonomous-ai-agents/blackbox/SKILL.md`, `optional-skills/autonomous-ai-agents/dynamic-workflow/SKILL.md`, `optional-skills/autonomous-ai-agents/grok/SKILL.md`, `+189 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 
 ## Gateway Platform Classification
 
 | Family | Status | Count | Progress rows | Source pairs | Examples | Reason |
 |---|---|---:|---|---|---|---|
-| `api_server_surface` | `partial` | `1` | `16ms coalescing mailbox`, `API server cron admin mutating endpoints`, `API server cron admin read-only endpoints`, `API server detailed health endpoint`, `+361 more` | `agent/transports/chat_completions.py` | `gateway/platforms/api_server.py` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `builtin_platform_connectors` | `partial` | `38` | `61-tool registry port`, `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP server side`, `+477 more` | `gateway/run.py`, `tools/web_tools.py` | `gateway/platforms/__init__.py`, `gateway/platforms/_shared.py`, `gateway/platforms/access_policy_mixin.py`, `gateway/platforms/api_server_memory_sessions.py`, `gateway/platforms/api_server_openai_routes.py`, `+33 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `bundled_platform_plugins` | `partial` | `104` | `ACP bridge doctor/status evidence`, `ACP stdio benign ping/probe suppression`, `Admin TUI: Agents screen wired to the 2.H dynamic registry`, `Admin TUI: Chat tab with keybinding to jump in from any screen`, `+359 more` | - | `plugins/platforms/a2a/DESIGN.md`, `plugins/platforms/a2a/README.md`, `plugins/platforms/a2a/__init__.py`, `plugins/platforms/a2a/adapter.py`, `plugins/platforms/a2a/plugin.yaml`, `+99 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `gateway_runtime_lifecycle` | `partial` | `1` | `ACP JSON-RPC stdio session/prompt closeout`, `ACP bridge doctor/status evidence`, `ACP server side`, `ACP stdio benign ping/probe suppression`, `+594 more` | `agent/lsp/manager.py`, `gateway/run.py`, `hermes_cli/auth_commands.py` | `gateway/run.py` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `platform_docs` | `partial` | `1` | `Backlog split C5e: make non-Go raw progress.json consumers (fleet scripts + CI path globs) split-directory-safe`, `Bundled TouchDesigner MCP skill catalog contract`, `CI and installer Go toolchain floor sync`, `Cron prompt/script safety + pre-run script contract (deprecated umbrella)`, `+32 more` | - | `gateway/platforms/ADDING_A_PLATFORM.md` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `api_server_surface` | `partial` | `1` | `16ms coalescing mailbox`, `API server cron admin mutating endpoints`, `API server cron admin read-only endpoints`, `API server detailed health endpoint`, `+363 more` | `agent/transports/chat_completions.py` | `gateway/platforms/api_server.py` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `builtin_platform_connectors` | `partial` | `38` | `61-tool registry port`, `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP server side`, `+478 more` | `gateway/run.py`, `tools/web_tools.py` | `gateway/platforms/__init__.py`, `gateway/platforms/_shared.py`, `gateway/platforms/access_policy_mixin.py`, `gateway/platforms/api_server_authority_runs.py`, `gateway/platforms/api_server_bot_chat.py`, `+33 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `bundled_platform_plugins` | `partial` | `188` | `ACP bridge doctor/status evidence`, `ACP stdio benign ping/probe suppression`, `Admin TUI: Agents screen wired to the 2.H dynamic registry`, `Admin TUI: Chat tab with keybinding to jump in from any screen`, `+363 more` | - | `plugins/platforms/a2a/DESIGN.md`, `plugins/platforms/a2a/README.md`, `plugins/platforms/a2a/__init__.py`, `plugins/platforms/a2a/adapter.py`, `plugins/platforms/a2a/plugin.yaml`, `+183 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `gateway_runtime_lifecycle` | `partial` | `1` | `ACP JSON-RPC stdio session/prompt closeout`, `ACP bridge doctor/status evidence`, `ACP server side`, `ACP stdio benign ping/probe suppression`, `+598 more` | `agent/lsp/manager.py`, `gateway/run.py`, `hermes_cli/auth_commands.py` | `gateway/run.py` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `platform_docs` | `partial` | `1` | `Backlog split C5e: make non-Go raw progress.json consumers (fleet scripts + CI path globs) split-directory-safe`, `Bundled TouchDesigner MCP skill catalog contract`, `CI and installer Go toolchain floor sync`, `Cron prompt/script safety + pre-run script contract (deprecated umbrella)`, `+33 more` | - | `gateway/platforms/ADDING_A_PLATFORM.md` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 | `platform_enum_config` | `partial` | `1` | `Agent Hooks Registry`, `Approval mode config normalization`, `Bundled platform plugin manifest drift guard`, `Gateway /kanban shared command-runner binding`, `+25 more` | - | `gateway/config.py` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 | `platform_helpers` | `partial` | `3` | `API server detailed health snapshot contract`, `Admin TUI: Chat tab with keybinding to jump in from any screen`, `Anthropic OAuth/keychain credential discovery`, `Atomic file write helper with temp+rename pattern`, `+352 more` | `tools/url_safety.py` | `gateway/platforms/_http_client_limits.py`, `gateway/platforms/base.py`, `gateway/platforms/helpers.py` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `tui_gateway_bridge` | `partial` | `99` | `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP bridge doctor/status evidence`, `ACP server side`, `+406 more` | `tools/skills_tool.py` | `tui_gateway/AGENTS.md`, `tui_gateway/__init__.py`, `tui_gateway/_env.py`, `tui_gateway/_stdin_recovery.py`, `tui_gateway/agent_callbacks.py`, `+94 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `tui_gateway_bridge` | `partial` | `124` | `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP bridge doctor/status evidence`, `ACP server side`, `+407 more` | `tools/skills_tool.py` | `tui_gateway/AGENTS.md`, `tui_gateway/__init__.py`, `tui_gateway/_env.py`, `tui_gateway/_stdin_recovery.py`, `tui_gateway/agent_callbacks.py`, `+119 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 
 ## Web Dashboard Classification
 
 | Family | Status | Count | Progress rows | Source pairs | Examples | Reason |
 |---|---|---:|---|---|---|---|
-| `cron_admin_jobs` | `partial` | `1` | `API server cron admin mutating endpoints`, `API server cron admin read-only endpoints`, `API server detailed health endpoint`, `API server detailed health snapshot contract`, `+105 more` | `gateway/run.py` | `web/src/pages/CronPage.tsx` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `gateway_client_events` | `partial` | `2` | `61-tool registry port`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP server side`, `ACP session CWD propagation into prompt runners`, `+515 more` | `agent/context_engine.py`, `agent/conversation_loop.py`, `agent/prompt_builder.py`, `run_agent.py` | `web/src/lib/api.ts`, `web/src/lib/gatewayClient.ts` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `cron_admin_jobs` | `partial` | `1` | `API server cron admin mutating endpoints`, `API server cron admin read-only endpoints`, `API server detailed health endpoint`, `API server detailed health snapshot contract`, `+106 more` | `gateway/run.py` | `web/src/pages/CronPage.tsx` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `gateway_client_events` | `partial` | `2` | `61-tool registry port`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP server side`, `ACP session CWD propagation into prompt runners`, `+519 more` | `agent/context_engine.py`, `agent/conversation_loop.py`, `agent/prompt_builder.py`, `run_agent.py` | `web/src/lib/api.ts`, `web/src/lib/gatewayClient.ts` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 | `i18n_catalog` | `partial` | `22` | `ACP JSON-RPC stdio session/prompt closeout`, `Block-anchor fuzzy replace for native patch tool`, `Gateway channel adapters publish to event bus`, `Gormes setup/channel/provider docs webpage parity gate`, `+10 more` | - | `web/src/components/LanguageSwitcher.tsx`, `web/src/i18n/af.ts`, `web/src/i18n/ar.ts`, `web/src/i18n/context.tsx`, `web/src/i18n/de.ts`, `+17 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 | `model_picker` | `partial` | `3` | `Custom provider model-switch credential preservation`, `Custom provider model-switch key_env write guard`, `Dashboard API client contract`, `Discord interaction authorization + mention safety guards`, `+24 more` | - | `web/src/components/ModelInfoCard.tsx`, `web/src/components/ModelPickerDialog.tsx`, `web/src/pages/ModelsPage.tsx` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `oauth_provider_panels` | `partial` | `2` | `ACP JSON-RPC stdio session/prompt closeout`, `API server detailed health endpoint`, `Anthropic OAuth/keychain credential discovery`, `Auth state TOCTOU close + redaction default-on parity`, `+119 more` | `hermes_cli/auth_commands.py`, `tools/x_search_tool.py` | `web/src/components/OAuthLoginModal.tsx`, `web/src/components/OAuthProvidersCard.tsx` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `plugin_pages_slots` | `partial` | `10` | `Agent Hooks Registry`, `Dashboard page-scoped plugin slot inventory`, `Dashboard theme/plugin extension status contract`, `Effective toolset picker dedupes bundled plugin keys`, `+12 more` | - | `web/src/pages/PluginsPage.tsx`, `web/src/plugins/PluginPage.tsx`, `web/src/plugins/index.ts`, `web/src/plugins/registry.test.ts`, `web/src/plugins/registry.ts`, `+5 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `oauth_provider_panels` | `partial` | `2` | `ACP JSON-RPC stdio session/prompt closeout`, `API server detailed health endpoint`, `Anthropic OAuth/keychain credential discovery`, `Auth state TOCTOU close + redaction default-on parity`, `+120 more` | `hermes_cli/auth_commands.py`, `tools/x_search_tool.py` | `web/src/components/OAuthLoginModal.tsx`, `web/src/components/OAuthProvidersCard.tsx` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `plugin_pages_slots` | `partial` | `11` | `Agent Hooks Registry`, `Dashboard page-scoped plugin slot inventory`, `Dashboard theme/plugin extension status contract`, `Effective toolset picker dedupes bundled plugin keys`, `+12 more` | - | `web/src/pages/PluginsPage.tsx`, `web/src/plugins/PluginPage.tsx`, `web/src/plugins/index.ts`, `web/src/plugins/registry.test.ts`, `web/src/plugins/registry.ts`, `+6 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 | `profiles_config` | `partial` | `3` | `Active Hermes/Sidon profile context root resolver for live turns`, `Admin TUI: Setup health screen with missing-config callouts`, `Agent personalities + enhanced display config`, `Agent personalities + enhanced display config`, `+78 more` | `hermes_cli/profiles.py` | `web/src/components/PlatformsCard.tsx`, `web/src/pages/ConfigPage.tsx`, `web/src/pages/ProfilesPage.tsx` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 | `sessions_page` | `partial` | `1` | `Dashboard API client contract`, `Ephemeral prefill messages file injection`, `Gateway auto-resume on restart`, `Hermes background review fork lifecycle`, `+2 more` | - | `web/src/pages/SessionsPage.tsx` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
-| `terminal_chat_pty` | `partial` | `3` | `ACP session CWD propagation into prompt runners`, `API server multimodal content preservation`, `Admin TUI: Agents screen wired to the 2.H dynamic registry`, `Admin TUI: Chat tab with keybinding to jump in from any screen`, `+309 more` | - | `web/src/components/ChatSidebar.tsx`, `web/src/components/Markdown.tsx`, `web/src/pages/ChatPage.tsx` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
+| `terminal_chat_pty` | `partial` | `3` | `ACP session CWD propagation into prompt runners`, `API server multimodal content preservation`, `Admin TUI: Agents screen wired to the 2.H dynamic registry`, `Admin TUI: Chat tab with keybinding to jump in from any screen`, `+310 more` | - | `web/src/components/ChatSidebar.tsx`, `web/src/components/Markdown.tsx`, `web/src/pages/ChatPage.tsx` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 | `theme_system` | `partial` | `7` | `Dashboard page-scoped plugin slot inventory`, `Dashboard theme/plugin extension status contract`, `Gormes MCP custom HTTP config add + redacted list`, `Gormes setup full-wizard shell and branded summary`, `+9 more` | - | `web/src/components/ThemeSwitcher.tsx`, `web/src/themes/context.tsx`, `web/src/themes/fonts.ts`, `web/src/themes/index.ts`, `web/src/themes/presets.test.ts`, `+2 more` | Some source-pair or complete-row evidence exists, but this plugin family is not strictly covered. |
 
 ## Candidate Inventory
 
 | Candidate family | Count | Examples |
 |---|---:|---|
-| CLI | `605` | `cli.py`, `hermes_cli/AGENTS.md`, `hermes_cli/__init__.py`, `hermes_cli/_early_recovery.py`, `hermes_cli/_install_repair.py`, `+600 more` |
-| Tools | `339` | `tools/AGENTS.md`, `tools/__init__.py`, `tools/annotate_preview_tool.py`, `tools/ansi_strip.py`, `tools/apply_layout_tool.py`, `+334 more` |
-| Providers | `420` | `agent/browser_provider.py`, `agent/image_gen_provider.py`, `agent/memory_provider.py`, `agent/provider_base.py`, `agent/provider_media.py`, `+415 more` |
-| Channels | `421` | `apps/desktop/src/app/messaging/telegram-qr-setup.tsx`, `evals/slack_stream_wire_contract.py`, `gateway/AGENTS.md`, `gateway/__init__.py`, `gateway/agent_cache_pressure.py`, `+416 more` |
-| Sessions | `645` | `acp_adapter/session.py`, `agent/session_activity.py`, `agent/session_persistence.py`, `agent/transports/codex_app_server_session.py`, `apps/desktop/e2e/correction-session-switch.spec.ts`, `+640 more` |
-| Memory | `185` | `agent/memory_manager.py`, `agent/memory_provider.py`, `apps/desktop/src/app/settings/memory/connect.tsx`, `apps/desktop/src/app/settings/memory/field-control.tsx`, `apps/desktop/src/app/settings/memory/provider-config-modal.test.tsx`, `+180 more` |
-| Skills | `1482` | `agent/skill_bundles.py`, `agent/skill_commands.py`, `agent/skill_preprocessing.py`, `agent/skill_utils.py`, `apps/desktop/src/api/skills.ts`, `+1477 more` |
-| Learning loop | `35` | `agent/curator.py`, `agent/curator_backup.py`, `agent/learning_graph.py`, `agent/learning_graph_render.py`, `agent/learning_mutations.py`, `+30 more` |
+| CLI | `814` | `cli.py`, `hermes_cli/AGENTS.md`, `hermes_cli/__init__.py`, `hermes_cli/_early_recovery.py`, `hermes_cli/_early_recovery_zip.py`, `+809 more` |
+| Tools | `369` | `tools/AGENTS.md`, `tools/__init__.py`, `tools/annotate_preview_tool.py`, `tools/ansi_strip.py`, `tools/approval.py`, `+364 more` |
+| Providers | `461` | `agent/agent_init_memory_provider.py`, `agent/browser_provider.py`, `agent/delegation_provider.py`, `agent/image_gen_provider.py`, `agent/memory_provider.py`, `+456 more` |
+| Channels | `661` | `apps/desktop/src/app/messaging/telegram-qr-setup.tsx`, `evals/slack_stream_wire_contract.py`, `gateway/AGENTS.md`, `gateway/__init__.py`, `gateway/active_lease_io.py`, `+656 more` |
+| Sessions | `1191` | `acp_adapter/gateway_session_meta.py`, `acp_adapter/session.py`, `agent/onboarding_session.py`, `agent/runtime_session_child.py`, `agent/runtime_session_compression.py`, `+1186 more` |
+| Memory | `134` | `agent/agent_init_memory_provider.py`, `agent/memory_caller_scope.py`, `agent/memory_context.py`, `agent/memory_manager.py`, `agent/memory_manager_tools.py`, `+129 more` |
+| Skills | `1449` | `agent/skill_bundles.py`, `agent/skill_commands.py`, `agent/skill_preprocessing.py`, `agent/skill_utils.py`, `agent/skills_index_delta.py`, `+1444 more` |
+| Learning loop | `37` | `agent/curator.py`, `agent/curator_backup.py`, `agent/learning_graph.py`, `agent/learning_graph_render.py`, `agent/learning_mutations.py`, `+32 more` |
 
 ## Surface Classification
 
@@ -1126,8 +1307,8 @@ Unmapped upstream files are strict-mode blockers until each file is joined to a 
 | `goncho_memory` | `partial` | `warning` | `medium` | `2-layer seed selection`, `6 typed memory categories with confidence scoring`, `<memory-context> fence`, `Agent-controlled memory retention with importance scoring`, `+74 more` | `agent/prompt_builder.py` | Some source-pair or complete-row evidence exists, but the surface is not strictly covered. |
 | `learning_loop` | `partial` | `warning` | `medium` | `Agent-controlled memory retention with importance scoring`, `Code Cathedral II code-context retrieval fixtures`, `Goncho durable recall trace IR + fused ranking pipeline`, `Goncho golden transcript e2e harness`, `+22 more` | `agent/lsp/manager.py`, `tools/skill_manager_tool.py` | Some source-pair or complete-row evidence exists, but the surface is not strictly covered. |
 | `prompt_assembly` | `partial` | `warning` | `medium` | `<memory-context> fence`, `Agent lifecycle hooks (agent:start, agent:step, agent:end)`, `Aux compression single-prompt threshold reconciliation`, `Bundled Airtable productivity skill contract`, `+45 more` | `agent/context_engine.py`, `agent/conversation_loop.py`, `agent/prompt_builder.py`, `agent/tool_executor.py`, `+3 more` | Some source-pair or complete-row evidence exists, but the surface is not strictly covered. |
-| `provider_auth_setup` | `partial` | `warning` | `medium` | `Anthropic`, `Anthropic OAuth/keychain credential discovery`, `Aux compression provider-aware context cap`, `Azure Anthropic Messages endpoint contract`, `+167 more` | `agent/context_engine.py`, `agent/prompt_builder.py`, `agent/transports/chat_completions.py`, `agent/transports/codex.py`, `+10 more` | Some source-pair or complete-row evidence exists, but the surface is not strictly covered. |
-| `gateway_channels` | `partial` | `warning` | `medium` | `(platform, chat_id) -> session_id`, `API server cron admin mutating endpoints`, `API server cron admin read-only endpoints`, `API server detailed health endpoint`, `+302 more` | `agent/prompt_builder.py`, `gateway/run.py`, `ui-tui/package.json` | Some source-pair or complete-row evidence exists, but the surface is not strictly covered. |
+| `provider_auth_setup` | `partial` | `warning` | `medium` | `Anthropic`, `Anthropic OAuth/keychain credential discovery`, `Aux compression provider-aware context cap`, `Azure Anthropic Messages endpoint contract`, `+168 more` | `agent/context_engine.py`, `agent/prompt_builder.py`, `agent/transports/chat_completions.py`, `agent/transports/codex.py`, `+10 more` | Some source-pair or complete-row evidence exists, but the surface is not strictly covered. |
+| `gateway_channels` | `partial` | `warning` | `medium` | `(platform, chat_id) -> session_id`, `API server cron admin mutating endpoints`, `API server cron admin read-only endpoints`, `API server detailed health endpoint`, `+303 more` | `agent/prompt_builder.py`, `gateway/run.py`, `ui-tui/package.json` | Some source-pair or complete-row evidence exists, but the surface is not strictly covered. |
 | `tool_runtime` | `partial` | `warning` | `medium` | `61-tool registry port`, `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP server side`, `+168 more` | `agent/conversation_loop.py`, `agent/lsp/manager.py`, `agent/tool_executor.py`, `agent/transports/chat_completions.py`, `+13 more` | Some source-pair or complete-row evidence exists, but the surface is not strictly covered. |
 | `mcp_acp` | `partial` | `warning` | `medium` | `ACP Client Bridge Mode`, `ACP JSON-RPC stdio session/prompt closeout`, `ACP server side`, `ACP session CWD propagation into prompt runners`, `+41 more` | `tools/web_tools.py` | Some source-pair or complete-row evidence exists, but the surface is not strictly covered. |
-| `tui_cli` | `partial` | `warning` | `medium` | `16ms coalescing mailbox`, `Admin TUI: Agents screen wired to the 2.H dynamic registry`, `Admin TUI: Chat tab with keybinding to jump in from any screen`, `Admin TUI: Commands catalog over the root CLI tree`, `+85 more` | `agent/transports/chat_completions.py`, `agent/transports/codex.py`, `cli.py`, `gateway/run.py`, `+8 more` | Some source-pair or complete-row evidence exists, but the surface is not strictly covered. |
+| `tui_cli` | `partial` | `warning` | `medium` | `16ms coalescing mailbox`, `Admin TUI: Agents screen wired to the 2.H dynamic registry`, `Admin TUI: Chat tab with keybinding to jump in from any screen`, `Admin TUI: Commands catalog over the root CLI tree`, `+86 more` | `agent/transports/chat_completions.py`, `agent/transports/codex.py`, `cli.py`, `gateway/run.py`, `+8 more` | Some source-pair or complete-row evidence exists, but the surface is not strictly covered. |

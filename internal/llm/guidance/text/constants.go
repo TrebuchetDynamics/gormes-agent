@@ -48,11 +48,7 @@ const SessionSearchGuidance = "When the user references something from a past co
 
 // SkillsGuidance is the upstream SKILLS_GUIDANCE constant.
 // Source: ./hermes-agent/agent/prompt_builder.py SKILLS_GUIDANCE
-const SkillsGuidance = "When you work out a non-trivial workflow, record it with skill_manage for future reuse.\n\n" +
-	"## Skill Safety Rule\n" +
-	"A skill placeholder containing `[SKILL_PRUNED]` lost its content in context compression and is inaccessible — " +
-	"reload it with skill_view(name='...') before acting on anything that depends on it. After reloading, ignore any " +
-	"remaining `[SKILL_PRUNED]` markers for that same skill; they are historical artifacts of earlier compactions."
+const SkillsGuidance = "When you work out a non-trivial workflow, record it with skill_manage for future reuse."
 
 // ToolUseEnforcementGuidance is the upstream TOOL_USE_ENFORCEMENT_GUIDANCE constant.
 // Source: ./hermes-agent/agent/prompt_builder.py TOOL_USE_ENFORCEMENT_GUIDANCE

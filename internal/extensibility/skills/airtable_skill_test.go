@@ -92,7 +92,7 @@ func TestAirtableSkillMissingCredentialsVisibleAsUnavailableCatalogRowAndExclude
 
 func TestAirtableSkillBundledCatalogRowVisibleWhenCredentialsMissing(t *testing.T) {
 	activeRoot := t.TempDir()
-	bundledRoot, err := filepath.Abs(filepath.Join("..", "..", "..", "skills"))
+	bundledRoot, err := filepath.Abs(filepath.Join("..", "..", "..", "bundled-skills"))
 	if err != nil {
 		t.Fatalf("Abs(bundled skills): %v", err)
 	}
@@ -111,7 +111,7 @@ func TestAirtableSkillBundledCatalogRowVisibleWhenCredentialsMissing(t *testing.
 	if row.Status != skills.SkillStatusMissingPrerequisite {
 		t.Fatalf("bundled Airtable Status = %q, want %q", row.Status, skills.SkillStatusMissingPrerequisite)
 	}
-	if !strings.HasSuffix(filepath.ToSlash(row.Path), "skills/productivity/airtable/SKILL.md") {
+	if !strings.HasSuffix(filepath.ToSlash(row.Path), "bundled-skills/productivity/airtable/SKILL.md") {
 		t.Fatalf("bundled Airtable Path = %q, want shipped SKILL.md path", row.Path)
 	}
 }
@@ -186,7 +186,7 @@ func TestAirtableSkillDisabledExcludesPromptEvenWhenCredentialsPresent(t *testin
 
 func readBundledAirtableSkill(t *testing.T) []byte {
 	t.Helper()
-	path := filepath.Join("..", "..", "..", "skills", "productivity", "airtable", "SKILL.md")
+	path := filepath.Join("..", "..", "..", "bundled-skills", "productivity", "airtable", "SKILL.md")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("ReadFile(%q): %v", path, err)

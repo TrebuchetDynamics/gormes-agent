@@ -1,6 +1,6 @@
 ---
 title: "Hermes Behavior Atom Inventory"
-date: 2026-05-26
+date: 2026-11-02
 description: "Evidence-first classification of every Hermes behavior atom against Gormes source. Trusts Hermes source + Gormes code/tests. Does not reference progress.json."
 ---
 
@@ -22,6 +22,43 @@ file+line ref or explicit `missing`, and a classification.
 | `missing` | No useful Gormes code or test exists. |
 | `owned` | Intentional Gormes divergence with rationale and test. |
 | `unknown` | Behavior exists in Hermes but has not been mapped. |
+
+## Upstream Delta Register (2026-11-02)
+
+**Last refreshed:** 2026-11-02 against upstream `197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee`.
+
+**Last atom audit:** `d0288be5b3330d2442e3907185b8e9d0958297bb`.
+
+**Delta:** 17,230 commits; 13,572 changed paths (3,669 runtime, 1,999 app/UI, 6,552 test, 1,098 docs, 254 tooling).
+
+Full path-by-path classification: [UPSTREAM-DELTA-d0288be5b333-197f16a12b09.md](UPSTREAM-DELTA-d0288be5b333-197f16a12b09.md).
+
+This register is a family-level triage of the upstream drift. It does not replace per-behavior atoms. The provisional statuses are inputs to Plan Round 2, which must split each partial/missing family into atoms with exact source refs and scenario tests. Until that split lands, the strict parity gate remains unverified.
+
+| Family | Changed paths | Provisional status | Evidence note |
+|---|---:|---|---|
+| `apps` | 1778 | `deferred` | Owner deferred app/UI focus on 2026-11-02. Upstream desktop/bootstrap installer surface remains unported. |
+| `plugin-catalog` | 744 | `missing` | No atom-level counterpart mapped at the new baseline. |
+| `hermes_cli` | 712 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `agent` | 381 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `plugins` | 368 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `tools` | 365 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `gateway` | 344 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `optional-skills` | 254 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `skills` | 177 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `ui-tui` | 144 | `deferred` | Owner deferred app/UI focus on 2026-11-02. Gormes TUI exists; upstream Ink drift stays queued for a later pass. |
+| `tui_gateway` | 108 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `root entrypoints/helpers` | 85 | `partial` | Root Hermes entrypoints and state/helper modules changed; atom-level review required. |
+| `web` | 74 | `deferred` | Owner deferred app/UI focus on 2026-11-02. Native dashboard exists; upstream web SPA drift is paused. |
+| `cron` | 51 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `pm` | 47 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `acp_adapter` | 18 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `hermes_platform` | 11 | `partial` | Mapped counterpart exists; upstream drift needs atom-level review. |
+| `assets` | 3 | `deferred` | Owner deferred app/UI focus on 2026-11-02. |
+
+The delta report JSON contains all 13572 paths; this table groups runtime/app-UI families with at least 10 changed paths and one root-entrypoint row. Test, docs, and tooling paths are counted in the delta report and are not parity atoms.
+
+**Owner scope (2026-11-02):** app/UI work is deferred. `apps`, `ui-tui`, `web`, and `assets` stay out of the active queue until the owner re-enables UI focus. Round 2 covers runtime, CLI, gateway, provider, tools, memory, and security families only.
 
 ## How to read
 
@@ -55,7 +92,7 @@ file+line ref or explicit `missing`, and a classification.
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
 | Context engine status | `agent/context_engine.py` | `internal/llm/context_engine.go` | covered | Context status with token pressure. |
-| Context compression | `agent/context_compressor.py` | `internal/llm/context_compressor_engine.go`; `internal/llm/context_compressor_pruning.go`; `internal/llm/context_compressor_*_test.go`; `internal/kernel/manual_compress_test.go`; `internal/gateway/command_dispatch_test.go` | covered | Provider-backed explicit `ContextEngine.Compress` path summarizes middle turns through the shared LLM client boundary, preserves protected head/tail, prunes with the pure helper, reports status/error evidence, and is bound to operator-facing `/compress` without hidden normal-turn compression. |
+| Context compression | `agent/context_compressor.py` | `internal/llm/context_compressor_engine.go`; `internal/llm/context_compressor_pruning.go`; `internal/llm/context_compressor_*_test.go`; `internal/llm/context_compressor_skill_safety_test.go`; `internal/kernel/manual_compress_test.go`; `internal/gateway/command_dispatch_test.go` | covered | Provider-backed explicit `ContextEngine.Compress` path summarizes middle turns through the shared LLM client boundary, preserves protected head/tail, prunes with the pure helper, reports status/error evidence, and is bound to operator-facing `/compress` without hidden normal-turn compression. The pruning handoff now carries the upstream `[SKILL_PRUNED:...]` reload markers and the Skill Safety Rule exactly once; fresh guidance stays rule-free. |
 | Manual compression feedback | `agent/manual_compression_feedback.py`; `tests/test_cli_manual_compress.py` | `internal/llm/compression/manual_feedback.go`; `internal/llm/compression/manual_feedback_test.go`; `internal/llm/manual_compression_feedback.go`; `internal/llm/manual_compression_feedback_test.go` | covered | Pure Go manual compression feedback now matches Hermes' user-facing noop/compressed headlines, comma-formatted approximate-token lines with `→`, denser-summary note, `/compress <focus>` parsing, and safe session-split evidence. |
 | Token budget | `agent/context_engine.py` | `internal/kernel/` | covered | Token budget tracking. |
 | Protected head/tail | `agent/context_engine.py`; `agent/context_compressor.py` `_protect_head_size` `_find_tail_cut_by_tokens` `_align_boundary_backward` `_effective_protect_first_n` | `internal/llm/context_compression_boundary.go`; `internal/llm/context_compression_boundary_test.go`; `internal/llm/context_compressor_engine.go` `effectiveProtectFirstNLocked` | covered | Pure Go boundary planner preserves leading system prompt plus first N non-system head messages, selects a token-budget tail, keeps the latest user message in protected tail, and avoids splitting assistant tool-call/result groups before summarization. `protect_first_n` decays to 0 after the first compression pass (`effectiveProtectFirstNLocked` checks `previousSummary != ""`), porting Hermes #11996 fix to prevent early turns from fossilizing across repeated compressions. |
@@ -750,9 +787,12 @@ file+line ref or explicit `missing`, and a classification.
 
 | Atom | HERMES | GORMES | Status | Notes |
 |---|---|---|---|---|
-| Goal set/pause/resume/clear/status | `hermes_cli/goals.py` | `internal/tui/slash_goal.go` + `internal/tools/` | covered | Goal management in TUI and tools. |
-| Goal subgoal add/remove/list | `hermes_cli/goals.py` | `internal/gateway/goal_loop.go` `handleSubgoalCommand` | covered | Add/remove/clear subgoals; saves in GoalState.Subgoals. |
-| Goal budget enforcement | `hermes_cli/goals.py` | `internal/persistence/session/goal_state.go` `GoalState.MaxTurns` + `goal_loop.go` | covered | Turn budget tracked via MaxTurns; pauses goal when exhausted. |
+| Goal set/pause/resume/clear/status | `hermes_cli/goals.py` | `internal/tui/slash_goal.go`; `internal/tui/goal/goal.go`; `internal/tui/goal/goal_test.go`; `internal/gateway/goal_loop.go`; `internal/gateway/goal_loop_test.go` | covered | Gateway and TUI both handle `/goal status|pause|resume|clear|done` and `/goal <objective>` with per-session metadata. The gateway production judge is wired. TUI auto-continuation is tracked as its own atom below. |
+| Goal subgoal add/remove/list | `hermes_cli/goals.py` | `internal/tui/goal/goal.go`; `internal/tui/goal/goal_test.go`; `internal/gateway/goal_loop.go`; `internal/gateway/goal_loop_test.go` | covered | Gateway and TUI `/goal subgoal add|remove|list|clear` persist `GoalState.Subgoals` and are covered by controller and gateway tests. The gateway continuation prompt includes all stored subgoals. |
+| Goal completion judge | `hermes_cli/goals.py` `JUDGE_SYSTEM_PROMPT`; `gateway/run.py` goal continuation | `internal/app/goalwiring/service.go`; `internal/app/goalwiring/service_test.go`; `internal/gateway/goalloop/goal.go`; `internal/gateway/goal_loop_test.go` | covered | The gateway now builds a provider-backed judge from the main model, asks for a strict one-line JSON done/continue verdict, bounds the response snippet and output, and fails open on client or parse errors. |
+| Goal auto-continuation | `hermes_cli/goals.py`; `gateway/run.py` post-turn continuation | `internal/gateway/goal_loop.go`; `internal/gateway/goal_loop_test.go`; `internal/tui/goal/goal.go` | partial | The gateway increments turns, evaluates the judge, pauses at budget, and queues one continuation. The native TUI still does not auto-continue a set goal. |
+| Goal bar | `ui-tui/src/app/goalStatus.ts`; `ui-tui/src/components/goalBar.tsx` | `internal/tui/goal/goal.go` `BuildLine`; `internal/tui/view.go` `renderGoalBar`; `internal/tui/chrome/chrome.go` `GoalBar`; `internal/tui/goal_bar_test.go` | covered | Active goals render `⊙ goal · N/M turns · title`; paused goals render `⏸ goal paused · reason · N/M turns · title`; done and cleared goals drop the bar. The bar is placed above the todo/live-work dock. |
+| Goal budget enforcement | `hermes_cli/goals.py` | `internal/persistence/session/goal_state.go` `GoalState.MaxTurns` + `goal_loop.go` | covered | Turn budget tracked via MaxTurns; the gateway pauses the goal when exhausted. The TUI control surface displays the budget. |
 
 ---
 

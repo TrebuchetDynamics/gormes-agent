@@ -52,6 +52,8 @@ func (b PresentationBundle) Apply(opts *tui.Options) {
 }
 
 type SessionBundle struct {
+	GoalStatus  tui.GoalStatusFunc
+	GoalCommand tui.GoalCommandFunc
 	Export      tui.SessionExportFunc
 	Branch      tui.SessionBranchFunc
 	Title       tui.SessionTitleFunc
@@ -66,6 +68,12 @@ type SessionBundle struct {
 func (b SessionBundle) Apply(opts *tui.Options) {
 	if opts == nil {
 		return
+	}
+	if b.GoalStatus != nil {
+		opts.GoalStatus = b.GoalStatus
+	}
+	if b.GoalCommand != nil {
+		opts.GoalCommand = b.GoalCommand
 	}
 	if b.Export != nil {
 		opts.SessionExport = b.Export

@@ -6,6 +6,7 @@ import (
 	appsession "github.com/TrebuchetDynamics/gormes-agent/internal/app/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/llm"
 	sessionpkg "github.com/TrebuchetDynamics/gormes-agent/internal/persistence/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tui/goal"
 	tuilocal "github.com/TrebuchetDynamics/gormes-agent/internal/tui/local"
 )
 
@@ -24,7 +25,13 @@ func NewLocalSessionBundle(opts LocalSessionBundleOptions) SessionBundle {
 	if rootCtx == nil {
 		rootCtx = context.Background()
 	}
+	goalController := &goal.Controller{
+		Store:    opts.Metadata,
+		MaxTurns: sessionpkg.DefaultGoalMaxTurns,
+	}
 	return SessionBundle{
+		GoalStatus:  goalController.Status,
+		GoalCommand: goalController.Handle,
 		Export:      appsession.NewTUISaveExportFunc(),
 		Branch:      tuilocal.NewSessionBranchFunc(rootCtx, opts.Metadata, opts.Resume),
 		Title:       tuilocal.NewSessionTitleFunc(rootCtx, opts.Metadata),

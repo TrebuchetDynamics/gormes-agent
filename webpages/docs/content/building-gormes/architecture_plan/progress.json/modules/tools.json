@@ -7579,6 +7579,69 @@
   },
   {
     "phase": "5",
+    "subphase": "5.L",
+    "pos": 27,
+    "item": {
+      "name": "Terminal background process registry",
+      "priority": "P2",
+      "status": "planned",
+      "contract": "Add a bounded in-process registry for background terminal executions. Start with terminal background=true, return a stable process id, list/poll running status and bounded output, terminate by id, and clean up on session end. Reuse the terminal tool's approval and command-safety path; no PTY, WSL-specific, or remote process ownership behavior in this slice.",
+      "contract_status": "fixture_ready",
+      "slice_size": "medium",
+      "execution_owner": "tools",
+      "module": "tools",
+      "trust_class": [
+        "operator",
+        "system"
+      ],
+      "degraded_mode": "When the registry is unavailable, background=true returns unsupported with stable guidance. Unknown ids return not_found without mutation. Output is capped and redacted through the existing tool result path.",
+      "fixture": "internal/tools/processregistry/registry_test.go; internal/tools/terminal_tool_test.go",
+      "source_refs": [
+        "./hermes-agent/tools/code_execution_tool.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee",
+        "./hermes-agent/tools/process_registry_ownership.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee",
+        "./hermes-agent/tools/process_registry_termination.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee",
+        "./hermes-agent/tools/process_registry_output_log.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee",
+        "./hermes-agent/tools/process_registry_wait_policy.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee",
+        "internal/tools/terminal_tool.go",
+        "internal/tools/terminal_tool_test.go"
+      ],
+      "ready_when": [
+        "The terminal tool keeps its current approval and command-safety path for foreground commands.",
+        "The registry owns process handles, start time, bounded output, and a stable id.",
+        "Cleanup is tied to the tool/session lifecycle and is safe to call twice."
+      ],
+      "not_ready_when": [
+        "Background execution bypasses the existing approval or dangerous-command checks.",
+        "The registry stores unbounded output or leaks process handles after session end.",
+        "PTY, WSL process ownership, or remote process behavior is mixed into this slice."
+      ],
+      "acceptance": [
+        "TestTerminalToolBackgroundStartsAndLists proves background=true starts a process, returns a stable id, and list shows it running.",
+        "TestProcessRegistryPollsBoundedOutput proves polling returns bounded, redacted output and a terminal status after exit.",
+        "TestProcessRegistryTerminate proves terminate stops the process and a second terminate/list is safe.",
+        "TestProcessRegistryUnknownID proves unknown ids return not_found without mutation.",
+        "TestProcessRegistryCleanup proves session-end cleanup terminates and removes owned handles."
+      ],
+      "note": "Planner 2026-11-02: created from the upstream delta (tools/process_registry_* and code_execution_tool.py) and the missing-terminal-registry atom. This slice excludes PTY, WSL ownership, and remote process behavior; those remain separate follow-ups.",
+      "write_scope": [
+        "internal/tools/processregistry/",
+        "internal/tools/terminal_tool.go",
+        "internal/tools/terminal_tool_test.go",
+        "webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md",
+        "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools/processregistry -count=1",
+        "go test ./internal/tools -run 'Background|ProcessRegistry' -count=1",
+        "go run ./cmd/progress validate"
+      ],
+      "done_signal": [
+        "Background terminal starts, lists, polls bounded output, and terminates through the registry with approval and cleanup evidence."
+      ]
+    }
+  },
+  {
+    "phase": "5",
     "subphase": "5.N",
     "pos": 0,
     "item": {

@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Channel Gateway
 **Module:** `gateway`
-**Rows:** 163
-**Status counts:** `complete`: 163 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 15 · `P1`: 53 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
+**Rows:** 164
+**Status counts:** `complete`: 164 · `in_progress`: 0 · `planned`: 0
+**Priority counts:** `P0`: 15 · `P1`: 54 · `P2`: 37 · `P3`: 3 · `P4`: 1 · `unset`: 54
 
 ## Phase 1 — The Dashboard
 
@@ -191,6 +191,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `P0` | `gateway` | Gateway-handled slash commands bypass active-session guard |
 | `complete` | `P1` | `gateway` | Gateway persistent goal loop + continuation judge |
 | `complete` | `P1` | `gateway` | Gateway/TUI /queue explicit FIFO slash parity |
+| `complete` | `P1` | `gateway` | Gateway goal judge and subgoal command |
 
 ### 2.G — OS-AI Spine: Skills Runtime
 
