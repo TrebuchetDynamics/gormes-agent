@@ -91,12 +91,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 105/113 subphases shipped · 8 in progress · 0 planned
+**Overall:** 104/113 subphases shipped · 9 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 6/6 subphases |
-| Phase 2 — The Gateway | ✅ | 22/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 16/16 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 20/23 subphases |
@@ -164,7 +164,7 @@ classification and row-backed implementation queue.
 - [x] `install` Termux real-device smoke evidence
 - [x] `install` Termux remote execution guidance
 
-## Phase 2 — The Gateway ✅
+## Phase 2 — The Gateway 🔨
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -327,7 +327,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` bbolt session resume
 - [x] `gateway` (platform, chat_id) -> session_id
 
-### 2.D — Cron / Scheduled Automations ✅
+### 2.D — Cron / Scheduled Automations 🔨
 
 - [x] `fleet` robfig/cron scheduler + bbolt job store
 - [x] `fleet` SQLite cron_runs audit + CRON.md mirror
@@ -336,6 +336,7 @@ classification and row-backed implementation queue.
 - [x] `gateway` Cron no-agent script-only short-circuit
 - [x] `fleet` Durable operator run report for unattended jobs
 - [x] `fleet` Scheduled briefing job emits operator run report
+- [ ] `fleet` Deterministic CRON.md mirror crash test cleanup
 
 ### 2.E.0 — OS-AI Spine: Deterministic Subagent Runtime ✅
 

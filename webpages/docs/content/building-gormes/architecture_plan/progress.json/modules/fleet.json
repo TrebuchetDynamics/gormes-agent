@@ -541,6 +541,56 @@
   },
   {
     "phase": "2",
+    "subphase": "2.D",
+    "pos": 7,
+    "item": {
+      "name": "Deterministic CRON.md mirror crash test cleanup",
+      "priority": "P0",
+      "status": "planned",
+      "contract": "Make `TestMirror_AtomicWrite_NoPartialReadOnCrash` deterministic so the required `ci` check stops flaking. The test starts `Mirror.Run` in a goroutine and relies on `defer cancel()` plus a fixed sleep; the loop can still write into `t.TempDir()` when the test ends, and CI on development at bd8ca3e20 failed with `TempDir RemoveAll cleanup: unlinkat ...: directory not empty`. Start Run with a done channel, cancel, wait for Run to return before asserting leftovers and before the test returns, and remove the sleep race. If `Mirror.Run` lacks a bounded stop, add the minimal stop/wait seam it needs.",
+      "contract_status": "fixture_ready",
+      "slice_size": "small",
+      "execution_owner": "orchestrator",
+      "module": "fleet",
+      "trust_class": [
+        "system"
+      ],
+      "degraded_mode": "A slow or stuck mirror loop fails the test with a clear timeout instead of leaking goroutine writes into TempDir cleanup.",
+      "fixture": "internal/automation/cron/mirror_test.go",
+      "source_refs": [
+        "internal/automation/cron/mirror_test.go:71 TestMirror_AtomicWrite_NoPartialReadOnCrash",
+        "internal/automation/cron/mirror.go Mirror.Run",
+        "CI run 41706156092 job 126161907705 Run Go tests"
+      ],
+      "ready_when": [
+        "The failing CI log is matched to the test's goroutine lifecycle.",
+        "The mirror package keeps its current public Run contract."
+      ],
+      "not_ready_when": [
+        "The fix would change CRON.md output or mirror scheduling behavior.",
+        "The test could only pass by removing the crash-write assertion."
+      ],
+      "acceptance": [
+        "TestMirror_AtomicWrite_NoPartialReadOnCrash passes in repeated runs with no TempDir cleanup error.",
+        "The test waits for Mirror.Run to exit before it returns.",
+        "The no-partial-read assertion and the leftover .tmp check stay intact."
+      ],
+      "note": "Derived engineering goal: the required ci check is red on development at bd8ca3e20 from this flake.",
+      "write_scope": [
+        "internal/automation/cron/mirror_test.go",
+        "internal/automation/cron/mirror.go"
+      ],
+      "test_commands": [
+        "go test ./internal/automation/cron -run 'TestMirror' -count=50",
+        "go test -race ./internal/automation/cron -count=1"
+      ],
+      "done_signal": [
+        "Repeated mirror tests and the race run pass, and the test no longer writes during TempDir cleanup."
+      ]
+    }
+  },
+  {
+    "phase": "2",
     "subphase": "2.E.1",
     "pos": 3,
     "item": {

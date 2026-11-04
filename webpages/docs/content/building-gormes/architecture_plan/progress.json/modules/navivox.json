@@ -2436,7 +2436,7 @@
       "name": "Remove Navivox adapter, pairing, and setup packages",
       "priority": "P2",
       "status": "planned",
-      "contract": "Delete the remaining Navivox runtime packages: internal/adapters/channels/navivox (HTTP/WebSocket channel, pairing, device credentials, profile admin, voice profiles), internal/config/channels/navivox, and internal/app/setupnavivox. Remove the factory wiring in DefaultChannelFactories and any session credential persistence that only serves paired Navivox devices, keeping unrelated channel and session behavior intact.",
+      "contract": "Delete the remaining Navivox runtime packages: internal/adapters/channels/navivox (HTTP/WebSocket channel, pairing, device credentials, profile admin, voice profiles), internal/config/channels/navivox, and internal/app/setupnavivox. Remove the factory wiring in DefaultChannelFactories and any session credential persistence that only serves paired Navivox devices, keeping unrelated channel and session behavior intact. Remove the Navivox setup-profile section and its seams in internal/platform/cli/gormescli (setupnavivox.go, setup_gateway.go, setupfirst.go) plus their focused tests, so setup gateway and setup-first no longer offer a Navivox step.",
       "contract_status": "fixture_ready",
       "slice_size": "large",
       "execution_owner": "gateway",
@@ -2455,7 +2455,8 @@
       ],
       "ready_when": [
         "No config or gateway code references Navivox packages.",
-        "A session-credential inventory proves no non-Navivox flow depends on the removed persistence."
+        "A session-credential inventory proves no non-Navivox flow depends on the removed persistence.",
+        "An inventory shows every setup-flow caller of internal/app/setupnavivox."
       ],
       "not_ready_when": [
         "The session credential store cannot separate Navivox-owned records from shared records.",
@@ -2467,14 +2468,20 @@
       "acceptance": [
         "The three Navivox packages are gone and the repository builds.",
         "No non-Navivox channel or session test changes meaning.",
-        "Stored Navivox artifacts are ignored without deletion."
+        "Stored Navivox artifacts are ignored without deletion.",
+        "`gormes setup gateway` and setup-first no longer offer a Navivox section."
       ],
       "write_scope": [
         "internal/adapters/channels/",
         "internal/config/channels/",
         "internal/app/setupnavivox/",
         "internal/app/gateway/",
-        "internal/persistence/session/"
+        "internal/persistence/session/",
+        "internal/platform/cli/gormescli/setupnavivox.go",
+        "internal/platform/cli/gormescli/setup_gateway.go",
+        "internal/platform/cli/gormescli/setupfirst.go",
+        "internal/platform/cli/gormescli/setup_gateway_test.go",
+        "internal/platform/cli/gormescli/setup_profiles_test_helpers_test.go"
       ],
       "test_commands": [
         "go test ./internal/adapters/channels/... -count=1",
@@ -2494,7 +2501,7 @@
       "name": "Remove Navivox docs, landing mirrors, install residue, and CI jobs",
       "priority": "P3",
       "status": "planned",
-      "contract": "Remove the remaining Navivox surfaces: delete the Navivox docs pages and test file, drop Navivox rows and mentions from README, llms.txt, landing data and tests, remove the mirrored install.sh residue, delete the dedicated navivox CI job plus its -race package reference in ci.yml, release.yml, and release-prep.yml, and drop the Makefile Navivox test pattern.",
+      "contract": "Remove the remaining Navivox surfaces: delete the Navivox docs pages and test file, drop Navivox rows and mentions from README, llms.txt, landing data and tests, remove the mirrored install.sh residue, delete the dedicated navivox CI job plus its -race package reference in ci.yml, release.yml, and release-prep.yml, and drop the Makefile Navivox test pattern. Also retire the remaining planning docs: mark the Hermes/Honcho feature-map row as retired and remove the leftover navivox config examples from the profile-config v2 pages.",
       "contract_status": "fixture_ready",
       "slice_size": "medium",
       "execution_owner": "docs",
@@ -2529,7 +2536,8 @@
       "acceptance": [
         "No Navivox docs page, landing claim, or CI job remains.",
         "Docs and landing builds pass without Navivox references.",
-        "The Makefile no longer names a Navivox test pattern."
+        "The Makefile no longer names a Navivox test pattern.",
+        "The feature map no longer presents Navivox as a current first-party channel, and profile-config v2 shows no navivox keys."
       ],
       "write_scope": [
         "webpages/docs/",
@@ -2537,7 +2545,10 @@
         ".github/workflows/",
         "Makefile",
         "README.md",
-        "install.sh"
+        "install.sh",
+        "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+        "webpages/docs/content/building-gormes/architecture_plan/runtime/profile-config-v2.md",
+        "webpages/docs/content/building-gormes/architecture_plan/profile-config-v2.md"
       ],
       "test_commands": [
         "go test ./webpages/docs -count=1",

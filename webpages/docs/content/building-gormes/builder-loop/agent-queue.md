@@ -27,7 +27,27 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Retire Navivox CLI command tree
+## 1. Deterministic CRON.md mirror crash test cleanup
+
+- Phase: 2 / 2.D
+- Owner: `orchestrator`
+- Size: `small`
+- Status: `planned`
+- Priority: `P0`
+- Contract: Make `TestMirror_AtomicWrite_NoPartialReadOnCrash` deterministic so the required `ci` check stops flaking. The test starts `Mirror.Run` in a goroutine and relies on `defer cancel()` plus a fixed sleep; the loop can still write into `t.TempDir()` when the test ends, and CI on development at bd8ca3e20 failed with `TempDir RemoveAll cleanup: unlinkat ...: directory not empty`. Start Run with a done channel, cancel, wait for Run to return before asserting leftovers and before the test returns, and remove the sleep race. If `Mirror.Run` lacks a bounded stop, add the minimal stop/wait seam it needs.
+- Trust class: system
+- Ready when: The failing CI log is matched to the test's goroutine lifecycle., The mirror package keeps its current public Run contract.
+- Not ready when: The fix would change CRON.md output or mirror scheduling behavior., The test could only pass by removing the crash-write assertion.
+- Degraded mode: A slow or stuck mirror loop fails the test with a clear timeout instead of leaking goroutine writes into TempDir cleanup.
+- Fixture: `internal/automation/cron/mirror_test.go`
+- Write scope: `internal/automation/cron/mirror_test.go`, `internal/automation/cron/mirror.go`
+- Test commands: `go test ./internal/automation/cron -run 'TestMirror' -count=50`, `go test -race ./internal/automation/cron -count=1`
+- Done signal: Repeated mirror tests and the race run pass, and the test no longer writes during TempDir cleanup.
+- Acceptance: TestMirror_AtomicWrite_NoPartialReadOnCrash passes in repeated runs with no TempDir cleanup error., The test waits for Mirror.Run to exit before it returns., The no-partial-read assertion and the leftover .tmp check stay intact.
+- Source refs: internal/automation/cron/mirror_test.go:71 TestMirror_AtomicWrite_NoPartialReadOnCrash, internal/automation/cron/mirror.go Mirror.Run, CI run 41706156092 job 126161907705 Run Go tests
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. Retire Navivox CLI command tree
 
 - Phase: 9 / 9.I
 - Owner: `gateway`
@@ -47,7 +67,7 @@ selection.
 - Source refs: internal/app/gormescmd/main.go:navivox command registration, internal/app/navivox/command.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. Terminal background process registry
+## 3. Terminal background process registry
 
 - Phase: 5 / 5.L
 - Owner: `tools`
@@ -67,7 +87,7 @@ selection.
 - Source refs: ./hermes-agent/tools/code_execution_tool.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee, ./hermes-agent/tools/process_registry_ownership.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee, ./hermes-agent/tools/process_registry_termination.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee, ./hermes-agent/tools/process_registry_output_log.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee, ./hermes-agent/tools/process_registry_wait_policy.py@197f16a12b098f1ea541bbd0a5ddd7d66f2d2dee, internal/tools/terminal_tool.go, internal/tools/terminal_tool_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. TUI goal auto-continuation and judge
+## 4. TUI goal auto-continuation and judge
 
 - Phase: 5 / 5.Q
 - Owner: `tui`

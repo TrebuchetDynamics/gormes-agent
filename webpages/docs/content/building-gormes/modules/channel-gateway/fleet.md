@@ -10,9 +10,9 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 
 **Module group:** Channel Gateway
 **Module:** `fleet`
-**Rows:** 23
-**Status counts:** `complete`: 23 · `in_progress`: 0 · `planned`: 0
-**Priority counts:** `P0`: 2 · `P1`: 7 · `P2`: 6 · `P3`: 3 · `unset`: 5
+**Rows:** 24
+**Status counts:** `complete`: 23 · `in_progress`: 0 · `planned`: 1
+**Priority counts:** `P0`: 3 · `P1`: 7 · `P2`: 6 · `P3`: 3 · `unset`: 5
 
 ## Phase 1 — The Dashboard
 
@@ -38,6 +38,7 @@ Generated from the single logical backlog. This page is a scoped review view; `p
 | `complete` | `unset` | `fleet` | Heartbeat [SYSTEM:] + [SILENT] delivery contract |
 | `complete` | `P1` | `fleet` | Durable operator run report for unattended jobs |
 | `complete` | `P1` | `fleet` | Scheduled briefing job emits operator run report |
+| `planned` | `P0` | `fleet` | Deterministic CRON.md mirror crash test cleanup |
 
 ### 2.E.1 — OS-AI Spine: Delegation Policy + Child Execution
 
