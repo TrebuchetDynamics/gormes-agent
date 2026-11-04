@@ -1,3 +1,6 @@
+> Frozen 2026-11-03 during the kit task-store migration (ADR 0005).
+> The planned Navivox interactive-approval item is superseded by the Navivox retirement decision.
+
 # TODO.md — Gormes operational blockers
 
 ## Planned
