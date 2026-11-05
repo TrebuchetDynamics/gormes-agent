@@ -55,9 +55,9 @@ Use these skills as the default routing surface:
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `gormes-provider-parity` |
 | Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `gormes-browser-harness` |
 | Local run/install/runtime work: `go run ./cmd/gormes`, `bin/gormes`, `install.sh`, managed source checkouts, PATH shadowing, gateway process ownership, or `sessions.db` locks | `gormes-dev-runtime` |
-| Updating roadmap rows, phases, dependencies, or planning docs | `gormes-planner` |
+| Updating roadmap goals, tasks, phases, or planning docs | `gormes-planner` |
 | Running a bounded architecture -> planner -> parity -> builder delivery cycle | `gormes-delivery-loop` |
-| Implementing one `progress.json` row | `gormes-builder` |
+| Implementing one `tasks/` item | `gormes-builder` |
 | Red-green-refactor delivery of one behavior | `gormes-tdd-slice` |
 | Designing Go package/API boundaries before implementation | `gormes-interface-designer` |
 | Refactoring one `cmd/gormes` command domain into `internal/app/<domain>` without behavior changes | `cmd-internal-refactor` |
@@ -97,33 +97,32 @@ progress representation. Agents do bounded passes:
 
 ```text
 gormes-skill-manager -> gormes-planner / gormes-builder / gormes-tdd-slice
-                     -> progress.json evidence -> tests -> handoff
+                     -> tasks/ evidence -> tests -> handoff
 ```
 
-The rule is simple: planning edits roadmap rows and docs; building implements
-one row with tests; both use `progress.json` as the only backlog. "The only
-backlog" is a single *logical* backlog accessed through `internal/progress`
-(`Load`/`SaveProgress`) and `cmd/progress` — never by hand-parsing files. The
-loader transparently supports either the single monolithic `progress.json`
-*or* a split/per-module directory layout; the canonical on-disk form today is
-the monolith, and the split layout, while fully supported by the tooling, is
-not yet materialized (pending the module-split umbrella's final child). Skills
-replace the deleted autonomous loop executables.
+The rule is simple: planning writes kit task records and docs; building
+implements one task with tests; both use `tasks/` as the only live queue,
+through `autowork tasks`. `progress.json` is frozen history after the kit
+task-store migration (ADR `0005`). Its rows stay readable through
+`internal/progress` (`Load`/`SaveProgress`) and `cmd/progress` for the
+generated roadmap and completion ledger. Do not add new rows there. The
+canonical on-disk form is the split layout (`progress.json/` with `index.json`
+and module files). Skills replace the deleted autonomous loop executables.
 
 ### Shared Progress Representation
 
 All planner and builder skills talk through these files. **Do not bypass them.**
 
-- `webpages/docs/content/building-gormes/architecture_plan/progress.json` — canonical
-  prioritized trajectory and single logical backlog. Planner skills write;
-  builder skills read to select one row. Always go through
-  `internal/progress.Load`/`SaveProgress` (or `cmd/progress`), which
-  transparently read and write **either** this monolithic file **or** a
-  split/per-module directory layout (one logical backlog, physically one or
-  many files); never hand-parse member files. Schema lives at
-  `internal/progress/`; rendered surfaces live under
-  `webpages/docs/content/building-gormes/`.
-- `cmd/progress` — focused command for validating `progress.json` and
+- `tasks/` — the only live work queue. Goals live in `tasks/goals/`, items in
+  `tasks/items/`, and receipts in `tasks/evidence/`. Read and write records
+  only through `autowork tasks` (`list`, `show`, `why`, `add`, `goal`,
+  `field`, `place`, `done`). Do not hand-write task files.
+- `webpages/docs/content/building-gormes/architecture_plan/progress.json` — frozen
+  historical roadmap ledger after ADR `0005`. It keeps the completed
+  trajectory and the generated roadmap surfaces. Read it through
+  `internal/progress.Load`/`SaveProgress` (or `cmd/progress`); do not add new
+  rows and never hand-parse module files.
+- `cmd/progress` — focused command for validating the frozen ledger and
   regenerating progress-driven docs.
 - `cmd/gormes-repo` — focused command for repo metadata updates such as benchmark
   and README refreshes.
@@ -134,16 +133,14 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 
 1. **Preserve the contract.** New progress fields must round-trip through the
    typed structs in `internal/progress/`.
-2. **Use the right skill.** Roadmap shape, row priorities, source references,
-   ready-when / not-ready-when conditions, and trajectory go through
-   `gormes-planner`. Runtime implementation goes through `gormes-builder` and
-   `gormes-tdd-slice`.
-3. **Keep passes bounded.** One planner pass sharpens a lane or row group. One
-   builder pass ships one row. Stop with validation and handoff evidence.
-4. **Don't introduce a parallel queue.** Side-channel TODO files,
-   private prompt instructions, or hand-curated row lists outside
-   `progress.json` are explicitly out of bounds. Fix the canonical row
-   instead.
+2. **Use the right skill.** Goal and task shape, priorities, source
+   references, ready conditions, and dependencies go through `gormes-planner`.
+   Runtime implementation goes through `gormes-builder` and `gormes-tdd-slice`.
+3. **Keep passes bounded.** One planner pass sharpens one goal or task group.
+   One builder pass ships one task. Stop with validation and handoff evidence.
+4. **Don't introduce a parallel queue.** Side-channel TODO files, private
+   prompt instructions, or hand-curated lists outside `tasks/` are explicitly
+   out of bounds. Create a task through `autowork tasks` instead.
 
 ## Where to look first
 
@@ -153,7 +150,7 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 | Running a recurring Hermes/Gormes parity sweep or checking periodic parity progress | `development-skills/gormes-hermes-parity/SKILL.md` |
 | Discovering useful OpenClaw-only behavior that Hermes lacks | `development-skills/gormes-openclaw-parity/SKILL.md` |
 | Learning reusable Pi harness techniques without conflicting with Hermes/OpenClaw parity | `development-skills/gormes-pi-parity/SKILL.md` |
-| Planning phases, dependencies, or roadmap rows | `development-skills/gormes-planner/SKILL.md` |
+| Planning phases, dependencies, goals, or tasks | `development-skills/gormes-planner/SKILL.md` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `development-skills/gormes-provider-parity/SKILL.md` |
 | Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `development-skills/gormes-browser-harness/SKILL.md` |
 | Local run/install/runtime work, binary refresh, gateway ownership, or session DB locks | `development-skills/gormes-dev-runtime/SKILL.md` |

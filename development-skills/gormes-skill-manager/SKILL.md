@@ -5,6 +5,10 @@ description: Route Gormes work to the smallest repo-local skill chain. Use befor
 
 # Gormes Skill Manager
 
+> **Queue migration (ADR 0005):** `tasks/` is the only live queue, managed with
+> `autowork tasks`. `progress.json` is frozen history. Row-oriented commands in
+> this skill are historical reference until the next skill rewrite.
+
 ## Repository Branch Rule
 
 For Gormes work, stay on the existing `development` branch. Do not create or
@@ -188,7 +192,7 @@ Pick the primary intent:
   - For Juan's `goscrapling v0.1.0` handoff, preserve the supplied evidence (`/home/xel/git/sages-openclaw/workspace-mineru/goscrapling`, branch `main`, tag commit `ca1f046aa942c0739a73cb0715b67aec608b8e39`, tag `v0.1.0`, pre-tag validation) as context, but do not import from that sibling checkout. Verify the public GitHub module/tag with Go tooling, update Gormes via the release version, and write a failing E2E/TDD proof before implementation.
 - **Architecture zoom-out, codebase architecture improvement, or unfamiliar cross-package work**: use `gormes-architecture-zoomout` before implementation; route unclear package boundaries to `gormes-interface-designer` and repeated mechanics to `gormes-service-layer-refactor`.
 - **Bounded architecture -> planner -> parity -> builder cycles**: use `gormes-delivery-loop` when Juan explicitly asks for the chain or an extension that repeats it. Keep each iteration budgeted, progress-row-backed, test-validated, committed, and pushed before continuing.
-- **Broad plan, PRD, parity gap, TODO/backlog request, or review finding that needs progress rows**: use `gormes-progress-slicer`, then `gormes-planner` to update canonical progress surfaces. Never create or append side-channel TODO files; `TODO.md` is not the active backlog.
+- **Broad plan, PRD, parity gap, TODO/backlog request, or review finding that needs progress rows**: use `gormes-progress-slicer`, then `gormes-planner` to update canonical progress surfaces. Never create or append side-channel TODO files; `tasks/` is the active queue.
 - **Throwaway design, state-machine, protocol, or UI experiment**: use `gormes-prototype-spike`; route validated production work to `gormes-tdd-slice`.
 - **Repeated runtime mechanics or service-layer cleanup** after a feature works: use `gormes-service-layer-refactor`; route unclear package boundaries to `gormes-interface-designer` first.
 - **PR readiness audit before external review or merge**: use `gormes-pr-check`; route actionable findings to `gormes-review-loop` or `gormes-greptile-loop`.

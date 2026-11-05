@@ -1,6 +1,6 @@
 {
   "adapter": "generic-git",
-  "defaultTopic": "discover and complete the largest safe useful project goal package with validation",
+  "defaultTopic": "auto-select the highest-impact runnable tasks/ item toward finishing full Hermes-in-Go parity",
   "language": "English",
   "skills": [
     "improve-codebase-architecture",
@@ -34,7 +34,7 @@
   "logPath": ".pi/development-goal/logs.jsonl",
   "stopConditions": [
     "project instructions are missing or conflict",
-    "no task remains after TODO.md, progress.json, plans, and repo-local guidance",
+    "no task remains after tasks/, progress.json history, plans, and repo-local guidance",
     "no relevant test/build command can be identified",
     "greploop requires unavailable Greptile, CLI auth, or PR/MR/CL context",
     "validation fails twice with the same blocker",

@@ -5,6 +5,10 @@ description: Build one selected Gormes behavior with red-green-refactor. Use whe
 
 # Gormes TDD Slice
 
+> **Queue migration (ADR 0005):** `tasks/` is the only live queue, managed with
+> `autowork tasks`. `progress.json` is frozen history. Row-oriented commands in
+> this skill are historical reference until the next skill rewrite.
+
 ## Repository Branch Rule
 
 For Gormes work, stay on the existing `development` branch. Do not create or

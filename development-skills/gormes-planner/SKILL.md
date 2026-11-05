@@ -5,6 +5,10 @@ description: Shape source-backed Gormes progress rows. Use for decision=plan bui
 
 # Gormes Planner
 
+> **Queue migration (ADR 0005):** `tasks/` is the only live queue, managed with
+> `autowork tasks`. `progress.json` is frozen history. Row-oriented commands in
+> this skill are historical reference until the next skill rewrite.
+
 ## Repository Branch Rule
 
 For Gormes work, stay on the existing `development` branch. Do not create or
@@ -34,7 +38,7 @@ If the task might instead be parity audit, implementation, TDD, interface design
 ## Source Order
 
 1. Read `AGENTS.md` and preserve the skill-driven evidence contract.
-2. Treat the logical progress backlog as canonical for implementation intent and TODO intake. Use `cmd/progress` and `internal/planning/progress` (`Load`/`SaveProgress`) for progress data; never hand-parse split-layout members or create side queues. Do not append active work to `TODO.md`.
+2. Treat `tasks/` as canonical for implementation intent and task intake. Use `autowork tasks` for goals and items. `progress.json` is frozen history and stays readable through `cmd/progress` and `internal/planning/progress`. Do not append active work to `TODO.md` or `TODO.archive.md`.
 3. Treat `webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` as the canonical Hermes/Honcho-to-Go map for subsystem context.
 4. Treat `webpages/docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md` as the completeness check for whether all feature-bearing Hermes/Honcho source classes are mapped.
 5. Treat `webpages/docs/hermes-releases/FEATURE-MATRIX.md` as a release-note study aid for choosing high-signal improvement lanes; it is not an executable queue and never replaces source refs or behavior atoms.
@@ -91,8 +95,8 @@ Run lightweight discovery first:
 
 ```sh
 # Inspect the canonical logical backlog / TODO control plane
-go run ./cmd/progress next-work
-go run ./cmd/progress next-work --repo-only
+autowork tasks list
+autowork tasks why <ID>
 go run ./cmd/progress list --module <module>
 
 # Consult parity evidence as source-backed classification, not as the queue
@@ -123,8 +127,8 @@ Use this directly when a builder reports `decision=plan`; do not send an exact,
 source-backed packet through another discovery loop.
 
 1. Re-run both selectors in the live checkout:
-   `go run ./cmd/progress next-work` and
-   `go run ./cmd/progress next-work --repo-only`.
+   `autowork tasks list` and
+   `autowork tasks why <ID>`.
 2. If repo-only now says `decision=build`, stop planning, name that row, and
    route to `gormes-builder`; never add a duplicate.
 3. If it still says `decision=plan`, search existing rows first. Refine one

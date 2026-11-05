@@ -5,7 +5,7 @@ weight: 20
 
 # Gormes — Executive Roadmap
 
-**Single source of truth:** [`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/content/building-gormes/architecture_plan/progress.json) — machine-readable, validated + regenerated on build.
+**Live work queue:** `tasks/` through `autowork tasks` (ADR 0005). **Historical roadmap ledger:** [`progress.json`](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/webpages/docs/content/building-gormes/architecture_plan/progress.json) — frozen, validated + regenerated on build.
 
 **Public site:** https://gormes.ai
 
@@ -15,11 +15,10 @@ weight: 20
 - [docs.gormes.ai](https://docs.gormes.ai/building-gormes/architecture_plan/) — This page
 - [Source code](https://github.com/TrebuchetDynamics/gormes-agent) — Implementation
 
-**Execution control plane:** repo-local Gormes skills consume this
-`progress.json` and the generated `webpages/docs/content/building-gormes/` pages to
-select and execute eligible work. The old loop command binaries are gone; the
-roadmap is still the machine-readable queue for developing the full
-`gormes-agent`.
+**Execution control plane:** repo-local Gormes skills select and execute work
+from `tasks/` through `autowork tasks`. This page and `progress.json` keep the
+completed trajectory and the phase rollup. The old loop command binaries are
+gone.
 
 **Completion doctrine:** [Gormes Completion Plan](./governance/completion-plan/) defines
 the non-negotiable finish line: Gormes is complete only when it is Hermes in Go,

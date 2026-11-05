@@ -27,7 +27,7 @@ type LoopLogEvent = {
 };
 
 const CUSTOM_STATE_TYPE = "gormes-delivery-loop-state";
-const DEFAULT_TOPIC = "auto-select the highest-impact builder-ready progress.json row toward finishing full Hermes-in-Go parity";
+const DEFAULT_TOPIC = "auto-select the highest-impact runnable tasks/ item toward finishing full Hermes-in-Go parity";
 const DEFAULT_ITERATIONS = 10;
 const HARD_MAX_ITERATIONS = 50;
 const DEFAULT_LOG_PATH = path.join(".pi", "gormes-loop", "logs.jsonl");
@@ -253,19 +253,19 @@ ${recentLoopLogSnippet(logPath)}
 At the end of this iteration, include exact changed files, validations, commit hash, push status, CI_GREEN status, and the final LOOP_DECISION line so the extension can learn from the run.
 
 Run one complete vertical Gormes delivery iteration:
-1. Start with scope lock and preflight for /home/xel/git/sages-openclaw/workspace-mineru/gormes-agent on development.
+1. Start with scope lock and preflight for /home/xel/git/gormes/gormes-agent on development.
 2. Preserve unrelated dirty work; stage only this iteration's explicit files.
 3. Use gormes-architecture-zoomout to find one A/B-evidence architecture candidate for the topic.
-4. Use gormes-planner if progress.json or feature-map row shaping is required; progress.json is the only backlog.
+4. Use gormes-planner if tasks/ goal or item shaping is required; tasks/ is the only live queue. progress.json is frozen history.
 5. Use gormes-hermes-parity to confirm the active Hermes/Honcho contract and source refs.
-6. Use gormes-builder plus gormes-tdd-slice: add or identify a failing characterization test first, implement the smallest builder-ready slice, include E2E/focused coverage where appropriate.
+6. Use gormes-builder plus gormes-tdd-slice: add or identify a failing characterization test first, implement the smallest runnable task, include E2E/focused coverage where appropriate.
 7. Make CI green every iteration before commit, push, or LOOP_DECISION: continue/done. Required full CI gate:
 ${FULL_CI_GATE.map((command) => `   - ${command}`).join("\n")}
 8. If the full CI gate fails, fix the failure inside this iteration and rerun the failed command plus affected gate. After two same-failure attempts, stop with LOOP_DECISION: blocked and first failing stderr line.
 9. Commit and push the validated slice to origin/development with a coherent commit.
 10. End with CI_GREEN: yes only after the full CI gate above passes, then exactly one line: LOOP_DECISION: continue, LOOP_DECISION: stop, LOOP_DECISION: blocked, or LOOP_DECISION: done.
 
-Stop instead of coding if the next row is not builder-ready, upstream evidence is missing, validation fails twice with the same blocker, CI cannot be made green, or the slice would touch unrelated dirty Navivox work.`;
+Stop instead of coding if the next task is not runnable, upstream evidence is missing, validation fails twice with the same blocker, CI cannot be made green, or the slice would touch unrelated dirty Navivox work.`;
 }
 
 function buildSelfImprovementPrompt(s: LoopState, reason: string): string {

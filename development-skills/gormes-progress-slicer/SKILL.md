@@ -5,6 +5,10 @@ description: Turn broad Gormes plans, PRDs, parity gaps, review findings, or use
 
 # Gormes Progress Slicer
 
+> **Queue migration (ADR 0005):** `tasks/` is the only live queue, managed with
+> `autowork tasks`. `progress.json` is frozen history. Row-oriented commands in
+> this skill are historical reference until the next skill rewrite.
+
 Use this to convert broad work into thin, verifiable Gormes backlog rows without creating side queues.
 
 Inspired by `mattpocock/skills` `to-issues` and `triage`; adapted so the progress control plane captures what remains to be built.
@@ -16,14 +20,14 @@ Inspired by `mattpocock/skills` `to-issues` and `triage`; adapted so the progres
 
 ## Canonical TODO Intake
 
-Gormes TODOs live in the logical progress backlog, not in ad hoc files.
+Gormes work lives in the kit task store under `tasks/`, not in ad hoc files.
 Use this skill when the user asks where TODOs live, asks to add more work, or
 pastes a broad missing-feature list that needs to become buildable slices.
 
-- Active backlog: `webpages/docs/content/building-gormes/architecture_plan/progress.json/` via `cmd/progress` / `internal/planning/progress`.
+- Active queue: `tasks/` via `autowork tasks`. `progress.json` is frozen history (ADR 0005).
 - Parity evidence: `webpages/docs/parity-evidence/HERMES-BEHAVIOR-ATOMS.md`; use it for source-backed `missing`/`partial` classifications, not as the queue.
-- Historical receipts: `TODO.md` may exist, but do not append new active work there.
-- If `go run ./cmd/progress next-work --repo-only` reports no builder-ready rows, the next action is usually row sharpening: split one vague/blocked gap into a repo-scoped builder-ready row with exact validation.
+- Frozen history: `TODO.archive.md` holds old receipts; do not append new active work there.
+- If `autowork tasks list` shows no runnable task, the next action is usually task sharpening: split one vague or blocked gap into a repo-scoped runnable task with exact validation.
 
 ## Slicing Rules
 

@@ -5,6 +5,10 @@ description: Implement one selected repo-scoped Gormes row with tests. Use when 
 
 # Gormes Builder
 
+> **Queue migration (ADR 0005):** `tasks/` is the only live queue, managed with
+> `autowork tasks`. `progress.json` is frozen history. Row-oriented commands in
+> this skill are historical reference until the next skill rewrite.
+
 ## Repository Branch Rule
 
 For Gormes work, stay on the existing `development` branch. Do not create or
@@ -60,12 +64,12 @@ If the user names a specific behavior, find the matching logical progress row or
 Before reporting "builder blocked", always refresh the control plane in the live checkout:
 
 ```sh
-go run ./cmd/progress validate
-go run ./cmd/progress next-work
-go run ./cmd/progress next-work --repo-only
+autowork tasks validate --worktree .
+autowork tasks list
+autowork tasks why <ID>
 ```
 
-Do not rely on a pasted or earlier `next-work` result after planner/progress files have changed. If `next-work --repo-only` returns `decision=build`, treat that row as the selected builder row even when its `contract_status` is `draft`; the progress selector is authoritative. If `next-work --repo-only` returns `decision=plan`, stop runtime work and emit the exact [builder-to-planner handoff](references/planner-handoff.md). Do not let `gormes-tdd-slice` invent an untracked behavior.
+Do not rely on a pasted or earlier selection result after task files changed. If `autowork tasks why <ID>` reports the task selectable, treat it as the selected builder task. A drafting or planning gap routes to `gormes-planner` with the exact [builder-to-planner handoff](references/planner-handoff.md). Do not let `gormes-tdd-slice` invent an untracked behavior.
 
 Before selecting implementation work, run a stale-classification preflight for the candidate cluster. This prevents duplicate builds when Gormes already implements behavior but the evidence doc still says `missing`:
 
@@ -82,7 +86,7 @@ A buildable row has these properties:
 - `write_scope`, `test_commands`, acceptance, degraded mode, and done signal are concrete;
 - it is not blocked by a missing prerequisite.
 
-If `cmd/progress next-work --repo-only` selects a row that appears to violate one of these checks, do not silently skip it or report generic blockage. Name the exact missing field/source/write-scope issue and route that precise repair to `gormes-planner`. If the issue is only stale parity evidence while code already exists, perform the stale-classification preflight and update evidence or route to planner instead of duplicating runtime code.
+If the selected task appears to violate one of these checks, do not silently skip it or report generic blockage. Name the exact missing field/source/write-scope issue and route that precise repair to `gormes-planner`. If the issue is only stale parity evidence while code already exists, perform the stale-classification preflight and update evidence or route to planner instead of duplicating runtime code.
 
 Prefer rows that unblock the widest cluster of other missing work. Do not implement broad umbrella rows that cover multiple subsystems; route them to `gormes-planner` for splitting first.
 
@@ -91,8 +95,8 @@ For repeated "actually implemented features" sweeps, builder should not be the f
 Useful discovery:
 
 ```sh
-go run ./cmd/progress next-work
-go run ./cmd/progress list --module <module>
+autowork tasks list
+autowork tasks show <ID> --worktree
 rg -n "missing|partial|provider|<topic>" webpages/docs/content/building-gormes webpages/docs/parity-evidence
 ```
 

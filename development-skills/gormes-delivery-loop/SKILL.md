@@ -5,7 +5,11 @@ description: Run bounded architecture → planner → Hermes parity → builder/
 
 # Gormes Delivery Loop
 
-Run a bounded in-agent delivery loop that turns architecture findings into canonical progress rows, validates the active Hermes/Honcho contract, implements one builder-ready slice, and repeats only while the next slice is safe and evidence-backed.
+> **Queue migration (ADR 0005):** `tasks/` is the only live queue, managed with
+> `autowork tasks`. `progress.json` is frozen history. Row-oriented commands in
+> this skill are historical reference until the next skill rewrite.
+
+Run a bounded in-agent delivery loop that turns architecture findings into canonical `tasks/` records, validates the active Hermes/Honcho contract, implements one runnable task, and repeats only while the next task is safe and evidence-backed.
 
 This is a skill extension for bounded delivery-loop orchestration.
 

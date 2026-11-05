@@ -5,8 +5,9 @@ Use the narrowest gate that proves the row, then broaden for shared behavior.
 ## Always Consider
 
 ```sh
+autowork tasks validate --worktree .
+autowork tasks list
 go run ./cmd/progress validate
-go run ./cmd/progress next-work --repo-only
 ```
 
 Before edits, record `git status --short`. If the working tree is already dirty,
